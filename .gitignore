@@ -8,3 +8,6 @@ dist/
 auditoria*.jsonl*
 docs/material/design/images/worten.pt/*
 docs/material/design/fonts/worten.pt/*
+
+# Internal team notes — never publish
+notas-equipa/
