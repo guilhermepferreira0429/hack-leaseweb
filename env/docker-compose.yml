@@ -23,7 +23,9 @@ services:
       POSTGRES_DB: encomendas
 
   minio:
-    image: minio/minio:latest
+    # minio/minio saiu do Docker Hub (e quay.io pede login); a build da Chainguard é pública e tem o mesmo binário.
+    image: cgr.dev/chainguard/minio:latest
+    user: "0"
     command: server /data --console-address ":9001"
     ports:
       - "127.0.0.1:9000:9000"
