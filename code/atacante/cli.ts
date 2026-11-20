@@ -1,4 +1,4 @@
-// npm run dev:atacante [-- <ip> ...]     reconhecimento TCP das portas da demo
+// npm run dev:atacante [-- <ip> ...]     reconhecimento TCP das portas sensíveis
 // npm run dev:atacante -- --ssh <ip>     passo de SSH da demo (um só alvo, sempre na allowlist)
 // Sem argumentos: todos os IPs de ALVOS_PERMITIDOS. IPs fora da lista são recusados e nunca contactados.
 // Na demo, o reconhecimento corre pelo orquestrador (npm run dev).

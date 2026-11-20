@@ -1,4 +1,4 @@
-// Reconhecimento leve e não destrutivo: uma ligação TCP curta às portas da demo num alvo da allowlist.
+// Reconhecimento leve e não destrutivo: uma ligação TCP curta às portas sensíveis num alvo da allowlist.
 // Não há exploração, escrita nem força bruta. Visto de fora, uma porta filtrada e uma fechada
 // parecem iguais (timeout): por isso só se reporta "aberta" ou "fechada".
 import { Socket } from 'node:net';
