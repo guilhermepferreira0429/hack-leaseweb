@@ -48,14 +48,14 @@ describe('telegram/permissao /atacar', () => {
 
   it('em privado, tira as menções e o "Recebido." do texto encenado para o grupo', () => {
     const doGrupo =
-      'Recebido. Responde a qualquer pessoa na internet: PostgreSQL na porta 5432 (203.0.113.50). Gravidade alta. @defesa';
+      'Recebido. Responde a qualquer pessoa na internet: PostgreSQL na porta 5432 (203.0.113.50). Gravidade alta. @defender';
     assert.equal(
       textoParaPrivado(doGrupo),
       'Responde a qualquer pessoa na internet: PostgreSQL na porta 5432 (203.0.113.50). Gravidade alta.',
     );
     assert.equal(textoParaPrivado('Olá @infrahack_defesa_bot, tudo bem?'), 'Olá, tudo bem?');
     // Nunca envia vazio: se só havia a menção, fica o texto original.
-    assert.equal(textoParaPrivado('@defesa'), '@defesa');
+    assert.equal(textoParaPrivado('@defender'), '@defender');
   });
 
   it('no grupo com menção responde só o bot mencionado', () => {

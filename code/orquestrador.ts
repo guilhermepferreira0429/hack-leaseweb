@@ -421,7 +421,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     falar(
       "defesa",
       "atacante",
-      `@atacante, I closed "${pedido.titulo}" at ${horaCurta()} and stored how to undo it. Can you confirm?`,
+      `@attacker, I closed "${pedido.titulo}" at ${horaCurta()} and stored how to undo it. Can you confirm?`,
     );
     if (opcoes.atacar) await confirmarFecho(pedido);
     concluir(pedidoId, "feito");
@@ -770,7 +770,7 @@ ${resumo}`,
     falar(
       "migrador",
       "atacante",
-      `${provas} @atacante, the new infrastructure is live. Your turn.`,
+      `${provas} @attacker, the new infrastructure is live. Your turn.`,
     );
   }
 
@@ -841,7 +841,7 @@ ${resumo}`,
         r.causas
           ? "Includes the fix for the rule that left the database open."
           : "",
-        `If you approve, I merge it into the main branch of the app repo. To undo, /desfazer opens a PR that reverts it.`,
+        `If you approve, I merge it into the main branch of the app repo. To undo, /undo opens a PR that reverts it.`,
         r.pr?.url ?? "",
       ]
         .filter(Boolean)
@@ -885,7 +885,7 @@ ${resumo}`,
       falar(
         "migrador",
         "dono",
-        `PR #${numero} approved and merged into the app repo main branch at ${horaCurta()}. To undo: /desfazer ${pedido.id}`,
+        `PR #${numero} approved and merged into the app repo main branch at ${horaCurta()}. To undo: /undo ${pedido.id}`,
       );
       return "feito";
     } catch (erro) {
@@ -1322,14 +1322,14 @@ export function certificadoCurto(cert: string): string {
 /** Fala do atacante a partir dos achados (determinística; a voz com IA vem depois). */
 export function textoAtacante(achados: Achado[]): string {
   if (achados.length === 0)
-    return "Received. I found no open ports on our machines. @defesa";
+    return "Received. I found no open ports on our machines. @defender";
   const altas = achados.filter((a) => a.severidade === "alta");
   const lista = achados
     .slice(0, 3)
     .map((a) => `${a.servico ?? "service"} on port ${a.porta} (${a.alvo})`)
     .join("; ");
   const resto = achados.length > 3 ? ` and ${achados.length - 3} more` : "";
-  return `Received. It answers anyone on the Internet: ${lista}${resto}. Severity ${altas.length > 0 ? "high" : "medium"}. @defesa`;
+  return `Received. It answers anyone on the Internet: ${lista}${resto}. Severity ${altas.length > 0 ? "high" : "medium"}. @defender`;
 }
 
 /** Repo e número a partir do URL do PR (https://github.com/dono/repo/pull/12). */

@@ -131,7 +131,7 @@ interface MensagemEnviada {
 export function textoParaPrivado(texto: string): string {
   const limpo = texto
     .replace(/^Recebido\.\s*/i, '')
-    .replace(/\s*@\w*(defesa|migrador|chefe|atacante)\w*/gi, '')
+    .replace(/\s*@\w*(defesa|migrador|chefe|atacante|defender|migrator|chief|attacker)\w*/gi, '')
     .replace(/\s+([.,;!?])/g, '$1')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();

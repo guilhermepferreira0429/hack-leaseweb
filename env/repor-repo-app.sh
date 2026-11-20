@@ -4,6 +4,7 @@
 #   1. fecha os PR abertos e apaga os ramos migracao/*
 #   2. força o main desse repo a voltar ao commit inicial (BASE)
 # Só mexe no repo da app da demo, nunca no hack-leaseweb. Precisa de --sim para fazer alguma coisa.
+# Sem o gh: usa a API REST do GitHub (node + fetch) com GITHUB_TOKEN_EXEMPLO, e o git para o push --force.
 # Uso: bash env/repor-repo-app.sh [--sim]
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -17,35 +18,43 @@ TOKEN="${GITHUB_TOKEN_EXEMPLO:-$(grep -E '^GITHUB_TOKEN_EXEMPLO=' .env 2>/dev/nu
 case "$REPO" in
   */hack-leaseweb) echo "Recusado: $REPO é o repo do projeto, não o da app." >&2; exit 1 ;;
 esac
-
-if [ -n "$TOKEN" ]; then
-  export GH_TOKEN="$TOKEN" GIT_TERMINAL_PROMPT=0 GIT_CONFIG_COUNT=1 \
-    GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" \
-    GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 | tr -d '\n')"
+if [ -z "$TOKEN" ]; then
+  echo "Falta GITHUB_TOKEN_EXEMPLO no .env (token só para o repo da app)." >&2
+  exit 1
 fi
 
-prs=$(gh pr list --repo "$REPO" --state open --json number --jq '.[].number')
-ramos=$(gh api "repos/$REPO/branches" --jq '.[].name' | grep '^migracao/' || true)
-main=$(gh api "repos/$REPO/commits/main" --jq .sha)
-echo "Repo: $REPO"
-echo "main agora: $main · inicial: $BASE"
-echo "PR abertos: ${prs:-nenhum}"
-echo "Ramos migracao/*: ${ramos:-nenhum}"
-
-if [ "${1:-}" != "--sim" ]; then
-  echo "Só mostrei. Para repor: bash env/repor-repo-app.sh --sim"
-  exit 0
-fi
-
-for n in $prs; do gh pr close "$n" --repo "$REPO" --delete-branch >/dev/null && echo "PR #$n fechado"; done
-for r in $ramos; do gh api -X DELETE "repos/$REPO/git/refs/heads/$r" >/dev/null 2>&1 && echo "ramo $r apagado" || true; done
-
-if [ "$main" != "$BASE" ]; then
-  tmp=$(mktemp -d)
-  git clone -q "https://github.com/$REPO.git" "$tmp/app"
-  git -C "$tmp/app" push -q --force origin "$BASE:refs/heads/main"
-  rm -rf "$tmp"
-  echo "main reposto em $BASE"
-else
-  echo "main já estava no estado inicial"
-fi
+# A parte da API corre em node (fetch), para não depender do gh nem do jq na VM. O token vai por variável de ambiente.
+REPO="$REPO" BASE="$BASE" TOKEN="$TOKEN" SIM="${1:-}" node --input-type=module -e '
+const { REPO, BASE, TOKEN, SIM } = process.env;
+const api = async (metodo, caminho, corpo) => {
+  const r = await fetch(`https://api.github.com/repos/${REPO}${caminho}`, {
+    method: metodo,
+    headers: { Authorization: `Bearer ${TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "repor-repo-app" },
+    body: corpo ? JSON.stringify(corpo) : undefined,
+  });
+  if (!r.ok && r.status !== 404 && r.status !== 422) throw new Error(`${metodo} ${caminho}: HTTP ${r.status}`);
+  return r.status === 204 ? null : r.json().catch(() => null);
+};
+const prs = ((await api("GET", "/pulls?state=open&per_page=100")) ?? []).map((p) => p.number);
+const ramos = ((await api("GET", "/branches?per_page=100")) ?? []).map((b) => b.name).filter((n) => n.startsWith("migracao/"));
+const main = (await api("GET", "/commits/main"))?.sha;
+console.log(`Repo: ${REPO}`);
+console.log(`main agora: ${main} · inicial: ${BASE}`);
+console.log(`PR abertos: ${prs.join(" ") || "nenhum"}`);
+console.log(`Ramos migracao/*: ${ramos.join(" ") || "nenhum"}`);
+if (SIM !== "--sim") {
+  console.log("Só mostrei. Para repor: bash env/repor-repo-app.sh --sim");
+  process.exit(0);
+}
+for (const n of prs) { await api("PATCH", `/pulls/${n}`, { state: "closed" }); console.log(`PR #${n} fechado`); }
+for (const r of ramos) { await api("DELETE", `/git/refs/heads/${r}`); console.log(`ramo ${r} apagado`); }
+// main: força para o BASE pela API (PATCH da ref com force), sem clonar.
+if (main !== BASE) {
+  await api("PATCH", "/git/refs/heads/main", { sha: BASE, force: true });
+  const agora = (await api("GET", "/commits/main"))?.sha;
+  if (agora !== BASE) throw new Error(`main ficou em ${agora}, não em ${BASE}`);
+  console.log(`main reposto em ${BASE}`);
+} else {
+  console.log("main já estava no estado inicial");
+}
+'

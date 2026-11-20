@@ -229,7 +229,7 @@ describe("orquestrador", () => {
     assert.match(textos(t.falas, "atacante")[0], /PostgreSQL on port 5432/);
     assert.match(
       textos(t.falas, "defesa").at(-1)!,
-      /@atacante, I closed "PostgreSQL (?:open to the whole internet|aberto a toda a internet)" at \d\d:\d\d/,
+      /@attacker, I closed "PostgreSQL (?:open to the whole internet|aberto a toda a internet)" at \d\d:\d\d/,
     );
     assert.equal(
       textos(t.falas, "atacante").at(-1),
@@ -287,7 +287,7 @@ describe("orquestrador", () => {
     );
     assert.ok(
       chefe.some((f) =>
-        /^Plan approved by the owner at \d\d:\d\d\. @migrador, go ahead\.$/.test(
+        /^Plan approved by the owner at \d\d:\d\d\. @migrator, go ahead\.$/.test(
           f,
         ),
       ),
@@ -655,7 +655,7 @@ describe("orquestrador", () => {
     const fala = textos(t.falas, "migrador").at(-1)!;
     assert.match(
       fala,
-      /12 files copied to MinIO, checksums match\. Database: 1 table and 20 rows copied to PostgreSQL, checksums match\. Queues: 5 messages moved to RabbitMQ, checksums match\. App tests passing on both sides\. @atacante/,
+      /12 files copied to MinIO, checksums match\. Database: 1 table and 20 rows copied to PostgreSQL, checksums match\. Queues: 5 messages moved to RabbitMQ, checksums match\. App tests passing on both sides\. @attacker/,
     );
   });
 
@@ -793,7 +793,7 @@ describe("orquestrador", () => {
     });
     assert.ok(
       t.falas.some((f) =>
-        /PR #7 approved and merged into the app repo main branch at \d\d:\d\d\. To undo: \/desfazer/.test(
+        /PR #7 approved and merged into the app repo main branch at \d\d:\d\d\. To undo: \/undo/.test(
           f.texto,
         ),
       ),
@@ -927,7 +927,7 @@ describe("orquestrador", () => {
     assert.ok(iPR > 0, "o PR é anunciado");
     // Guião (mensagens-demo.md): migrar → atacar → defender → só depois o PR do código.
     const iPassagem = t.falas.findIndex((f) =>
-      /@atacante, the new infrastructure is live\./.test(f.texto),
+      /@attacker, the new infrastructure is live\./.test(f.texto),
     );
     const iFecho = t.falas.findIndex(
       (f) => f.de === "defesa" && /I closed/.test(f.texto),

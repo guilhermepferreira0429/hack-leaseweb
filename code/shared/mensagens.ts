@@ -42,13 +42,13 @@ export const MODELOS = {
   abertura: 'Good morning. We are moving the {app} app from AWS to Leaseweb, safely. I will report at every step.',
   plano: 'I found {n_servicos} AWS services in the app: {lista_servicos}.\nProposal:\n{linhas_proposta}\nThe VM has {ram_livre} GB free. {motivo_regra}',
   linhaProposta: '· {servico} → {destino} ({self_ou_gerido})',
-  planoAprovado: 'Plan approved by {quem} at {hora}. @migrador, go ahead.',
+  planoAprovado: 'Plan approved by {quem} at {hora}. @migrator, go ahead.',
   migracao:
-    'Migration complete.\n· Files: {n_objetos} copied · checksum {ok_s3}\n· Database: {n_linhas} rows · checksum {ok_bd}\n· App tests: before {ok_antes} · after {ok_depois}\nThe new infrastructure is live. @atacante, your turn.',
-  ataque: 'I found the new database open to the whole Internet (port {porta}).\nSeverity: {gravidade}. Anyone can try to get in.\n@defesa',
+    'Migration complete.\n· Files: {n_objetos} copied · checksum {ok_s3}\n· Database: {n_linhas} rows · checksum {ok_bd}\n· App tests: before {ok_antes} · after {ok_depois}\nThe new infrastructure is live. @attacker, your turn.',
+  ataque: 'I found the new database open to the whole Internet (port {porta}).\nSeverity: {gravidade}. Anyone can try to get in.\n@defender',
   defesaExplicacao: 'The database with the company data is open to the whole Internet.\nSomeone outside could try to guess the password and get in.',
   defesaProposta: 'I propose closing outside access and allowing only your app. I keep a way to undo it.',
-  fechado: 'Closed at {hora_fecho} and confirmed. Time exposed: {segundos} s.\nUndo saved: /undo {pedido_id}\n@atacante, please confirm.',
+  fechado: 'Closed at {hora_fecho} and confirmed. Time exposed: {segundos} s.\nUndo saved: /undo {pedido_id}\n@attacker, please confirm.',
   atacanteConfirma: 'Confirmed. I can no longer reach it.',
   codigo:
     'I opened PR #{numero}: {n_ficheiros} files changed, tests passing.\n· The app now uses Leaseweb instead of AWS.\n· I fixed the configuration that left the database open, so it does not come back on the next deploy.',
