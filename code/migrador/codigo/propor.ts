@@ -2,8 +2,9 @@
 // código", nível A): o S3 só muda configuração (endpoint, credenciais, forcePathStyle) e as variáveis de ambiente
 // passam a apontar para a Leaseweb. Nenhum segredo entra na alteração: só marcadores <assim>.
 // Depois validarAlteracao confirma que só mudaram os ficheiros e as linhas esperados.
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { corrigirRegrasAbertas } from '../tradutor/index';
 import type { ServicoUso, UsoAws } from './encontrar';
 
 export interface Alteracao {
@@ -13,6 +14,17 @@ export interface Alteracao {
   antes: string | null;
   depois: string;
   motivo: string;
+  /** 'infra' = correção de segurança na configuração da infraestrutura (Terraform), não código da app. */
+  tipo?: 'infra';
+}
+
+/** Uma regra aberta ao mundo que o PR fecha na configuração (a causa da falha que a defesa fechou pela API). */
+export interface CausaCorrigida {
+  ficheiro: string;
+  recurso: string;
+  porta: number;
+  /** 'sgApp' = só o grupo da app entra; 'redeApp' = só a subrede da app. */
+  via: 'sgApp' | 'redeApp';
 }
 
 export interface Proposta {
@@ -21,7 +33,12 @@ export interface Proposta {
   diff: string;
   /** O que não se muda automaticamente e porquê (vai para a descrição do PR). */
   fora: string[];
+  /** Regras abertas ao mundo corrigidas na configuração da infraestrutura (ideia wow 5). */
+  causas: CausaCorrigida[];
 }
+
+/** Pasta da configuração da infraestrutura dentro da app. */
+export const PASTA_INFRA = 'infra';
 
 /** Ficheiro de configuração da app para a Leaseweb. Fica ao lado do .env.example; os valores reais vão no .env. */
 export const FICHEIRO_CONFIG = 'leaseweb.env.example';
@@ -174,8 +191,27 @@ export async function proporAlteracao(dirApp: string, usos: UsoAws[]): Promise<P
     if (antes !== config) alteracoes.push({ ficheiro: FICHEIRO_CONFIG, antes, depois: config, motivo: 'variáveis de ambiente a apontar para a Leaseweb' });
   }
 
-  // 3. O que não se muda sozinho: só se diz.
+  // 3. A causa: regras abertas a toda a Internet na configuração da infraestrutura passam a deixar entrar só a app.
+  //    A defesa fechou a porta pela API; sem isto, voltava a abrir no próximo deploy. Regras fixas do tradutor.
   const fora: string[] = [];
+  const causas: CausaCorrigida[] = [];
+  const tfs = (await readdir(join(dirApp, PASTA_INFRA)).catch(() => [] as string[])).filter((f) => f.endsWith('.tf.json')).sort();
+  for (const nome of tfs) {
+    const ficheiro = `${PASTA_INFRA}/${nome}`;
+    const antes = await readFile(join(dirApp, ficheiro), 'utf8');
+    try {
+      const r = corrigirRegrasAbertas(antes, { sgApp: 'app', redeApp: process.env.MIGRADOR_REDE_APP || undefined });
+      for (const p of r.porResolver) fora.push(`${ficheiro}: ${p.recurso}, porta ${p.porta}: ${p.referencia}. Corrigir à mão.`);
+      if (r.corrigidas.length && r.depois !== antes) {
+        alteracoes.push({ ficheiro, antes, depois: r.depois, motivo: 'segurança: a base de dados deixa de estar aberta a toda a Internet', tipo: 'infra' });
+        for (const c of r.corrigidas) causas.push({ ficheiro, recurso: c.recurso, porta: c.porta, via: c.via });
+      }
+    } catch (erro) {
+      fora.push(`${ficheiro}: há regras abertas a toda a Internet que não consegui corrigir sozinho (${erro instanceof Error ? erro.message : String(erro)}).`);
+    }
+  }
+
+  // 4. O que não se muda sozinho: só se diz.
   const sdkFila = usos.some((u) => u.servico === 'fila' && u.tipo === 'sdk');
   const filaPorVariavel = usos.some((u) => u.nome === 'FILA_TIPO');
   if (sdkFila && !filaPorVariavel) {
@@ -198,7 +234,7 @@ export async function proporAlteracao(dirApp: string, usos: UsoAws[]): Promise<P
     fora.push(`Outros serviços da AWS no código (${outrosSdk.join(', ')}): precisam de redesenho, não de migração.`);
   }
 
-  return { alteracoes, diff: diffDe(alteracoes), fora };
+  return { alteracoes, diff: diffDe(alteracoes), fora, causas };
 }
 
 /** Linhas acrescentadas que não podem entrar num PR público. */
@@ -219,6 +255,11 @@ export function validarAlteracao(proposta: Proposta, usos: UsoAws[]): string[] {
   const problemas: string[] = [];
   const comS3 = new Set(usos.filter((u) => u.tipo === 's3-sem-path-style').map((u) => u.ficheiro));
   for (const a of proposta.alteracoes) {
+    const infra = a.tipo === 'infra' && a.ficheiro.startsWith(`${PASTA_INFRA}/`) && a.ficheiro.endsWith('.tf.json');
+    if (infra) {
+      problemas.push(...validarInfra(a));
+      continue;
+    }
     if (a.ficheiro !== FICHEIRO_CONFIG && !comS3.has(a.ficheiro)) problemas.push(`${a.ficheiro}: ficheiro fora do esperado`);
     const antes = new Set((a.antes ?? '').split('\n'));
     const novas = a.depois.split('\n').filter((l) => !antes.has(l));
@@ -232,5 +273,23 @@ export function validarAlteracao(proposta: Proposta, usos: UsoAws[]): string[] {
       if (removidas.some((l) => !/new S3Client\(/.test(l))) problemas.push(`${a.ficheiro}: o PR apagaria código`);
     }
   }
+  return problemas;
+}
+
+/** Na configuração da infraestrutura só podem mudar as origens das regras, e nunca para o mundo inteiro. */
+function validarInfra(a: Alteracao): string[] {
+  const problemas: string[] = [];
+  try {
+    JSON.parse(a.depois);
+  } catch {
+    problemas.push(`${a.ficheiro}: o ficheiro corrigido não é JSON válido`);
+  }
+  const antes = (a.antes ?? '').split('\n');
+  const depois = a.depois.split('\n');
+  const novas = depois.filter((l) => !antes.includes(l));
+  const removidas = antes.filter((l) => !depois.includes(l));
+  const ORIGEM = /"(cidr_blocks|ipv6_cidr_blocks|security_groups|source_security_group_id)"|^\s*"[^"]*",?\s*$|^\s*[\]\[],?\s*$/;
+  if (novas.some((l) => !ORIGEM.test(l)) || removidas.some((l) => !ORIGEM.test(l))) problemas.push(`${a.ficheiro}: mudou mais do que as origens das regras`);
+  if (novas.some((l) => /0\.0\.0\.0\/0|::\/0/.test(l))) problemas.push(`${a.ficheiro}: a correção ainda abre a toda a Internet`);
   return problemas;
 }

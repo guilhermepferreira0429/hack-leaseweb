@@ -286,6 +286,39 @@ describe('migrador de código', () => {
     );
   });
 
+  it('ideia 5: corrige no Terraform a regra que deixava a base de dados aberta, e só isso', async () => {
+    const { raiz, dirApp } = await appLegada();
+    await mkdir(join(dirApp, 'infra'), { recursive: true });
+    const tf = {
+      resource: {
+        aws_security_group: {
+          app: { name: 'app', ingress: [{ from_port: 443, to_port: 443, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'] }] },
+          base_dados: { name: 'base_dados', ingress: [{ from_port: 5432, to_port: 5432, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'] }] },
+        },
+      },
+    };
+    await writeFile(join(dirApp, 'infra', 'main.tf.json'), `${JSON.stringify(tf, null, 2)}\n`);
+    const usos = await encontrarUsosAws(dirApp);
+    const p = await proporAlteracao(dirApp, usos);
+    const infra = p.alteracoes.find((a) => a.ficheiro === 'infra/main.tf.json');
+    assert.ok(infra, 'o ficheiro de infraestrutura entra no PR');
+    assert.equal(infra!.tipo, 'infra');
+    const depois = JSON.parse(infra!.depois);
+    const ingress = depois.resource.aws_security_group.base_dados.ingress[0];
+    assert.ok(!JSON.stringify(ingress).includes('0.0.0.0/0'), 'a 5432 deixa de estar aberta ao mundo');
+    assert.deepEqual(depois.resource.aws_security_group.app, tf.resource.aws_security_group.app, 'o 443 público da app não é uma porta sensível: fica');
+    assert.ok(p.causas.some((c) => c.porta === 5432 && c.ficheiro === 'infra/main.tf.json'));
+    assert.deepEqual(validarAlteracao(p, usos), []);
+
+    // Uma correção adulterada (mexe noutra coisa ou continua aberta) é recusada.
+    const mau = { ...p, alteracoes: p.alteracoes.map((a) => (a.tipo === 'infra' ? { ...a, depois: a.depois.replace('"name": "base_dados"', '"name": "outra"') } : a)) };
+    assert.ok(validarAlteracao(mau, usos).some((x) => /mudou mais do que as origens/.test(x)));
+
+    const r = await migrarCodigo(dirApp, { raizRepo: raiz, id: 'x', testesOk: true });
+    assert.equal(r.causas, 1);
+    assert.match(await readFile(r.pr!.diffEm!, 'utf8'), /Segurança \(a causa da falha que a defesa fechou pela API da Leaseweb\)/);
+  });
+
   it('a app tem de estar dentro do repo', async () => {
     const { dirApp } = await appLegada();
     const fora = await mkdtemp(join(tmpdir(), 'outro-repo-'));

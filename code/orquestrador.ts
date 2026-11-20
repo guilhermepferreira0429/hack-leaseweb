@@ -108,6 +108,8 @@ export interface ResultadoCodigo {
   ficheiros: string[];
   fora: string[];
   problemas: string[];
+  /** Regras abertas a toda a Internet corrigidas na configuração (a causa da falha). */
+  causas?: number;
   pr?: { ramo: string; simulado: boolean; url?: string };
 }
 
@@ -529,6 +531,7 @@ ${resumo}`,
           ficheiros: r.ficheiros,
           problemas: r.problemas,
           fora: r.fora,
+          causas: r.causas ?? 0,
           ramo: r.pr?.ramo,
           url: r.pr?.url,
           simulado: r.pr?.simulado,
@@ -554,6 +557,9 @@ ${resumo}`,
         "dono",
         `Código: ${r.pr.simulado ? "preparei" : "abri"} um pull request com ${n} ${n === 1 ? "ficheiro" : "ficheiros"} (${r.ficheiros.join(", ")}) ` +
           `para a app usar a Leaseweb, com os testes a passar e sem segredos (${onde}). O ramo principal só muda com o vosso merge.` +
+          (r.causas
+            ? " Corrigi também a configuração que deixava a base de dados aberta, para não voltar no próximo deploy."
+            : "") +
           (r.fora.length
             ? ` Fica fora: ${r.fora.length} ${r.fora.length === 1 ? "ponto" : "pontos"}, explicados no PR.`
             : ""),
