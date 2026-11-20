@@ -3,7 +3,7 @@
 // migrador, que o orquestrador corre antes; sem testes a passar, não há PR. Nunca há push para main.
 import { relative, resolve, sep } from 'node:path';
 import { encontrarUsosAws, type UsoAws } from './encontrar';
-import { abrirPR, type Executar, type ResultadoPR } from './pr';
+import { abrirPR, abrirPRNoRepoDaApp, type Executar, type ResultadoPR } from './pr';
 import { proporAlteracao, validarAlteracao } from './propor';
 
 export * from './encontrar';
@@ -30,6 +30,10 @@ export interface OpcoesCodigo {
   testesOk: boolean;
   /** PR real no GitHub (MIGRADOR_PR=real). Por omissão só simula. */
   real?: boolean;
+  /** Repo próprio da app (dono/nome, ex.: MIGRADOR_PR_REPO). Com ele, o PR abre lá e não no repo do projeto. */
+  repoApp?: string;
+  /** Token só para o repo da app (GITHUB_TOKEN_EXEMPLO). Sem ele, usam-se as credenciais do git/gh da máquina. */
+  token?: string;
   executar?: Executar;
 }
 
@@ -55,13 +59,23 @@ export async function migrarCodigo(dirApp: string, opcoes: OpcoesCodigo): Promis
   const base = { usos: usos.length, ficheiros, fora: proposta.fora, problemas };
   if (problemas.length || ficheiros.length === 0) return base;
 
+  const titulo = 'Migrador: a app passa a usar os serviços na Leaseweb';
+  const corpo = corpoPR(usos, ficheiros, proposta.fora);
+  if (opcoes.repoApp) {
+    const pr = await abrirPRNoRepoDaApp(
+      { alteracoes: proposta.alteracoes, titulo, corpo },
+      { repo: opcoes.repoApp, token: opcoes.token, real: opcoes.real, diff: proposta.diff, executar: opcoes.executar },
+    );
+    return { ...base, pr };
+  }
+
   const dirAppNoRepo = relative(resolve(opcoes.raizRepo), resolve(dirApp)).split(sep).join('/');
   const pr = await abrirPR(
     {
       dirAppNoRepo,
       alteracoes: proposta.alteracoes,
-      titulo: 'Migrador: a app passa a usar os serviços na Leaseweb',
-      corpo: corpoPR(usos, ficheiros, proposta.fora),
+      titulo,
+      corpo,
       id: opcoes.id,
     },
     { raizRepo: opcoes.raizRepo, real: opcoes.real, diff: proposta.diff, executar: opcoes.executar },

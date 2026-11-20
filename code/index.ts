@@ -87,7 +87,15 @@ async function main(): Promise<void> {
         planoDestino,
         // PR real no GitHub só com MIGRADOR_PR=real; por omissão é um ensaio (o diff fica numa pasta temporária).
         migrarCodigo: (planoId, testesOk) =>
-          migrarCodigo(`${RAIZ}code/exemplo-app`, { raizRepo: RAIZ, id: planoId, testesOk, real: process.env.MIGRADOR_PR === 'real' }),
+          migrarCodigo(`${RAIZ}code/exemplo-app`, {
+            raizRepo: RAIZ,
+            id: planoId,
+            testesOk,
+            real: process.env.MIGRADOR_PR === 'real',
+            // O PR abre no repo público da app (docs/agentes/checkup-12h.md); o token só serve para esse repo.
+            repoApp: process.env.MIGRADOR_PR_REPO || undefined,
+            token: process.env.GITHUB_TOKEN_EXEMPLO || undefined,
+          }),
       },
       // Relatório do incidente (David) no grupo "Direção", com um Desfazer por passo. Na --consola não há grupo.
       relatorio: consola ? undefined : { publicar: (achadoId) => relatorio.publicarRelatorio(achadoId) },

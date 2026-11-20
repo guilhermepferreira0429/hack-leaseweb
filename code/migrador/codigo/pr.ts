@@ -4,16 +4,17 @@
 // A pasta de trabalho da equipa não muda.
 // Por omissão só simula (escreve o diff e diz o que faria). O PR real só com MIGRADOR_PR=real no .env.
 import { execFile } from 'node:child_process';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 import type { Alteracao } from './propor';
 
-export type Executar = (comando: string, args: string[], cwd: string) => Promise<string>;
+/** Corre um comando. `env` acrescenta variáveis (o token vai sempre por aqui, nunca nos argumentos). */
+export type Executar = (comando: string, args: string[], cwd: string, env?: Record<string, string>) => Promise<string>;
 
-const executarReal: Executar = async (comando, args, cwd) => {
-  const { stdout } = await promisify(execFile)(comando, args, { cwd, maxBuffer: 4 * 1024 * 1024 });
+const executarReal: Executar = async (comando, args, cwd, env) => {
+  const { stdout } = await promisify(execFile)(comando, args, { cwd, maxBuffer: 4 * 1024 * 1024, env: env ? { ...process.env, ...env } : process.env });
   return stdout.trim();
 };
 
@@ -99,6 +100,80 @@ export async function abrirPR(
     await git('git', ['worktree', 'remove', '--force', arvore], opcoes.raizRepo).catch(() => '');
     // O ramo local não faz falta (o remoto fica no GitHub); assim uma nova corrida não colide.
     await git('git', ['branch', '-D', ramo], opcoes.raizRepo).catch(() => '');
+    await rm(tmp, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+// ---------- PR no repo próprio da app (docs/agentes/checkup-12h.md) ----------
+// O PR abre num repo público só com a app (ex.: hack-leaseweb-exemplo-app), para o júri ver o diff no GitHub.
+// Clone novo numa pasta temporária, ramo migracao/leaseweb-<hora>, commit, push só desse ramo e PR para main.
+// O token (GITHUB_TOKEN_EXEMPLO, fine-grained, só esse repo) vai por variável de ambiente; sem token, usam-se as
+// credenciais do git/gh da máquina.
+
+export const PREFIXO_RAMO_APP = 'migracao/leaseweb-';
+
+export function nomeRamoApp(agora: Date = new Date()): string {
+  return `${PREFIXO_RAMO_APP}${agora.toISOString().replace(/\D/g, '').slice(0, 14)}`;
+}
+
+/** Variáveis para o git e o gh usarem o token sem ele aparecer nos argumentos nem na URL. */
+export function ambienteDoToken(token?: string): Record<string, string> | undefined {
+  if (!token) return undefined;
+  const basico = Buffer.from(`x-access-token:${token}`).toString('base64');
+  return {
+    GH_TOKEN: token,
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+    GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basico}`,
+  };
+}
+
+export async function abrirPRNoRepoDaApp(
+  pedido: Omit<PedidoPR, 'dirAppNoRepo' | 'id'>,
+  opcoes: { repo: string; token?: string; real?: boolean; diff: string; executar?: Executar; agora?: Date },
+): Promise<ResultadoPR> {
+  if (!/^[\w.-]+\/[\w.-]+$/.test(opcoes.repo)) throw new Error(`repo inválido: ${opcoes.repo}`);
+  const ramo = nomeRamoApp(opcoes.agora);
+  const ficheiros = pedido.alteracoes.map((a) => a.ficheiro);
+  if (ficheiros.length === 0) throw new Error('não há nada para mudar: o PR não se abre');
+  if (ficheiros.some((f) => isAbsolute(f) || f.split('/').includes('..'))) throw new Error('um ficheiro do PR sai da pasta da app');
+
+  if (!opcoes.real) {
+    const tmp = await mkdtemp(join(tmpdir(), 'migrador-pr-'));
+    const diffEm = join(tmp, `${ramo.replace('/', '-')}.diff`);
+    await writeFile(diffEm, `${pedido.titulo}\n\n${pedido.corpo}\n\n${opcoes.diff}\n`, 'utf8');
+    return { ramo, ficheiros, simulado: true, diffEm };
+  }
+
+  const git = opcoes.executar ?? executarReal;
+  const env = ambienteDoToken(opcoes.token);
+  const tmp = await mkdtemp(join(tmpdir(), 'migrador-pr-'));
+  const arvore = join(tmp, 'app');
+  try {
+    await git('git', ['clone', '--depth', '1', `https://github.com/${opcoes.repo}.git`, arvore], tmp, env);
+    // Um ficheiro alterado tem de estar no repo da app igual ao que o migrador leu. Senão, o PR desfazia trabalho.
+    const normal = (t: string) => t.replace(/\r\n/g, '\n').trim();
+    for (const a of pedido.alteracoes) {
+      if (a.antes === null) continue;
+      const noRepo = await readFile(join(arvore, a.ficheiro), 'utf8').catch(() => undefined);
+      if (noRepo === undefined || normal(noRepo) !== normal(a.antes)) {
+        throw new Error(`${a.ficheiro} no ${opcoes.repo} não é igual ao local: atualizem o repo da app antes do PR`);
+      }
+    }
+    await git('git', ['checkout', '-b', ramo], arvore, env);
+    for (const a of pedido.alteracoes) {
+      const destino = join(arvore, a.ficheiro);
+      await mkdir(dirname(destino), { recursive: true });
+      await writeFile(destino, a.depois, 'utf8');
+    }
+    await git('git', ['add', '--', ...ficheiros], arvore, env);
+    await git('git', ['-c', 'user.name=Migrador hack-leaseweb', '-c', 'user.email=migrador@users.noreply.github.com', 'commit', '-m', pedido.titulo, '-m', pedido.corpo], arvore, env);
+    // Só o ramo novo (refspec explícito). O main do repo da app só muda com um merge decidido por uma pessoa.
+    await git('git', ['push', 'origin', `${ramo}:${ramo}`], arvore, env);
+    const url = await git('gh', ['pr', 'create', '--repo', opcoes.repo, '--base', 'main', '--head', ramo, '--title', pedido.titulo, '--body', pedido.corpo], arvore, env);
+    return { ramo, ficheiros, simulado: false, url: url.split('\n').at(-1) };
+  } finally {
     await rm(tmp, { recursive: true, force: true }).catch(() => {});
   }
 }

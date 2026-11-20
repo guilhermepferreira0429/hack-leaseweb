@@ -241,6 +241,51 @@ describe('migrador de código', () => {
     assert.ok(!outra.some((u) => u.tipo === 'credencial' && u.ficheiro === FICHEIRO_CONFIG));
   });
 
+  it('repo da app: clone, ramo migracao/leaseweb-<hora>, push só do ramo e PR no repo da app; o token nunca vai nos argumentos', async () => {
+    const { raiz, dirApp } = await appLegada();
+    const original = await readFile(join(dirApp, 'src', 'armazenamento.ts'), 'utf8');
+    const comandos: { linha: string; env?: Record<string, string> }[] = [];
+    const executar = async (cmd: string, args: string[], _cwd: string, env?: Record<string, string>) => {
+      comandos.push({ linha: `${cmd} ${args.join(' ')}`, env });
+      if (args[0] === 'clone') {
+        // O clone traz o ficheiro tal como está no repo da app.
+        await mkdir(join(args.at(-1)!, 'src'), { recursive: true });
+        await writeFile(join(args.at(-1)!, 'src', 'armazenamento.ts'), original);
+      }
+      return cmd === 'gh' ? 'https://github.com/dono/app/pull/2' : '';
+    };
+    const TOKEN = 'github_pat_FALSO_123';
+    const r = await migrarCodigo(dirApp, { raizRepo: raiz, id: 'x', testesOk: true, real: true, repoApp: 'dono/app', token: TOKEN, executar });
+    assert.equal(r.pr?.url, 'https://github.com/dono/app/pull/2');
+    assert.match(r.pr!.ramo, /^migracao\/leaseweb-\d{14}$/);
+    assert.deepEqual(r.pr!.ficheiros.sort(), [FICHEIRO_CONFIG, 'src/armazenamento.ts']);
+    const linhas = comandos.map((c) => c.linha);
+    assert.ok(linhas[0]!.startsWith('git clone --depth 1 https://github.com/dono/app.git '));
+    assert.ok(linhas.includes(`git push origin ${r.pr!.ramo}:${r.pr!.ramo}`));
+    assert.ok(linhas.some((l) => l.startsWith(`gh pr create --repo dono/app --base main --head ${r.pr!.ramo}`)));
+    assert.ok(!linhas.some((l) => l.includes(TOKEN)), 'o token nunca aparece nos argumentos');
+    assert.ok(comandos.every((c) => c.env?.GH_TOKEN === TOKEN), 'o token vai por variável de ambiente');
+    assert.ok(!linhas.some((l) => /git push\b.*\bmain\b/.test(l)));
+
+    await assert.rejects(
+      migrarCodigo(dirApp, {
+        raizRepo: raiz,
+        id: 'x',
+        testesOk: true,
+        real: true,
+        repoApp: 'dono/app',
+        executar: async (cmd, args) => {
+          if (args[0] === 'clone') {
+            await mkdir(join(args.at(-1)!, 'src'), { recursive: true });
+            await writeFile(join(args.at(-1)!, 'src', 'armazenamento.ts'), 'outra versão');
+          }
+          return '';
+        },
+      }),
+      /não é igual ao local/,
+    );
+  });
+
   it('a app tem de estar dentro do repo', async () => {
     const { dirApp } = await appLegada();
     const fora = await mkdtemp(join(tmpdir(), 'outro-repo-'));
