@@ -59,5 +59,5 @@ aparecer no clique `n`. O guião desse clique vai em `js/guiao.js` com `passo: n
   browser bloquear alguma coisa em `file://`.
 - Letras: Geist, Geist Mono e Instrument Serif, SIL Open Font License (`fontes/OFL-*.txt`); Inter e JetBrains Mono ficam como fallback.
 - Avatares do grupo "Board" e dos quatro agentes em `avatares/` (de `docs/material/design/telegram-avatars/`).
-- O painel da demo (slide 6) é um replay scriptado, em três colunas: agentes (com avatares e "thinking now"), serviços migrados e vítima 5432, logs ao vivo; em baixo, o recibo (5/5, testes, 0 segredos) e o "↺ Undo last action". Não precisa do túnel; a tecla D continua a abrir o painel real. Está marcado **SCRIPTED REPLAY** para não passar por uma segunda demo ao vivo.
+- O painel da demo (slide 6) é um replay scriptado, em três colunas: agentes (com avatares e "thinking now"), serviços migrados e vítima 5432, logs ao vivo; em baixo, o recibo (5/5, testes, 0 segredos) e o "↺ Undo last action". Não precisa do túnel; a tecla D continua a abrir o painel real. Está marcado **REPLAY**, com "press D for the live panel", para não passar por uma segunda demo ao vivo.
 - O desenho original dos slides está em `docs/material/design/pitching.pen` (Pencil, 12 slides na ordem antiga; o painel e o antes/depois são só do deck).

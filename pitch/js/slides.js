@@ -220,10 +220,10 @@
         <div class="vp">
           <div class="vp-top">
             <div class="vp-brand">
-              <div class="rotulo">INFRAHACK · LEASEWEB · LIVE</div>
+              <div class="rotulo">INFRAHACK · LEASEWEB · REPLAY</div>
               <div class="vp-title">Migrate without being exposed</div>
               <div class="vp-sub">${conta(v.n, 'N', 0)} attempts on the bait · nothing left the EU.</div>
-              <div class="vp-src">Every number read from auditoria.jsonl and estado.json</div>
+              <div class="vp-src">Replay of the 12:47 run · press D for the live panel</div>
             </div>
             <div class="vp-clock">
               <div class="rotulo">TIME EXPOSED</div>
@@ -271,7 +271,7 @@
               </div>
             </div>
             <div class="vp-col vp-logs">
-              <div class="vp-cab"><span class="rotulo">LIVE LOGS</span><span class="mono verde">● streaming</span></div>
+              <div class="vp-cab"><span class="rotulo">LIVE LOGS</span><span class="mono muted">● replay · 12:47</span></div>
               <div class="vp-tabs"><span>MIGRATOR</span><span>ATTACKER</span><span>DEFENDER</span><span class="on">ORCHESTRATOR</span></div>
               <div class="vp-terminal">
                 ${logs
