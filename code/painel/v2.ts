@@ -7,7 +7,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { EventoAuditoria, Pedido, Regra } from '@mwbe/shared';
 import { auditoria, carregarEnv, estado, GLOSSARIO } from '@mwbe/shared';
-import { nomeRelatorioPdf, relatorioPdf, relogioExposicao } from '@mwbe/chefe';
+import { naUE, nomeRelatorioPdf, relatorioPdf, relogioExposicao } from '@mwbe/chefe';
 import { cabecalho, escapar } from './estilo';
 import { agenteDe, cicloAtual, portasDoCiclo, provas } from './linha-tempo';
 import { fraseIngles } from './palco';
@@ -244,6 +244,10 @@ const CSS = `body{padding:40px 48px;height:100vh;display:flex;flex-direction:col
 :root{--code:#C4A7FF}
 .topo{display:flex;justify-content:space-between;align-items:flex-end;gap:32px}
 .marca h1{margin:8px 0 0;font:400 64px/1 var(--serif)}
+.resid{display:flex;align-items:center;gap:16px;padding:10px 18px;border-radius:14px;background:var(--panel);font:600 16px var(--sans);color:var(--ink)}
+.resid .pt{display:inline-flex;align-items:center;gap:9px}.resid .dot{width:11px;height:11px;border-radius:50%;background:var(--atk)}
+.resid .to .dot{background:var(--def)}.resid .line{flex:0 0 72px;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--atk),var(--def))}
+.resid .eu{margin-left:auto;display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;font:15px var(--mono);color:var(--def);background:#7DD3A822}
 .relogio{display:flex;flex-direction:column;gap:6px;align-items:flex-end}.relogio .valor{display:flex;gap:18px;align-items:center}
 .seg{font:400 108px/1 var(--serif);color:var(--atk)}.fechada .seg{color:var(--def)}.espera .seg{font-size:40px;color:var(--faint)}
 .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 14px;border-radius:999px;font:17px var(--mono);color:var(--atk);background:#FF8A7A22}
@@ -302,6 +306,11 @@ section{background:var(--panel);border-radius:18px;padding:22px;display:flex;fle
 .modo button.on{background:var(--ink);color:var(--bg)}
 .bt.desc{background:var(--ink);color:var(--bg)}.bt.desf{background:transparent;color:var(--def);border:1px solid var(--def)}
 @media (max-width:1700px){body{height:auto;overflow:auto;padding:24px}.corpo{grid-template-columns:1fr 1fr}.corpo section:first-child{grid-column:1/-1}.seg{font-size:72px}}`;
+
+// Barra de residência de dados: de onde saíram (AWS) para onde ficam (LOCAL_DADOS), e a nota da UE (só quando o destino é da UE).
+function htmlResidencia(local: string): string {
+  return `<div class="resid"><span class="pt from"><span class="dot"></span>AWS · source cloud</span><span class="line"></span><span class="pt to"><span class="dot"></span>${escapar(local)}</span>${naUE(local) ? '<span class="eu">✓ Data stays in the EU</span>' : ''}</div>`;
+}
 
 function htmlRelogio(todos: EventoAuditoria[], agora: Date): string {
   const exp = relogioExposicao(todos, agora);
@@ -407,6 +416,7 @@ export function renderizarV2(pedidos: Pedido[], todos: EventoAuditoria[], opcoes
       : '';
   return `${cabecalho('Migrate without being exposed', CSS).replace('<html lang="pt">', '<html lang="en">')}
 <div class="topo"><div class="marca"><div class="kicker">InfraHack · Leaseweb · live</div><h1>Migrate without being exposed</h1></div>${htmlRelogio(todos, agora)}</div>
+${htmlResidencia(opcoes.local || 'Leaseweb')}
 <div class="corpo">${htmlCadeia(eventos)}${htmlServicos(eventos, opcoes.local || 'Leaseweb', agora)}${htmlLogs(eventos)}</div>
 <div class="rodape"><span>Everything comes from auditoria.jsonl and estado.json</span><div class="bts"><div class="modo" id="modo" title="Plain words for a non-technical owner, or the real tool names"><button data-m="simples">Simple</button><button data-m="tecnico">Technical</button></div><a class="bt desc" href="/relatorio.pdf" download>⤓ Download report (PDF)</a>${desfazer}</div></div>
 <script>
