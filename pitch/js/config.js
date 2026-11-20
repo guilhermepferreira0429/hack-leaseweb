@@ -11,7 +11,7 @@ window.CONFIG = {
     n: null, // tentativas de entrada no isco desde as 08:00 (painel /isco)
     t: null, // segundos de exposição (relógio de exposição do painel)
     x: null, // minutos da migração completa, do plano ao relatório
-    testes: 256, // `it(` nos ficheiros *.test.ts de code/ (256 às 11:50; recontar às 15:30)
+    testes: 288, // testes na suite (`npm test`: 286 passam, 2 saltados, 20/11 às 12:42; recontar às 15:30)
   },
 
   // Painel ao vivo (tecla D abre-o por cima do slide, sem Alt+Tab).

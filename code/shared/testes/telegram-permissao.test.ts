@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { configurarTelegram, esteBotResponde, podeComandar } from '../telegram';
+import { configurarTelegram, esteBotResponde, podeComandar, textoParaPrivado } from '../telegram';
 
 function comTokens(tokens: Record<string, string>, corpo: () => void): void {
   configurarTelegram({ tokens, grupoId: '', donoId: '42', aprovadores: ['7', '8'] });
@@ -44,6 +44,18 @@ describe('telegram/permissao /atacar', () => {
     comTokens({ defesa: 'd' }, () => {
       assert.equal(esteBotResponde('group', '/atacar', 'BotDefesa', 'defesa'), true);
     });
+  });
+
+  it('em privado, tira as menções e o "Recebido." do texto encenado para o grupo', () => {
+    const doGrupo =
+      'Recebido. Responde a qualquer pessoa na internet: PostgreSQL na porta 5432 (203.0.113.50). Gravidade alta. @defesa';
+    assert.equal(
+      textoParaPrivado(doGrupo),
+      'Responde a qualquer pessoa na internet: PostgreSQL na porta 5432 (203.0.113.50). Gravidade alta.',
+    );
+    assert.equal(textoParaPrivado('Olá @infrahack_defesa_bot, tudo bem?'), 'Olá, tudo bem?');
+    // Nunca envia vazio: se só havia a menção, fica o texto original.
+    assert.equal(textoParaPrivado('@defesa'), '@defesa');
   });
 
   it('no grupo com menção responde só o bot mencionado', () => {
