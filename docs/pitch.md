@@ -30,7 +30,7 @@ perguntas. O desenho está em `docs/material/design/pitching.pen` (Pencil).
 |---|---|---|---|
 | 1 | Abertura a frio | `11%` · o N do isco | 0:00–0:25 |
 | 2 | A tese | "Migration is when you get breached." | 0:25–0:30 |
-| 3 | Demo ao vivo | "Live on Leaseweb" (o slide sai e entra o painel) | 0:30–2:50 |
+| 3 | Demo ao vivo | "Watch the door close." · Migrate → Attack → Defend (o slide sai e entra o painel) | 0:30–2:50 |
 | 4 | Como funciona | O diagrama: migrador → atacante → defesa → Telegram → API Leaseweb | 2:50–3:30 |
 | 5 | Salvaguardas | "AI writes. Code acts. You approve." | 3:30–3:50 |
 | 6 | Encaixe com a Leaseweb | "Leave on your own terms. Safely." | 3:50–4:15 |
@@ -39,6 +39,8 @@ perguntas. O desenho está em `docs/material/design/pitching.pen` (Pencil).
 ### Anexos (só nas perguntas)
 
 Cada anexo responde a uma pergunta provável em `docs/perguntas-juri.md`. Saltar direto para ele; não percorrer.
+No Pencil, os anexos estão na segunda fila, por baixo dos slides principais. A linha de auditoria do A4 é um
+exemplo: trocar pela linha real da demo antes do pitch.
 
 | Anexo | Pergunta que o abre | No ecrã |
 |---|---|---|
