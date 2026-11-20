@@ -44,7 +44,12 @@ export interface Dependencias {
     /** Resumo do tradutor AWS (Terraform) -> Leaseweb, só plano. undefined = não há configuração AWS para traduzir. */
     planoInfra?(): Promise<string | undefined>;
   };
-  chefe: { resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string; estadoAtual(pedidos: Pedido[]): string };
+  chefe: {
+    resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
+    estadoAtual(pedidos: Pedido[]): string;
+    /** Certificado de migração (ideia wow 3), dito pelo chefe no fim. */
+    certificado?(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
+  };
 }
 
 export interface Opcoes {
@@ -293,7 +298,12 @@ ${resumo}`);
 
   async function faseAtacar(): Promise<Achado[]> {
     const achados = await deps.atacante.reconhecer(opcoes.alvos);
-    auditar({ pedidoId: '-', tipo: 'reconhecimento', quem: 'atacante', depois: { alvos: opcoes.alvos, achados: achados.length } });
+    auditar({
+      pedidoId: '-',
+      tipo: 'reconhecimento',
+      quem: 'atacante',
+      depois: { alvos: opcoes.alvos, achados: achados.length, portas: achados.map((a) => ({ alvo: a.alvo, porta: a.porta, servico: a.servico })) },
+    });
     falar('atacante', 'defesa', textoAtacante(achados));
     return achados;
   }
@@ -333,12 +343,21 @@ ${resumo}`);
 
   async function correr(): Promise<void> {
     if (opcoes.migrar) await faseMigrar().catch((e) => falha('migração', e));
+    // Daqui em diante a infraestrutura nova conta como "no ar": é o início do relógio de exposição (ideia wow 2).
+    auditar({ pedidoId: '-', tipo: 'infra-no-ar', quem: 'orquestrador' });
     let doAtacante: Achado[] = [];
     if (opcoes.atacar) doAtacante = await faseAtacar().catch(async (e) => (await falha('reconhecimento', e), []));
     const resultados = await faseDefender(doAtacante);
     // Os pedidos sem resposta ficam "por decidir" no resumo; um Aprovar tardio ainda fecha (foi um humano).
     if ((await comLimite(Promise.all(resultados))) === 'sem-resposta') log('há pedidos sem resposta; resumo na mesma');
     falar('chefe', 'dono', deps.chefe.resumir(lerAuditoria(), deps.estado.listarPedidos()));
+    if (deps.chefe.certificado) {
+      try {
+        falar('chefe', 'dono', deps.chefe.certificado(lerAuditoria(), deps.estado.listarPedidos()));
+      } catch (erro) {
+        await falha('certificado de migração', erro);
+      }
+    }
   }
 
   /** Regista os callbacks do canal. Se o canal ainda for stub, avisa e o fluxo segue (sem decisões, só o resumo). */

@@ -113,7 +113,7 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
       },
       verificar: async () => ({ antes: true, depois: true }),
     },
-    chefe: { resumir: () => 'RESUMO', estadoAtual: () => 'ESTADO' },
+    chefe: { resumir: () => 'RESUMO', estadoAtual: () => 'ESTADO', certificado: (e) => `CERT ${e.some((x) => x.tipo === 'infra-no-ar') ? 'com relógio' : 'sem relógio'}` },
   };
 
   const orq = criarOrquestrador(deps, {
@@ -163,7 +163,9 @@ describe('orquestrador', () => {
     assert.match(textos(t.falas, 'defesa').at(-1)!, /@atacante, fechei "PostgreSQL aberto a toda a internet" às \d\d:\d\d/);
     assert.equal(textos(t.falas, 'atacante').at(-1), 'Confirmo. Já não chego lá.');
     assert.equal(t.falas.at(-1)?.de, 'chefe');
-    assert.equal(t.falas.at(-1)?.texto, 'RESUMO');
+    assert.deepEqual(t.falas.slice(-2).map((f) => f.texto), ['RESUMO', 'CERT com relógio']);
+    const recon = t.eventos.find((e) => e.tipo === 'reconhecimento')?.depois as { portas?: unknown[] };
+    assert.equal(recon.portas?.length, 1, 'as portas encontradas ficam na auditoria para o certificado');
     assert.ok(t.eventos.some((e) => e.tipo === 'aprovado' && e.quem === DONO));
   });
 

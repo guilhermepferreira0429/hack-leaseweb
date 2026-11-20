@@ -11,7 +11,7 @@ import { auditoria, bus, estado, telegram } from '@mwbe/shared';
 import * as defesa from '@mwbe/defesa';
 import { reconhecer } from '@mwbe/atacante';
 import { analisar, migrarS3, verificar } from '@mwbe/migrador';
-import { estadoAtual, resumir } from '@mwbe/chefe';
+import { certificado, estadoAtual, resumir } from '@mwbe/chefe';
 import { iniciarPainel } from '@mwbe/painel';
 import { resumoPlano, traduzir } from './migrador/tradutor/index';
 import { criarConsola, DONO_CONSOLA } from './consola';
@@ -58,7 +58,7 @@ async function main(): Promise<void> {
       defesa: { ...defesa, tratar: (achado) => defesa.tratar(achado, canal.telegram.pedirAprovacao) },
       atacante: { reconhecer },
       migrador: { analisar, migrarS3, verificar, planoInfra },
-      chefe: { resumir, estadoAtual },
+      chefe: { resumir, estadoAtual, certificado: (eventos, pedidos) => certificado(eventos, pedidos, process.env.LOCAL_DADOS || undefined) },
     },
     {
       migrar: !args.has('--sem-migrador'),
