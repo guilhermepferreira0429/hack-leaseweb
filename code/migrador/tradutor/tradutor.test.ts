@@ -1,8 +1,9 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import {
+  corrigirRegrasAbertas,
   normalizarAdminIp,
   PORTAS_SENSIVEIS,
   POR_ESCOLHER,
@@ -523,5 +524,166 @@ describe('tradutor: determinismo e resumo', () => {
     }
     assert.match(resumoPlano(exemplo()), /SSH \(22\) só para o teu IP/);
     assert.match(resumoPlano(exemplo('')), /SSH \(22\) fechado sem ADMIN_IP no \.env/);
+  });
+});
+
+describe('corrigir a causa: corrigirRegrasAbertas (Terraform)', () => {
+  const REDE = '10.0.1.0/24';
+
+  it('exemplo: 22 e 5432 passam a aceitar só a rede da app; o resto do ficheiro fica igual, byte a byte', () => {
+    const { depois, corrigidas } = corrigirRegrasAbertas(EXEMPLO, { redeApp: REDE });
+    const esperado = EXEMPLO.split('\n')
+      .map((l) => (/"from_port": (22|5432),/.test(l) ? l.replace('"0.0.0.0/0"', `"${REDE}"`) : l))
+      .join('\n');
+    assert.equal(depois, esperado);
+    assert.deepEqual(corrigidas, [
+      { recurso: 'aws_security_group.web', porta: 22, antes: '0.0.0.0/0', depois: REDE, via: 'redeApp' },
+      { recurso: 'aws_security_group.web', porta: 5432, antes: '0.0.0.0/0', depois: REDE, via: 'redeApp' },
+    ]);
+  });
+
+  it('uma 2.ª corrida não muda nada', () => {
+    const uma = corrigirRegrasAbertas(EXEMPLO, { redeApp: REDE }).depois;
+    const duas = corrigirRegrasAbertas(uma, { redeApp: REDE });
+    assert.equal(duas.depois, uma);
+    assert.deepEqual(duas.corrigidas, []);
+  });
+
+  it('o ficheiro corrigido já não tem portas sensíveis abertas ao mundo para o tradutor', () => {
+    const p = traduzir(corrigirRegrasAbertas(EXEMPLO, { redeApp: REDE }).depois, { adminIp: ADMIN });
+    assert.deepEqual(portas(p), []);
+    assert.ok(regras(p).some((r) => r.startPort === 5432 && r.source === REDE));
+    assert.ok(regras(p).some((r) => r.startPort === 80 && r.source === '0.0.0.0/0'));
+  });
+
+  it('intervalos e "todo o tráfego" com portas sensíveis também; saída (egress) e portas web não', () => {
+    const tf = JSON.stringify(
+      {
+        resource: {
+          aws_security_group: {
+            sg: {
+              ingress: [
+                { from_port: 5000, to_port: 6000, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'] },
+                { from_port: 0, to_port: 0, protocol: '-1', cidr_blocks: ['0.0.0.0/0'] },
+                { from_port: 443, to_port: 443, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'] },
+                { from_port: -1, to_port: -1, protocol: 'icmp', cidr_blocks: ['0.0.0.0/0'] },
+              ],
+              egress: [{ from_port: 0, to_port: 0, protocol: '-1', cidr_blocks: ['0.0.0.0/0'] }],
+            },
+          },
+          aws_security_group_rule: {
+            entrada: { type: 'ingress', from_port: 3389, to_port: 3389, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'], security_group_id: '${aws_security_group.sg.id}' },
+            saida: { type: 'egress', from_port: 6379, to_port: 6379, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'], security_group_id: '${aws_security_group.sg.id}' },
+          },
+        },
+      },
+      null,
+      2,
+    );
+    const { depois, corrigidas } = corrigirRegrasAbertas(tf, { redeApp: REDE });
+    assert.deepEqual(corrigidas.map((c) => [c.recurso, c.porta]), [
+      ['aws_security_group.sg', 5432],
+      ['aws_security_group.sg', 22],
+      ['aws_security_group_rule.entrada', 3389],
+    ]);
+    const r = JSON.parse(depois).resource;
+    assert.deepEqual(r.aws_security_group.sg.ingress.map((i: { cidr_blocks: string[] }) => i.cidr_blocks[0]), [REDE, REDE, '0.0.0.0/0', '0.0.0.0/0']);
+    assert.equal(r.aws_security_group.sg.egress[0].cidr_blocks[0], '0.0.0.0/0');
+    assert.equal(r.aws_security_group_rule.saida.cidr_blocks[0], '0.0.0.0/0');
+  });
+
+  it('IPv6: ::/0 passa à rede IPv6 da app, ou é retirado sem estragar o JSON nem a formatação', () => {
+    const tf = (v6: string[]) =>
+      `{\r\n\t"resource": {\r\n\t\t"aws_security_group": {\r\n\t\t\t"sg": {\r\n\t\t\t\t"ingress": [\r\n\t\t\t\t\t{ "from_port": 22, "to_port": 22, "protocol": "tcp", "cidr_blocks": ["0.0.0.0/0"], "ipv6_cidr_blocks": ${JSON.stringify(v6).replaceAll(',', ', ')} }\r\n\t\t\t\t]\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n}\r\n`;
+    const v6 = (texto: string) => JSON.parse(texto).resource.aws_security_group.sg.ingress[0].ipv6_cidr_blocks;
+
+    const com6 = corrigirRegrasAbertas(tf(['::/0']), { redeApp: REDE, redeApp6: '2001:db8:1::/64' });
+    assert.deepEqual(v6(com6.depois), ['2001:db8:1::/64']);
+    assert.equal(com6.depois, tf(['2001:db8:1::/64']).replace('"0.0.0.0/0"', `"${REDE}"`)); // tabs e CRLF intactos
+
+    for (const [antes, fica] of [
+      [['::/0'], []],
+      [['::/0', '2001:db8::/32'], ['2001:db8::/32']],
+      [['2001:db8::/32', '::/0'], ['2001:db8::/32']],
+      [['::/0', '::/0', '2001:db8::/32', '::/0'], ['2001:db8::/32']],
+    ] as const) {
+      const r = corrigirRegrasAbertas(tf([...antes]), { redeApp: REDE });
+      assert.deepEqual(v6(r.depois), fica);
+      assert.ok(r.corrigidas.some((c) => c.antes === '::/0' && c.depois === '(retirada)'));
+      assert.equal(corrigirRegrasAbertas(r.depois, { redeApp: REDE }).depois, r.depois);
+    }
+  });
+
+  it('origem por variável: não se mexe, fica em porResolver', () => {
+    const tf = JSON.stringify({ resource: { aws_security_group: { sg: { ingress: [{ from_port: 5432, to_port: 5432, protocol: 'tcp', cidr_blocks: ['${var.aberto}'] }, { from_port: 22, to_port: 22, protocol: 'tcp', cidr_blocks: '${var.lista}' }] } } } }, null, 2);
+    const r = corrigirRegrasAbertas(tf, { redeApp: REDE });
+    assert.equal(r.depois, tf);
+    assert.deepEqual(r.porResolver, [
+      { recurso: 'aws_security_group.sg', porta: 5432, referencia: '${var.aberto}' },
+      { recurso: 'aws_security_group.sg', porta: 22, referencia: '${var.lista}' },
+    ]);
+  });
+
+  it('recusa redeApp que não seja a subrede da app (nunca a VPC inteira), sgApp mal escrito e JSON inválido', () => {
+    for (const mau of ['0.0.0.0/0', '0.0.0.0/1', '10.0.0.0/16', 'abc', '::/0', '10.0.0.1'])
+      assert.throws(() => corrigirRegrasAbertas(EXEMPLO, { redeApp: mau }), /redeApp/, `aceitou ${mau}`);
+    assert.throws(() => corrigirRegrasAbertas(EXEMPLO, { redeApp: REDE, redeApp6: '::/0' }), /redeApp6/);
+    assert.throws(() => corrigirRegrasAbertas(EXEMPLO, { sgApp: 'app; rm -rf' }), /sgApp/);
+    assert.throws(() => corrigirRegrasAbertas(EXEMPLO, {}), /sgApp|redeApp/);
+    assert.throws(() => corrigirRegrasAbertas('{ "resource": ', { redeApp: REDE }));
+  });
+
+  // Grupo da app (sgApp): a forma preferida. Só a app entra na porta.
+  const comApp = (base: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+    JSON.stringify({ resource: { aws_security_group: { app: { name: 'app' }, base_dados: { name: 'bd', ingress: [base] } }, ...extra } }, null, 2);
+  const REF = '${aws_security_group.app.id}';
+  /** A lista de grupos inserida fica numa linha: ["${...}"]. */
+  const linhaUnica = (t: string) => t.replace(/"security_groups": \[\s+("\$\{aws_security_group\.app\.id\}")\s+\]/, '"security_groups": [$1]');
+
+  it('sgApp: tira 0.0.0.0/0, põe security_groups com o grupo da app e mantém a formatação (2.ª corrida igual)', () => {
+    const antes = comApp({ from_port: 5432, to_port: 5432, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'] });
+    const r = corrigirRegrasAbertas(antes, { sgApp: 'app' });
+    assert.equal(r.depois, linhaUnica(comApp({ from_port: 5432, to_port: 5432, protocol: 'tcp', cidr_blocks: [], security_groups: [REF] })));
+    assert.deepEqual(r.corrigidas, [{ recurso: 'aws_security_group.base_dados', porta: 5432, antes: '0.0.0.0/0', depois: REF, via: 'sgApp' }]);
+    assert.equal(corrigirRegrasAbertas(r.depois, { sgApp: 'app' }).depois, r.depois);
+    // A referência completa também serve.
+    assert.equal(corrigirRegrasAbertas(antes, { sgApp: REF }).depois, r.depois);
+  });
+
+  it('sgApp: com cidr_blocks a meio e security_groups já existente, junta o grupo sem duplicar', () => {
+    const meio = corrigirRegrasAbertas(comApp({ cidr_blocks: ['0.0.0.0/0', '10.0.1.0/24'], from_port: 5432, to_port: 5432, protocol: 'tcp' }), { sgApp: 'app' });
+    assert.equal(meio.depois, linhaUnica(comApp({ cidr_blocks: ['10.0.1.0/24'], security_groups: [REF], from_port: 5432, to_port: 5432, protocol: 'tcp' })));
+    const existente = corrigirRegrasAbertas(
+      comApp({ from_port: 5432, to_port: 5432, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'], security_groups: ['${aws_security_group.outro.id}'] }),
+      { sgApp: 'app' },
+    );
+    assert.deepEqual(JSON.parse(existente.depois).resource.aws_security_group.base_dados.ingress[0].security_groups, ['${aws_security_group.outro.id}', REF]);
+    const jaLa = comApp({ from_port: 5432, to_port: 5432, protocol: 'tcp', cidr_blocks: ['::/0'], security_groups: [REF] });
+    assert.deepEqual(JSON.parse(corrigirRegrasAbertas(jaLa, { sgApp: 'app' }).depois).resource.aws_security_group.base_dados.ingress[0].security_groups, [REF]);
+  });
+
+  it('sgApp em aws_security_group_rule: cidr_blocks passa a source_security_group_id (o Terraform não aceita os dois)', () => {
+    const regra = (corpo: Record<string, unknown>) => comApp({ from_port: 80, to_port: 80, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'] }, { aws_security_group_rule: { pg: corpo } });
+    const r = corrigirRegrasAbertas(regra({ type: 'ingress', from_port: 5432, to_port: 5432, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'], security_group_id: '${aws_security_group.base_dados.id}' }), { sgApp: 'app' });
+    assert.equal(r.depois, regra({ type: 'ingress', from_port: 5432, to_port: 5432, protocol: 'tcp', source_security_group_id: REF, security_group_id: '${aws_security_group.base_dados.id}' }));
+    assert.deepEqual(r.corrigidas.map((c) => [c.recurso, c.via]), [['aws_security_group_rule.pg', 'sgApp']]);
+    // Com outras origens a ficar, não se pode juntar o grupo: usa a subrede.
+    const misto = corrigirRegrasAbertas(regra({ type: 'ingress', from_port: 5432, to_port: 5432, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0', '10.0.1.0/24'] }), { sgApp: 'app', redeApp: REDE });
+    assert.deepEqual(misto.corrigidas.map((c) => [c.recurso, c.via, c.depois]), [['aws_security_group_rule.pg', 'redeApp', REDE]]);
+  });
+
+  it('sgApp que não existe no ficheiro: usa a subrede se houver; senão recusa', () => {
+    const antes = comApp({ from_port: 5432, to_port: 5432, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'] });
+    assert.deepEqual(corrigirRegrasAbertas(antes, { sgApp: 'web', redeApp: REDE }).corrigidas.map((c) => c.via), ['redeApp']);
+    assert.throws(() => corrigirRegrasAbertas(antes, { sgApp: 'web' }), /não está no ficheiro/);
+  });
+
+  it('ficheiro de infraestrutura da exemplo-app (se existir): só a 5432 do base_dados muda, para o grupo da app', { skip: !existsSync(new URL('../../exemplo-app/infra/main.tf.json', import.meta.url)) }, () => {
+    const infra = readFileSync(new URL('../../exemplo-app/infra/main.tf.json', import.meta.url), 'utf8');
+    const r = corrigirRegrasAbertas(infra, { sgApp: 'app', redeApp: REDE });
+    assert.ok(r.corrigidas.some((c) => c.recurso === 'aws_security_group.base_dados' && c.porta === 5432 && c.via === 'sgApp'));
+    const mudadas = infra.split('\n').filter((l, i) => l !== r.depois.split('\n')[i]);
+    assert.ok(mudadas.length >= 1 && mudadas.every((l) => l.includes('0.0.0.0/0')));
+    assert.equal(corrigirRegrasAbertas(r.depois, { sgApp: 'app', redeApp: REDE }).depois, r.depois);
   });
 });
