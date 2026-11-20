@@ -6,7 +6,8 @@
 # Tudo ligado só a 127.0.0.1: a única porta aberta de propósito na demo é a da VM vítima.
 services:
   localstack:
-    image: localstack/localstack:latest
+    # Versão fixa: a partir de 2026 a imagem "latest" exige LOCALSTACK_AUTH_TOKEN (conta paga) e sai logo.
+    image: localstack/localstack:4.9
     ports:
       - "127.0.0.1:4566:4566"
     environment:
