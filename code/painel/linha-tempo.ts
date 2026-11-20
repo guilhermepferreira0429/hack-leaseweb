@@ -70,6 +70,13 @@ export function fraseDe(e: EventoAuditoria): string {
     case 'feito':
       if (e.quem === 'migrador' && d.tabelas !== undefined)
         return `Base de dados: ${numero(d.linhas)} linhas em ${d.tabelas} tabelas. Checksums ${d.checksumsOk ? 'iguais' : 'DIFERENTES'}.`;
+      if (e.quem === 'migrador' && d.mensagens !== undefined)
+        return `Fila: ${numero(d.mensagens)} mensagens no RabbitMQ. Checksums ${d.checksumsOk ? 'iguais' : 'DIFERENTES'}.`;
+      // Só a contagem: o valor de um segredo nunca chega ao painel.
+      if (e.quem === 'migrador' && d.segredos !== undefined)
+        return `Segredos: ${numero(d.segredos)} no OpenBao. Checksums ${d.checksumsOk ? 'iguais' : 'DIFERENTES'}.`;
+      if (e.quem === 'migrador' && d.chaves !== undefined)
+        return `Cache: ${numero(d.chaves)} chaves no Valkey. Checksums ${d.checksumsOk ? 'iguais' : 'DIFERENTES'}.`;
       if (e.quem === 'migrador') return `${numero(d.objetos)} ficheiros copiados. Checksums ${d.checksumsOk ? 'iguais' : 'DIFERENTES'}.`;
       return 'Fechado e confirmado. Inverso guardado.';
     case 'desfeito':
@@ -134,9 +141,16 @@ export function aprovadoPor(eventos: EventoAuditoria[], pedidoId: string): strin
 /** Os números das provas e da infraestrutura, tirados do ciclo atual. */
 export function provas(eventos: EventoAuditoria[]) {
   const migr = eventos.filter((e) => e.quem === 'migrador' && e.tipo === 'feito').map((e) => obj(e.depois));
-  const s3 = migr.findLast((d) => d.objetos !== undefined);
-  const pg = migr.findLast((d) => d.tabelas !== undefined);
-  const testes = obj((pg ?? s3)?.testes);
+  // Cada passo pelo depois.passo; os eventos antigos (sem passo) pelo campo da prova.
+  const doPasso = (passo: string, campo: string) =>
+    migr.findLast((d) => d.passo === passo || (d.passo === undefined && d[campo] !== undefined));
+  const s3 = doPasso('s3', 'objetos');
+  const pg = doPasso('postgres', 'tabelas');
+  const fila = doPasso('fila', 'mensagens');
+  const seg = doPasso('segredos', 'segredos');
+  const cache = doPasso('cache', 'chaves');
+  const passos = [s3, pg, fila, seg, cache].filter((d) => d !== undefined);
+  const testes = obj(passos.findLast((d) => d.testes !== undefined)?.testes);
   const recon = eventos.findLast((e) => e.tipo === 'reconhecimento');
   const verif = (fase: string) =>
     eventos.findLast((e) => e.tipo === 'verificado' && obj(e.depois).fase === fase)?.depois as { porta: number; estado: string } | undefined;
@@ -144,11 +158,16 @@ export function provas(eventos: EventoAuditoria[]) {
   const desfeito = ultimoFecho && eventos.some((e) => e.tipo === 'desfeito' && e.pedidoId === ultimoFecho.pedidoId && e.hora >= ultimoFecho.hora);
   return {
     objetos: s3?.objetos as number | undefined,
-    checksums: s3 || pg ? Boolean((s3?.checksumsOk ?? true) && (pg?.checksumsOk ?? true)) : undefined,
+    checksums: passos.length ? passos.every((d) => d.checksumsOk ?? true) : undefined,
     testesAntes: testes.antes as boolean | undefined,
     testesDepois: testes.depois as boolean | undefined,
     linhas: pg?.linhas as number | undefined,
     tabelas: pg?.tabelas as number | undefined,
+    mensagens: fila?.mensagens as number | undefined,
+    segredos: seg?.segredos as number | undefined,
+    chaves: cache?.chaves as number | undefined,
+    /** Quantos passos da migração têm prova neste ciclo. */
+    passosMigrados: passos.length,
     atacou: Boolean(recon),
     nmapAntes: verif('antes'),
     nmapDepois: verif('depois'),
@@ -219,11 +238,11 @@ export function renderizar(pedidos: Pedido[], todos: EventoAuditoria[], token = 
   const pills = portas.length
     ? portas.map((x) => `<span class="porta p-${x.estado.replace(' ', '-')}">${x.porta} · ${x.estado.toUpperCase()}</span>`).join('')
     : '<span class="porta" style="color:var(--faint)">sem portas a fechar</span>';
-  const migrou = p.objetos !== undefined || p.linhas !== undefined;
+  const migrou = p.passosMigrados > 0;
   const infra = `<div class="fluxo">
-<div class="cartao"><h3>AWS (simulada)</h3><div class="sub">LocalStack · S3 · SQS · Postgres</div></div>
-<div class="seta ${migrou ? 'mig' : ''}"><b>↓</b>migrador · ${migrou ? `${numero(p.objetos)} objetos · checksums ${p.checksums ? '✓' : '✗'}` : 'à espera de aprovação'}</div>
-<div class="cartao"><h3>Leaseweb Public Cloud</h3><div class="sub">MinIO · Postgres · RabbitMQ · tudo na UE</div></div>
+<div class="cartao"><h3>AWS (simulada)</h3><div class="sub">LocalStack · S3 · SQS · Postgres · Secrets Manager · ElastiCache</div></div>
+<div class="seta ${migrou ? 'mig' : ''}"><b>↓</b>migrador · ${migrou ? `${p.passosMigrados} ${p.passosMigrados === 1 ? 'passo' : 'passos'} · checksums ${p.checksums ? '✓' : '✗'}` : 'à espera de aprovação'}</div>
+<div class="cartao"><h3>Leaseweb Public Cloud</h3><div class="sub">MinIO · Postgres · RabbitMQ · OpenBao · Valkey · tudo na UE</div></div>
 <div class="seta ${p.atacou ? 'atk' : ''}"><b>↓</b>atacante · nmap às nossas máquinas</div>
 <div class="cartao vitima"><h3>VM vítima</h3><div class="sub">security group · 0.0.0.0/0 → regra removida pela API</div><div class="portas">${pills}</div></div></div>`;
 
@@ -239,6 +258,9 @@ export function renderizar(pedidos: Pedido[], todos: EventoAuditoria[], token = 
   const provasHtml = `<div class="prova"><h3>Migração</h3>
 <div class="kv"><span>Objetos copiados</span><span>${numero(p.objetos)}</span></div>
 ${p.linhas !== undefined ? `<div class="kv"><span>Linhas da base de dados</span><span>${numero(p.linhas)} em ${p.tabelas} tabelas</span></div>` : ''}
+${p.mensagens !== undefined ? `<div class="kv"><span>Mensagens da fila</span><span>${numero(p.mensagens)}</span></div>` : ''}
+${p.segredos !== undefined ? `<div class="kv"><span>Segredos (só a contagem)</span><span>${numero(p.segredos)}</span></div>` : ''}
+${p.chaves !== undefined ? `<div class="kv"><span>Chaves da cache</span><span>${numero(p.chaves)}</span></div>` : ''}
 <div class="kv"><span>Checksums</span><span>${p.checksums === undefined ? '—' : p.checksums ? '<span class="ok">iguais ✓</span>' : '<span class="bad">diferentes ✗</span>'}</span></div>
 <div class="kv"><span>Testes antes / depois</span><span>${sim(p.testesAntes)} / ${sim(p.testesDepois)}</span></div></div>
 <div class="prova"><h3>Defesa</h3>
