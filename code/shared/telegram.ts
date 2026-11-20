@@ -1,4 +1,6 @@
-// Telegram é o palco: um bot por agente, todos no grupo "Direção". Long polling (getUpdates), sem webhook.
+// Telegram é o palco: um bot por agente. Chefe, migrador e defesa falam no grupo "Direção";
+// o atacante fala só em privado com o dono (recebe o comando por mensagem direta e não fala com os outros bots).
+// Long polling (getUpdates), sem webhook.
 // Ver docs/telegram.md e docs/agentes-telegram.md.
 // Botões: callback_data = "aprovar:<pedidoId>" | "ignorar:<pedidoId>".
 // Só aceita botões e ordens de TELEGRAM_DONO_ID. Comandos: /estado, /desfazer <pedidoId>, /atacar.
@@ -65,9 +67,10 @@ function tokenPara(agente: Agente): { token: string; proprio: boolean } | undefi
   return outro ? { token: outro, proprio: false } : undefined;
 }
 
-function destino(): string {
+/** Para onde fala cada bot: o atacante só fala em privado com o dono; os outros, no grupo. */
+function destino(agente: Agente): string {
   const { grupoId, donoId } = cfg();
-  const d = grupoId || donoId;
+  const d = agente === 'atacante' ? donoId || grupoId : grupoId || donoId;
   if (!d) throw new Error('TELEGRAM_GRUPO_ID ou TELEGRAM_DONO_ID em falta.');
   return d;
 }
@@ -122,7 +125,7 @@ async function enviarTexto(agente: Agente, texto: string, teclado?: unknown): Pr
   const t = tokenPara(agente);
   if (!t) throw new Error('Nenhum TELEGRAM_TOKEN_* configurado.');
   const corpo = {
-    chat_id: destino(),
+    chat_id: destino(agente),
     text: (t.proprio ? texto : `[${NOME_AGENTE[agente]}] ${texto}`).slice(0, 4000),
     ...(teclado ? { reply_markup: teclado } : {}),
   };
