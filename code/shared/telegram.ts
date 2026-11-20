@@ -417,7 +417,7 @@ async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: U
   const texto = nomeBot ? m.text.replaceAll(`@${nomeBot}`, '').trim() : m.text.trim();
   if (!podeComandar(m.from.id)) {
     // /atacar de quem não está na lista: responde no chat e não chega ao orquestrador.
-    if (/^\/atacar(?:@\S+)?(?:\s|$)/.test(texto) && esteBotResponde(m.chat.type, m.text, nomeBot, agente)) {
+    if (/^\/(?:atacar|attack)(?:@\S+)?(?:\s|$)/.test(texto) && esteBotResponde(m.chat.type, m.text, nomeBot, agente)) {
       await chamar(token, 'sendMessage', { chat_id: m.chat.id, text: 'no permission' }).catch((e: unknown) =>
         console.warn('[telegram]', e instanceof Error ? e.message : e),
       );

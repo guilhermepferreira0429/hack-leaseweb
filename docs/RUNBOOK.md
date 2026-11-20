@@ -145,7 +145,7 @@ Tap **Close**. The Defender:
 4. posts the result:
 
 > **Defender:** Closed and confirmed at `<time>`: PostgreSQL open to the whole internet. To roll back:
-> `/desfazer <id>`
+> `/undo <id>`
 >
 > **Defender:** @atacante, I closed "PostgreSQL open to the whole internet" at `<time>` and stored how to undo it.
 > Can you confirm?
@@ -195,9 +195,9 @@ The code agent scans the sample app, changes only the configuration and opens a 
 With a real PR, the next message has **Approve PR** and **Ignore**. Tap **Approve PR**; the Migrator merges and
 posts:
 
-> **Migrator:** PR #`<n>` approved and merged into the app repo main branch at `<time>`. To undo: `/desfazer <id>`
+> **Migrator:** PR #`<n>` approved and merged into the app repo main branch at `<time>`. To undo: `/undo <id>`
 
-`/desfazer <id>` opens a pull request that reverts the merge; it does not push to `main`. In a dry run
+`/undo <id>` opens a pull request that reverts the merge; it does not push to `main`. In a dry run
 (`MIGRADOR_PR` not set to `real`), the diff stays on the server and there is no **Approve PR** button.
 
 ## 9. Certificate and report
@@ -224,7 +224,7 @@ npm run seed:comparar -- --destino     # 10/10 on the target
 npm run lsw:nmap -- <victim-ip> 5432   # filtered after the close
 ```
 
-In Telegram, send `/estado` to see pending and finished requests. The audit log is at the repository root:
+In Telegram, send `/status` to see pending and finished requests. The audit log is at the repository root:
 
 ```powershell
 Get-Content auditoria.jsonl -Tail 20

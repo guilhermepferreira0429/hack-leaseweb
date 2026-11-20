@@ -73,7 +73,7 @@ Como funciona:
 1. **Encontrar:** procura no código os clientes da AWS (`@aws-sdk/*`, `boto3`, variáveis `AWS_*`) e a configuração.
 2. **Propor:** a IA escreve a alteração; regras fixas validam que só mudam os ficheiros e linhas esperados.
 3. **Provar:** correr os testes da app com o código novo contra o destino novo. Se falharem, o PR não é proposto.
-4. **Aprovar:** o Migrador manda no Telegram "PR com 3 ficheiros alterados, testes a passar. [Aprovar PR] [Ignorar]". O "Aprovar PR" faz o merge no repo da app; `/desfazer` abre um PR que reverte. Só com `MIGRADOR_PR=real`; por omissão é um ensaio.
+4. **Aprovar:** o Migrador manda no Telegram "PR com 3 ficheiros alterados, testes a passar. [Aprovar PR] [Ignorar]". O "Aprovar PR" faz o merge no repo da app; `/undo` abre um PR que reverte. Só com `MIGRADOR_PR=real`; por omissão é um ensaio.
 5. **Liga com a defesa:** se a falha encontrada pelo atacante vier da configuração (por exemplo, uma regra aberta no Terraform), a defesa fecha na API e o migrador abre o PR que corrige a causa, para não voltar no próximo deploy. Feito: o PR abre no repo público `hack-leaseweb-exemplo-app`, ramo `migracao/leaseweb-<hora>`, e corrige a regra do Terraform.
 
 Regra: o código só muda por PR. Nunca há push direto para o ramo principal.
@@ -83,7 +83,7 @@ Regra: o código só muda por PR. Nunca há push direto para o ramo principal.
 | Ferramenta                           | O que procura                                                                                                                                                  | Nível |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
 | Ligação TCP às portas sensíveis      | Bases de dados, Redis, Elasticsearch, RDP abertos a toda a Internet                                                                                            | **A** |
-| Senhas SSH, limitado                 | Login SSH por senha fraca: no máximo 5 tentativas por ronda, um só alvo da allowlist, só com `/atacar`; para na primeira entrada e passa às outras ferramentas | **B** |
+| Senhas SSH, limitado                 | Login SSH por senha fraca: no máximo 5 tentativas por ronda, um só alvo da allowlist, só com `/attack`; para na primeira entrada e passa às outras ferramentas | **B** |
 | Leitura dos security groups pela API | Regras com `0.0.0.0/0` ou `::/0`                                                                                                                               | **A** |
 | Bucket do MinIO público              | Política de leitura anónima depois da migração                                                                                                                 | **B** |
 | Credenciais por defeito              | Postgres, Redis, MinIO e painéis com a senha de fábrica (só tentativa de login, sem mexer em dados)                                                            | **B** |

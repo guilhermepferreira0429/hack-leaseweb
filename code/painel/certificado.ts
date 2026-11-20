@@ -87,7 +87,7 @@ ${exp ? kv('Tempo exposto', `${exp.segundos} s${exp.aindaExposta ? ' (ainda expo
 ${p.nmapDepois ? kv('Confirmação de fora (nmap)', `<span class="${p.nmapDepois.estado === 'open' ? 'bad' : 'ok'}">${p.nmapDepois.porta} ${escapar(p.nmapDepois.estado)}${p.nmapDepois.estado === 'open' ? '' : ' ✓'}</span>`) : ''}</div>
 <div class="sec"><h2><small>04</small>Como voltar atrás</h2><hr>
 ${kv('Ações com inverso guardado', String(fechadas.length))}
-${fechadas.map((x) => kv('Desfazer', `/desfazer ${escapar(x.pedidoId)}`)).join('')}</div>
+${fechadas.map((x) => kv('Undo', `/undo ${escapar(x.pedidoId)}`)).join('')}</div>
 <div class="rodape">${localDados ? `<b>Dados em ${onde}.</b>` : ''}<p>Gerado automaticamente a partir de auditoria.jsonl às ${horaLisboa(agora)}.</p></div>
 </main></body></html>`;
 }

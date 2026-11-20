@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Achado, Acao, Pedido } from '@mwbe/shared';
 
-/** Id curto (8 hex): cabe no callback_data do Telegram e escreve-se à mão em /desfazer <id>. */
+/** Id curto (8 hex): cabe no callback_data do Telegram e escreve-se à mão em /undo <id>. */
 export function novoIdPedido(): string {
   return randomUUID().replace(/-/g, '').slice(0, 8);
 }

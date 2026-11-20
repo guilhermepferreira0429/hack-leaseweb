@@ -130,7 +130,7 @@ from outside.
    the Defender revokes **only that one rule** through the API, re-reads it, and confirms from outside with
    `nmap` that the port no longer answers (if the victim IPs are unknown, it falls back to the API state). It
    never swaps a whole security group, because that would replace every rule. The inverse (the rule to
-   re-create) goes into `auditoria.jsonl`, and the message carries an **Undo** button and a `/desfazer <id>`
+   re-create) goes into `auditoria.jsonl`, and the message carries an **Undo** button and a `/undo <id>`
    command.
 5. **Finish the migration.** The migration continues after the incident. The Chief sums up with measured numbers
    only, and the app tests and checksums are part of the proof. Nothing is reported as "done" if it was not
@@ -138,7 +138,7 @@ from outside.
 6. **Fix the cause.** The Migrator's code agent scans the sample app for AWS usage and opens a pull request on the
    public app repo (`hack-leaseweb-exemplo-app`, branch `migracao/leaseweb-<time>`). The PR changes configuration
    only: it points the app at Leaseweb and corrects the Terraform rule that left the database open. The owner
-   merges it with **Approve PR**, or `/desfazer` opens a PR that reverts it. A real PR requires
+   merges it with **Approve PR**, or `/undo` opens a PR that reverts it. A real PR requires
    `MIGRADOR_PR=real`, the target repo in `MIGRADOR_PR_REPO` and a fine-grained token in
    `GITHUB_TOKEN_EXEMPLO`; otherwise the run is a dry run.
 7. **Prove it.** The Chief issues a migration certificate (`CERT-YYYYMMDD-HHMM`) built only from the audit log and
@@ -173,7 +173,7 @@ The owner talks to a team, not to a system:
   what it found, the Defender explains and asks, the Chief closes with numbers. Each agent has its own bot and
   its own voice. (The Attacker can be switched to private messages with `TELEGRAM_ATACANTE_PRIVADO=sim`; the
   default is the group, so the whole chain is visible.)
-- **Commands**: `/estado`, `/desfazer <pedidoId>`, `/atacar [ip]`, and `/recomendado` or `/selfhosted` before
+- **Commands**: `/status`, `/undo <pedidoId>`, `/attack [ip]`, and `/recomendado` or `/selfhosted` before
   approving the plan. Buttons: `Approve plan`, `Close`, `Approve PR`, `Ignore`, plus one **Undo** per reversible
   step in the incident report.
 - **Only the owner and the listed approvers can act.** Buttons and commands from anyone else are answered with
@@ -209,7 +209,7 @@ _The engineering view at `/`. **In development** — screenshot to be captured._
 - **Non-destructive.** No exploitation, no payloads, no lateral movement. The extras are read-only checks. The
   secrets scan reads the local sample app, not the target.
 - **Reversible by design.** The Defender removes a single firewall rule and stores its inverse. Every reversible
-  action has an Undo button and a `/desfazer` command. `aprovar_pr` stores the merge commit and opens a revert PR
+  action has an Undo button and a `/undo` command. `aprovar_pr` stores the merge commit and opens a revert PR
   instead of pushing to `main`.
 - **Smallest possible change.** One rule, then re-read. The defender never attaches or detaches a security group,
   because that replaces every rule at once.

@@ -51,7 +51,7 @@ describe('chefe/resumir', () => {
   it('modo noite: diz que foi o modo noite, não uma pessoa', () => {
     const noite = { ...ev('a1', 'aprovado', 20), quem: 'modo-noite' };
     const texto = resumir([noite, ev('a1', 'feito', 25)], [fechar('a1', 'feito')]);
-    assert.match(texto, /One issue was closed by night mode, with no answer from the owner: only known IPs get in, and \/desfazer puts it back\./);
+    assert.match(texto, /One issue was closed by night mode, with no answer from the owner: only known IPs get in, and \/undo puts it back\./);
     assert.doesNotMatch(resumir([ev('a1', 'aprovado', 20), ev('a1', 'feito', 25)], [fechar('a1', 'feito')]), /night mode/);
   });
 
@@ -92,11 +92,11 @@ describe('chefe/resumir', () => {
 });
 
 describe('chefe/estadoAtual', () => {
-  it('agrupa por estado e lembra o /desfazer', () => {
+  it('agrupa por estado e lembra o /undo', () => {
     const t = estadoAtual([fechar('aaaa1111', 'pendente'), fechar('bbbb2222', 'feito')]);
     assert.match(t, /Awaiting a decision \(1\):\n• aaaa1111/);
     assert.match(t, /Done \(1\):\n• bbbb2222/);
-    assert.match(t, /\/desfazer <id>/);
+    assert.match(t, /\/undo <id>/);
   });
   it('sem pedidos', () => {
     assert.equal(estadoAtual([]), 'No requests yet.');

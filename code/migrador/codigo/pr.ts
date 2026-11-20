@@ -262,7 +262,7 @@ export async function reverterPR(
     await git('git', ['checkout', '-b', ramo], arvore, env);
     await git('git', ['-c', 'user.name=Migrador hack-leaseweb', '-c', 'user.email=migrador@users.noreply.github.com', 'revert', '--no-edit', commit], arvore, env);
     await git('git', ['push', 'origin', `${ramo}:${ramo}`], arvore, env);
-    const titulo = `Revert PR #${numero} (requested by the owner with /desfazer)`;
+    const titulo = `Revert PR #${numero} (requested by the owner with /undo)`;
     const corpo = `Undoes PR #${numero}, as the owner asked in Telegram. The main branch only changes when someone merges this PR.`;
     const api = apiDe(opcoes);
     if (api) {

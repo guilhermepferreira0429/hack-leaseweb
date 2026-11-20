@@ -76,7 +76,7 @@ export async function modoNoite(pedido: Pedido, avisar: Avisar = (t) => telegram
     avisar,
     `Night mode at ${horaCurta()}: no answer in ${cfg.minutos} min to a critical finding (${atual.titulo}). ` +
       `I left port ${porta} open only to ${cfg.ips.join(', ')} and closed it to the rest of the internet. ` +
-      `This is temporary: /desfazer ${atual.id} puts everything back as it was.`,
+      `This is temporary: /undo ${atual.id} puts everything back as it was.`,
   );
   return true;
 }

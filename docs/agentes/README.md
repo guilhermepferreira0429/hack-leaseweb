@@ -14,4 +14,4 @@ Rules for everything:
 1. **Fixed text first; the AI only improves it.** Every demo message exists as fixed text. The AI may rewrite the explanation (at most 3 sentences, 600 characters, 20 s timeout); if it fails or is slow, the fixed text goes out. The demo never waits for the model.
 2. **Only measured facts.** The `{...}` variables come from the state and the audit log, never from the AI. A missing value is shown as "not measured".
 3. **No message promises an action.** Actions only happen through the buttons.
-4. **English, for a non-technical owner.** The demo and the pitch are in English (team decision at 13:05). Commands stay as they are in the code: `/estado`, `/desfazer <id>`, `/atacar`.
+4. **English, for a non-technical owner.** The demo and the pitch are in English (team decision at 13:05). Commands stay as they are in the code: `/status`, `/undo <id>`, `/attack`.

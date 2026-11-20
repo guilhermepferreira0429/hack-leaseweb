@@ -84,7 +84,7 @@ describe('shared/mensagens', () => {
     );
     assert.equal(
       msgFechado({ horaFecho: '14:05', segundos: 42, pedidoId: 'p-1' }),
-      'Closed at 14:05 and confirmed. Time exposed: 42 s.\nUndo saved: /desfazer p-1\n@atacante, please confirm.',
+      'Closed at 14:05 and confirmed. Time exposed: 42 s.\nUndo saved: /undo p-1\n@atacante, please confirm.',
     );
     assert.equal(msgValidacao({ testes: true, nadaExposto: true, dadosIguais: true }), 'Final check: tests ✓, nothing exposed ✓, data identical ✓.');
     assert.equal(msgAtacanteConfirma(), 'Confirmed. I can no longer reach it.');
@@ -135,7 +135,7 @@ describe('shared/mensagens', () => {
 
   it('respostas fixas em inglês', () => {
     assert.deepEqual(RESPOSTAS_FIXAS, {
-      foraDoEstado: "I don't have that information. Type /estado to see the current status.",
+      foraDoEstado: "I don't have that information. Type /status to see the current status.",
       pedidoIgnorado: 'OK, leaving it as it is. Your decision not to close it is logged.',
       erroApi: 'Leaseweb did not answer in time. I changed nothing. I will try again.',
     });

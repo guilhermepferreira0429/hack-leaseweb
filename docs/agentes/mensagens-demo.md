@@ -64,7 +64,7 @@ Same text as `code/shared/mensagens.ts` (in English since 13:05). For each step:
 - Message after:
   ```
   Closed at {hora_fecho} and confirmed. Time exposed: {segundos} s.
-  Undo saved: /desfazer {pedido_id}
+  Undo saved: /undo {pedido_id}
   @atacante, please confirm.
   ```
 - **Attacker:** `Confirmed. I can no longer reach it.`
@@ -79,7 +79,7 @@ Same text as `code/shared/mensagens.ts` (in English since 13:05). For each step:
   · The app now uses Leaseweb instead of AWS.
   · I fixed the configuration that left the database open, so it does not come back on the next deploy.
   ```
-- Buttons: `Approve PR` · `Ignore`. "Approve PR" merges in the app's repo and `/desfazer` opens a PR that reverts it. Only with `MIGRADOR_PR=real`; in a rehearsal the PR is simulated and there is no button.
+- Buttons: `Approve PR` · `Ignore`. "Approve PR" merges in the app's repo and `/undo` opens a PR that reverts it. Only with `MIGRADOR_PR=real`; in a rehearsal the PR is simulated and there is no button.
 
 ## 7. Check everything
 
@@ -97,6 +97,6 @@ Same text as `code/shared/mensagens.ts` (in English since 13:05). For each step:
 
 ## Useful fixed answers
 
-- The owner asks something not in the state: `I don't have that information. Type /estado to see the current status.`
+- The owner asks something not in the state: `I don't have that information. Type /status to see the current status.`
 - Request ignored: `OK, leaving it as it is. Your decision not to close it is logged.`
 - API error: `Leaseweb did not answer in time. I changed nothing. I will try again.`

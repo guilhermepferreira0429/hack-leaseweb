@@ -70,7 +70,7 @@ export async function avisarSemFalhar(avisar: Avisar, texto: string): Promise<vo
 
 /**
  * `avisar`: o canal do dono (por omissão telegram.notificar). O orquestrador passa o da consola no plano B,
- * para o "Fechado e confirmado ... /desfazer <id>" aparecer também em --consola.
+ * para o "Closed and confirmed ... /undo <id>" aparecer também em --consola.
  */
 export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.notificar(t)): Promise<void> {
   if (pedido.estado !== 'aprovado') throw new Error(`Request ${pedido.id} is not approved (state: ${pedido.estado})`);
@@ -113,6 +113,6 @@ export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.
   // `confirmacao`: 'de-fora' = o nmap já não chega à porta (a API ainda lista a regra em DELETING); 'api' = a regra saiu da API.
   auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'feito', quem: 'defesa', antes, depois, inverso, confirmacao } as EventoAuditoria);
   if (estado.obterPedido(pedido.id)) estado.mudarEstado(pedido.id, 'feito');
-  await avisarSemFalhar(avisar, `Closed and confirmed at ${horaCurta()}: ${pedido.titulo}. To roll back: /desfazer ${pedido.id}`);
+  await avisarSemFalhar(avisar, `Closed and confirmed at ${horaCurta()}: ${pedido.titulo}. To roll back: /undo ${pedido.id}`);
   await verificarDeFora(pedido.id, acao.securityGroupId, acao.regra, 'depois');
 }
