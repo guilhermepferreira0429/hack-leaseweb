@@ -125,7 +125,7 @@ async function inserir(cliente: pg.ClientBase, tabela: string, colunas: string[]
 
 async function semearPostgres(dados: DadosLoja): Promise<Record<string, ResumoTabela>> {
   const url = process.env.DATABASE_URL?.trim();
-  if (!url || url.includes('<senha>')) throw new Error('DATABASE_URL não está definida no .env (ver env/.env.example)');
+  if (!url || url.includes('<senha>')) throw new Error('DATABASE_URL is not set in .env (see env/.env.example)');
   const cliente = new pg.Client({ connectionString: url, connectionTimeoutMillis: 5000 });
   await cliente.connect();
   try {
@@ -167,7 +167,7 @@ async function enviarObjetos(
       const corpo = item.gerar();
       const r = await s3.send(new PutObjectCommand({ Bucket: bucket, Key: item.chave, Body: corpo, ContentType: item.tipo }));
       const md5 = createHash('md5').update(corpo).digest('hex');
-      if (r.ETag && r.ETag.replaceAll('"', '') !== md5) throw new Error(`ETag diferente do enviado: ${bucket}/${item.chave}`);
+      if (r.ETag && r.ETag.replaceAll('"', '') !== md5) throw new Error(`ETag differs from what was sent: ${bucket}/${item.chave}`);
       resultado.push({ chave: item.chave, sha256: sha256Hex(corpo), bytes: corpo.length });
     }
   };
@@ -192,13 +192,13 @@ async function semearS3(dados: DadosLoja): Promise<Record<string, ResumoBucket &
         return gerarFaturaPdf({ fatura: f, encomenda, cliente: clientes.get(encomenda.clienteId)!, linhas: linhasPor.get(encomenda.id) ?? [], produtos });
       },
     })));
-    console.log(`[seed] ${BUCKET_FATURAS}: ${faturas.length} PDFs enviados`);
+    console.log(`[seed] ${BUCKET_FATURAS}: ${faturas.length} PDFs uploaded`);
     const fotos = await enviarObjetos(s3, BUCKET_FOTOS, dados.fotos.map((f) => ({
       chave: f.chave,
       tipo: 'image/png',
       gerar: () => gerarFotoPng(produtos.get(f.produtoId)!, f.vista),
     })));
-    console.log(`[seed] ${BUCKET_FOTOS}: ${fotos.length} PNGs enviados`);
+    console.log(`[seed] ${BUCKET_FOTOS}: ${fotos.length} PNGs uploaded`);
 
     // Volta a ler tudo do S3 e confirma que o checksum bate com o que se gerou.
     const resumo: Record<string, ResumoBucket & { filtro: string }> = {};
@@ -206,7 +206,7 @@ async function semearS3(dados: DadosLoja): Promise<Record<string, ResumoBucket &
       const local = checksumObjetos(enviados);
       const lido = await checksumBucket(s3, bucket, filtro);
       if (lido.checksum !== local.checksum || lido.objetos !== local.objetos) {
-        throw new Error(`${bucket}: o que está no S3 (${lido.objetos} objetos) não bate com o gerado (${local.objetos}); há objetos a mais ou alterados`);
+        throw new Error(`${bucket}: what is in S3 (${lido.objetos} objects) does not match what was generated (${local.objetos}); extra or changed objects`);
       }
       resumo[bucket] = { ...lido, filtro: filtro.source };
     }
@@ -225,7 +225,7 @@ async function semearFila(dados: DadosLoja): Promise<Record<string, { mensagens:
   });
   try {
     const { QueueUrl } = await sqs.send(new CreateQueueCommand({ QueueName: FILA_ENCOMENDAS }));
-    if (!QueueUrl) throw new Error(`SQS não devolveu o URL da fila ${FILA_ENCOMENDAS}`);
+    if (!QueueUrl) throw new Error(`SQS did not return the URL of queue ${FILA_ENCOMENDAS}`);
     await sqs.send(new PurgeQueueCommand({ QueueUrl }));
     for (let i = 0; i < dados.mensagens.length; i += 10) {
       const lote = dados.mensagens.slice(i, i + 10);
@@ -233,7 +233,7 @@ async function semearFila(dados: DadosLoja): Promise<Record<string, { mensagens:
         QueueUrl,
         Entries: lote.map((corpo, j) => ({ Id: String(i + j), MessageBody: corpo })),
       }));
-      if (r.Failed?.length) throw new Error(`SQS recusou ${r.Failed.length} mensagens: ${r.Failed[0]?.Message ?? ''}`);
+      if (r.Failed?.length) throw new Error(`SQS rejected ${r.Failed.length} messages: ${r.Failed[0]?.Message ?? ''}`);
     }
     // Confirma a contagem (atributo aproximado: espera um pouco se ainda não estiver estável).
     let contagem = -1;
@@ -247,7 +247,7 @@ async function semearFila(dados: DadosLoja): Promise<Record<string, { mensagens:
       await new Promise((r) => setTimeout(r, 300));
     }
     if (contagem !== dados.mensagens.length) {
-      throw new Error(`a fila ${FILA_ENCOMENDAS} tem ${contagem} mensagens, esperava ${dados.mensagens.length}`);
+      throw new Error(`queue ${FILA_ENCOMENDAS} has ${contagem} messages, expected ${dados.mensagens.length}`);
     }
     return { [FILA_ENCOMENDAS]: { mensagens: contagem, checksum: checksumMensagens(dados.mensagens) } };
   } finally {
@@ -261,23 +261,23 @@ async function semearSegredos(): Promise<Esperado['segredos']> {
   await escreverSegredos(aws, gerados);
   const lidos = await lerSegredosAws(aws);
   const esperado = { secretsmanager: checksumSegredos(gerados.segredos), ssm: checksumParametros(gerados.parametros) };
-  if (lidos.segredos.checksum !== esperado.secretsmanager.checksum) throw new Error(`Secrets Manager: ${lidos.segredos.itens} segredos lidos não batem com os ${esperado.secretsmanager.itens} gerados (há outros com o prefixo?)`);
-  if (lidos.parametros.checksum !== esperado.ssm.checksum) throw new Error(`SSM: ${lidos.parametros.itens} parâmetros lidos não batem com os ${esperado.ssm.itens} gerados (há outros com o prefixo?)`);
+  if (lidos.segredos.checksum !== esperado.secretsmanager.checksum) throw new Error(`Secrets Manager: ${lidos.segredos.itens} secrets read do not match the ${esperado.secretsmanager.itens} generated (others with the same prefix?)`);
+  if (lidos.parametros.checksum !== esperado.ssm.checksum) throw new Error(`SSM: ${lidos.parametros.itens} parameters read do not match the ${esperado.ssm.itens} generated (others with the same prefix?)`);
   return esperado;
 }
 
 async function semearCache(dados: DadosLoja): Promise<Esperado['cache']> {
   const url = process.env.REDIS_ORIGEM_URL?.trim();
-  if (!url || url.includes('<senha>')) throw new Error('REDIS_ORIGEM_URL não está definida no .env (ver env/.env.example; npm run infra:up)');
+  if (!url || url.includes('<senha>')) throw new Error('REDIS_ORIGEM_URL is not set in .env (see env/.env.example; npm run infra:up)');
   const chaves = gerarCache(dados);
   const cliente = await ligarRedis(url).catch(() => {
-    throw new Error('o redis-origem não responde em REDIS_ORIGEM_URL (npm run infra:up)');
+    throw new Error('redis-origem does not answer at REDIS_ORIGEM_URL (npm run infra:up)');
   });
   try {
     await escreverCache(cliente, chaves);
     const lido = await checksumRedis(cliente);
     const gerado = checksumCacheGerada(chaves);
-    if (lido.checksum !== gerado.checksum) throw new Error(`redis-origem: ${lido.chaves} chaves lidas não batem com as ${gerado.chaves} geradas`);
+    if (lido.checksum !== gerado.checksum) throw new Error(`redis-origem: ${lido.chaves} keys read do not match the ${gerado.chaves} generated`);
     return { ...lido, prefixos: [...PREFIXOS_CACHE] };
   } finally {
     await cliente.close().catch(() => {});
@@ -287,16 +287,16 @@ async function semearCache(dados: DadosLoja): Promise<Esperado['cache']> {
 async function main(): Promise<void> {
   carregarEnvLocal();
   const inicio = Date.now();
-  console.log(`[seed] semente ${SEMENTE}, 12 meses até ${DATA_REFERENCIA.slice(0, 10)}; origem ${endpointOrigem()}`);
+  console.log(`[seed] seed ${SEMENTE}, 12 months up to ${DATA_REFERENCIA.slice(0, 10)}; source ${endpointOrigem()}`);
   const dados = gerarDados();
 
   const tabelas = await semearPostgres(dados);
-  console.log(`[seed] Postgres: esquema ${ESQUEMA} recriado`);
+  console.log(`[seed] Postgres: schema ${ESQUEMA} recreated`);
   const filas = await semearFila(dados);
   const segredos = await semearSegredos();
-  console.log(`[seed] Secrets Manager: ${segredos.secretsmanager.itens} segredos; SSM: ${segredos.ssm.itens} parâmetros`);
+  console.log(`[seed] Secrets Manager: ${segredos.secretsmanager.itens} secrets; SSM: ${segredos.ssm.itens} parameters`);
   const cache = await semearCache(dados);
-  console.log(`[seed] redis-origem (ElastiCache): ${cache.chaves} chaves, ${cache.comTtl} com TTL`);
+  console.log(`[seed] redis-origem (ElastiCache): ${cache.chaves} keys, ${cache.comTtl} with TTL`);
   const buckets = await semearS3(dados);
 
   const esperado: Esperado = {
@@ -320,28 +320,28 @@ async function main(): Promise<void> {
 
   const mb = (b: number): string => `${(b / 1024 / 1024).toFixed(1)} MB`;
   const totalBytes = Object.values(buckets).reduce((s, b) => s + b.bytes, 0);
-  console.log('\n[seed] contagens e checksums');
-  for (const [nome, b] of Object.entries(buckets)) console.log(`  s3   ${nome.padEnd(18)} ${String(b.objetos).padStart(6)} objetos  ${mb(b.bytes).padStart(9)}  ${b.checksum}`);
-  for (const [nome, t] of Object.entries(tabelas)) console.log(`  pg   ${`${ESQUEMA}.${nome}`.padEnd(18)} ${String(t.linhas).padStart(6)} linhas              ${t.checksum}`);
-  for (const [nome, f] of Object.entries(filas)) console.log(`  sqs  ${nome.padEnd(18)} ${String(f.mensagens).padStart(6)} mensagens           ${f.checksum}`);
-  console.log(`  sm   ${'encomendas/prod/*'.padEnd(18)} ${String(segredos.secretsmanager.itens).padStart(6)} segredos            ${segredos.secretsmanager.checksum}`);
-  console.log(`  ssm  ${'/encomendas/prod/*'.padEnd(18)} ${String(segredos.ssm.itens).padStart(6)} parâmetros          ${segredos.ssm.checksum}`);
-  console.log(`  redis ${'redis-origem'.padEnd(17)} ${String(cache.chaves).padStart(6)} chaves (${cache.comTtl} c/ TTL)  ${cache.checksum}`);
-  console.log(`  total nos buckets: ${mb(totalBytes)}; ${((Date.now() - inicio) / 1000).toFixed(1)} s`);
-  console.log(`[seed] gravado em ${CAMINHO_ESPERADO}`);
+  console.log('\n[seed] counts and checksums');
+  for (const [nome, b] of Object.entries(buckets)) console.log(`  s3   ${nome.padEnd(18)} ${String(b.objetos).padStart(6)} objects  ${mb(b.bytes).padStart(9)}  ${b.checksum}`);
+  for (const [nome, t] of Object.entries(tabelas)) console.log(`  pg   ${`${ESQUEMA}.${nome}`.padEnd(18)} ${String(t.linhas).padStart(6)} rows                ${t.checksum}`);
+  for (const [nome, f] of Object.entries(filas)) console.log(`  sqs  ${nome.padEnd(18)} ${String(f.mensagens).padStart(6)} messages            ${f.checksum}`);
+  console.log(`  sm   ${'encomendas/prod/*'.padEnd(18)} ${String(segredos.secretsmanager.itens).padStart(6)} secrets             ${segredos.secretsmanager.checksum}`);
+  console.log(`  ssm  ${'/encomendas/prod/*'.padEnd(18)} ${String(segredos.ssm.itens).padStart(6)} parameters          ${segredos.ssm.checksum}`);
+  console.log(`  redis ${'redis-origem'.padEnd(17)} ${String(cache.chaves).padStart(6)} keys (${cache.comTtl} w/ TTL)    ${cache.checksum}`);
+  console.log(`  total in buckets: ${mb(totalBytes)}; ${((Date.now() - inicio) / 1000).toFixed(1)} s`);
+  console.log(`[seed] written to ${CAMINHO_ESPERADO}`);
 
   // Deixa a app coerente: recriar o LocalStack apaga as faturas/<uuid>.txt da app mas não as linhas da
   // public.encomendas. O --repor da exemplo-app apaga as encomendas semeadas e volta a semear 20.
   if (!process.argv.includes('--sem-app')) {
-    console.log('[seed] a repor as 20 encomendas da exemplo-app (npm run dev:exemplo -- --repor 20; saltar com --sem-app)');
+    console.log('[seed] restoring the 20 exemplo-app orders (npm run dev:exemplo -- --repor 20; skip with --sem-app)');
     const cli = fileURLToPath(new URL('../cli.ts', import.meta.url));
     const r = spawnSync(process.execPath, ['--import', 'tsx', cli, '--repor', '20'], { stdio: 'inherit', env: process.env });
-    if (r.status !== 0) throw new Error('o --repor da exemplo-app falhou (ver acima)');
+    if (r.status !== 0) throw new Error('exemplo-app --repor failed (see above)');
   }
 
   const esperadas = { [BUCKET_FATURAS]: QUANTIDADES.faturas, [BUCKET_FOTOS]: QUANTIDADES.fotos };
-  for (const [nome, n] of Object.entries(esperadas)) if (buckets[nome]?.objetos !== n) throw new Error(`${nome}: ${buckets[nome]?.objetos} objetos, esperava ${n}`);
-  if (totalBytes < 200 * 1024 * 1024 || totalBytes > 500 * 1024 * 1024) throw new Error(`tamanho total ${mb(totalBytes)} fora de 200-500 MB`);
+  for (const [nome, n] of Object.entries(esperadas)) if (buckets[nome]?.objetos !== n) throw new Error(`${nome}: ${buckets[nome]?.objetos} objects, expected ${n}`);
+  if (totalBytes < 200 * 1024 * 1024 || totalBytes > 500 * 1024 * 1024) throw new Error(`total size ${mb(totalBytes)} outside 200-500 MB`);
 }
 
 main().catch((erro) => {

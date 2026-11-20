@@ -75,7 +75,7 @@ export function lerLado(destino: boolean): Lado {
   const localstack = v('LOCALSTACK_ENDPOINT') ?? 'http://127.0.0.1:4566';
   if (!destino) {
     return {
-      nome: `origem (LocalStack ${localstack})`,
+      nome: `source (LocalStack ${localstack})`,
       // O LocalStack aceita quaisquer credenciais; "test" é a convenção dele, não é um segredo.
       s3: { endpoint: localstack, accessKey: 'test', secretKey: 'test', regiao },
       databaseUrl: v('DATABASE_URL'),
@@ -87,11 +87,11 @@ export function lerLado(destino: boolean): Lado {
   }
   const accessKey = v('MINIO_ACCESS_KEY');
   const secretKey = v('MINIO_SECRET_KEY');
-  if (!accessKey || !secretKey) throw new Error('MINIO_ACCESS_KEY e MINIO_SECRET_KEY não estão definidas no .env');
+  if (!accessKey || !secretKey) throw new Error('MINIO_ACCESS_KEY and MINIO_SECRET_KEY are not set in .env');
   const endpoint = v('MINIO_ENDPOINT') ?? 'http://127.0.0.1:9000';
   const rabbitmqUrl = v('RABBITMQ_URL');
   return {
-    nome: `destino (MinIO ${endpoint})`,
+    nome: `destination (MinIO ${endpoint})`,
     s3: { endpoint, accessKey, secretKey, regiao },
     databaseUrl: v('DATABASE_URL_DESTINO'),
     rabbitmqUrl: rabbitmqUrl && !rabbitmqUrl.includes('<senha>') ? rabbitmqUrl : undefined,
@@ -115,7 +115,7 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
         linhas.push({ tipo: 's3', nome: bucket, esperado: fmt(e), encontrado: fmt(r), ok: r.objetos === e.objetos && r.checksum === e.checksum });
       } catch (erro) {
         const estado = (erro as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
-        linhas.push({ tipo: 's3', nome: bucket, esperado: fmt(e), encontrado: estado === 404 ? 'bucket não existe' : String((erro as Error).message), ok: false });
+        linhas.push({ tipo: 's3', nome: bucket, esperado: fmt(e), encontrado: estado === 404 ? 'bucket does not exist' : String((erro as Error).message), ok: false });
       }
     }
   } finally {
@@ -124,9 +124,9 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
 
   for (const [tabela, e] of Object.entries(esperado.tabelas)) {
     const nome = `${esperado.esquema}.${tabela}`;
-    const fmt = (r: ResumoTabela): string => `${r.linhas} linhas ${curto(r.checksum)}`;
+    const fmt = (r: ResumoTabela): string => `${r.linhas} rows ${curto(r.checksum)}`;
     if (!lado.databaseUrl || lado.databaseUrl.includes('<senha>')) {
-      linhas.push({ tipo: 'pg', nome, esperado: fmt(e), encontrado: 'sem URL da base de dados no .env', ok: null });
+      linhas.push({ tipo: 'pg', nome, esperado: fmt(e), encontrado: 'no database URL in .env', ok: null });
       continue;
     }
     const cliente = new pg.Client({ connectionString: lado.databaseUrl, connectionTimeoutMillis: 5000 });
@@ -144,7 +144,7 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
   for (const [fila, e] of Object.entries(esperado.filas)) {
     if (!lado.sqsEndpoint) {
       if (!lado.rabbitmqUrl) {
-        linhas.push({ tipo: 'amqp', nome: fila, esperado: `${e.mensagens} msg`, encontrado: 'sem RABBITMQ_URL no .env', ok: null });
+        linhas.push({ tipo: 'amqp', nome: fila, esperado: `${e.mensagens} msg`, encontrado: 'no RABBITMQ_URL in .env', ok: null });
         continue;
       }
       try {
@@ -161,7 +161,7 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
         }
       } catch (erro) {
         const texto = (erro as Error).message ?? String(erro);
-        linhas.push({ tipo: 'amqp', nome: fila, esperado: `${e.mensagens} msg`, encontrado: /404|NOT_FOUND/.test(texto) ? 'fila ainda não existe (por migrar)' : texto, ok: false });
+        linhas.push({ tipo: 'amqp', nome: fila, esperado: `${e.mensagens} msg`, encontrado: /404|NOT_FOUND/.test(texto) ? 'queue does not exist yet (not migrated)' : texto, ok: false });
       }
       continue;
     }
@@ -172,7 +172,7 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
       const a = await sqs.send(new GetQueueAttributesCommand({ QueueUrl, AttributeNames: ['ApproximateNumberOfMessages', 'ApproximateNumberOfMessagesNotVisible'] }));
       const n = Number(a.Attributes?.ApproximateNumberOfMessages ?? 0) + Number(a.Attributes?.ApproximateNumberOfMessagesNotVisible ?? 0);
       // O migrador MOVE as mensagens para o RabbitMQ: fila vazia na origem não é erro (confere-se no destino).
-      if (n === 0) linhas.push({ tipo: 'sqs', nome: fila, esperado: `${e.mensagens} msg`, encontrado: '0 msg (já migrada? ver --destino)', ok: null });
+      if (n === 0) linhas.push({ tipo: 'sqs', nome: fila, esperado: `${e.mensagens} msg`, encontrado: '0 msg (already migrated? see --destino)', ok: null });
       else linhas.push({ tipo: 'sqs', nome: fila, esperado: `${e.mensagens} msg`, encontrado: `${n} msg`, ok: n === e.mensagens });
     } catch (erro) {
       linhas.push({ tipo: 'sqs', nome: fila, esperado: `${e.mensagens} msg`, encontrado: (erro as Error).message || (erro as Error).name, ok: false });
@@ -186,25 +186,25 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
     try {
       if (lado.segredosAws) {
         const r = await lerSegredosAws(lado.segredosAws);
-        linhas.push({ tipo: 'sm', nome: 'encomendas/prod/*', esperado: fmt(e.secretsmanager, 'segredos'), encontrado: fmt(r.segredos, 'segredos'), ok: r.segredos.checksum === e.secretsmanager.checksum });
-        linhas.push({ tipo: 'ssm', nome: '/encomendas/prod/*', esperado: fmt(e.ssm, 'parâm.'), encontrado: fmt(r.parametros, 'parâm.'), ok: r.parametros.checksum === e.ssm.checksum });
+        linhas.push({ tipo: 'sm', nome: 'encomendas/prod/*', esperado: fmt(e.secretsmanager, 'secrets'), encontrado: fmt(r.segredos, 'secrets'), ok: r.segredos.checksum === e.secretsmanager.checksum });
+        linhas.push({ tipo: 'ssm', nome: '/encomendas/prod/*', esperado: fmt(e.ssm, 'params'), encontrado: fmt(r.parametros, 'params'), ok: r.parametros.checksum === e.ssm.checksum });
       } else if (lado.openbao) {
         const r = await lerSegredosOpenBao(lado.openbao);
-        linhas.push({ tipo: 'bao', nome: 'aws/secretsmanager/*', esperado: fmt(e.secretsmanager, 'segredos'), encontrado: fmt(r.segredos, 'segredos'), ok: r.segredos.checksum === e.secretsmanager.checksum });
-        linhas.push({ tipo: 'bao', nome: 'aws/ssm/*', esperado: fmt(e.ssm, 'parâm.'), encontrado: fmt(r.parametros, 'parâm.'), ok: r.parametros.checksum === e.ssm.checksum });
+        linhas.push({ tipo: 'bao', nome: 'aws/secretsmanager/*', esperado: fmt(e.secretsmanager, 'secrets'), encontrado: fmt(r.segredos, 'secrets'), ok: r.segredos.checksum === e.secretsmanager.checksum });
+        linhas.push({ tipo: 'bao', nome: 'aws/ssm/*', esperado: fmt(e.ssm, 'params'), encontrado: fmt(r.parametros, 'params'), ok: r.parametros.checksum === e.ssm.checksum });
       } else {
-        linhas.push({ tipo: 'bao', nome: 'segredos', esperado: fmt(e.secretsmanager, 'segredos'), encontrado: 'sem OPENBAO_TOKEN no .env', ok: null });
+        linhas.push({ tipo: 'bao', nome: 'segredos', esperado: fmt(e.secretsmanager, 'secrets'), encontrado: 'no OPENBAO_TOKEN in .env', ok: null });
       }
     } catch (erro) {
-      linhas.push({ tipo: lado.openbao ? 'bao' : 'sm', nome: 'segredos', esperado: fmt(e.secretsmanager, 'segredos'), encontrado: (erro as Error).message, ok: false });
+      linhas.push({ tipo: lado.openbao ? 'bao' : 'sm', nome: 'segredos', esperado: fmt(e.secretsmanager, 'secrets'), encontrado: (erro as Error).message, ok: false });
     }
   }
 
   if (esperado.cache) {
     const e = esperado.cache;
-    const fmt = (r: ResumoCache): string => `${r.chaves} chaves (${r.comTtl} TTL) ${curto(r.checksum)}`;
+    const fmt = (r: ResumoCache): string => `${r.chaves} keys (${r.comTtl} TTL) ${curto(r.checksum)}`;
     if (!lado.redisUrl) {
-      linhas.push({ tipo: 'redis', nome: lado.redisNome, esperado: fmt(e), encontrado: `sem ${lado.redisNome === 'valkey' ? 'VALKEY_URL' : 'REDIS_ORIGEM_URL'} no .env`, ok: null });
+      linhas.push({ tipo: 'redis', nome: lado.redisNome, esperado: fmt(e), encontrado: `no ${lado.redisNome === 'valkey' ? 'VALKEY_URL' : 'REDIS_ORIGEM_URL'} in .env`, ok: null });
     } else {
       try {
         const cliente = await ligarRedis(lado.redisUrl);
@@ -216,7 +216,7 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
         }
       } catch (erro) {
         // Nunca se mostra o URL (tem a senha).
-        linhas.push({ tipo: 'redis', nome: lado.redisNome, esperado: fmt(e), encontrado: `não responde (${(erro as Error).name})`, ok: false });
+        linhas.push({ tipo: 'redis', nome: lado.redisNome, esperado: fmt(e), encontrado: `not answering (${(erro as Error).name})`, ok: false });
       }
     }
   }
@@ -224,7 +224,7 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
   if (existsSync(CAMINHO_EXTRA)) {
     const x = JSON.parse(readFileSync(CAMINHO_EXTRA, 'utf8')) as EsperadoExtra;
     if (!lado.segredosAws) {
-      linhas.push({ tipo: 'ddb', nome: 'DynamoDB, SNS, Logs', esperado: 'fase seguinte', encontrado: 'sem destino hoje (só no plano)', ok: null });
+      linhas.push({ tipo: 'ddb', nome: 'DynamoDB, SNS, Logs', esperado: 'next phase', encontrado: 'no destination today (plan only)', ok: null });
     } else {
       const aws = lado.segredosAws;
       const tenta = async (tipo: LinhaComparacao['tipo'], nome: string, esperado: string, fn: () => Promise<{ texto: string; ok: boolean }>): Promise<void> => {
@@ -234,13 +234,13 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
         } catch (erro) {
           // Fase seguinte: se não foi semeado nesta máquina, não é erro (não aparece a vermelho na demo).
           const naoExiste = (erro as Error).name === 'ResourceNotFoundException' || /não existe/.test((erro as Error).message);
-          linhas.push({ tipo, nome, esperado, encontrado: naoExiste ? 'não semeado (npm run seed:extra)' : (erro as Error).message, ok: naoExiste ? null : false });
+          linhas.push({ tipo, nome, esperado, encontrado: naoExiste ? 'not seeded (npm run seed:extra)' : (erro as Error).message, ok: naoExiste ? null : false });
         }
       };
       for (const [nome, e] of Object.entries(x.dynamodb)) {
-        await tenta('ddb', nome, `${e.itens} itens ${curto(e.checksum)}`, async () => {
+        await tenta('ddb', nome, `${e.itens} items ${curto(e.checksum)}`, async () => {
           const r = await checksumTabelaDynamo(aws, { nome, chaveParticao: e.chaveParticao, chaveOrdenacao: e.chaveOrdenacao });
-          return { texto: `${r.itens} itens ${curto(r.checksum)}`, ok: r.checksum === e.checksum };
+          return { texto: `${r.itens} items ${curto(r.checksum)}`, ok: r.checksum === e.checksum };
         });
       }
       await tenta('sns', x.sns.topico, `${x.sns.subscricoes} subscr. ${curto(x.sns.checksum)}`, async () => {
@@ -248,9 +248,9 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
         return { texto: `${r.subscricoes} subscr. ${curto(r.checksum)}`, ok: r.checksum === x.sns.checksum };
       });
       for (const [nome, e] of Object.entries(x.logs)) {
-        await tenta('logs', nome, `${e.eventos} eventos ${curto(e.checksum)}`, async () => {
+        await tenta('logs', nome, `${e.eventos} events ${curto(e.checksum)}`, async () => {
           const r = await lerGrupoLogs(aws, nome);
-          return { texto: `${r.eventos} eventos ${curto(r.checksum)}`, ok: r.checksum === e.checksum };
+          return { texto: `${r.eventos} events ${curto(r.checksum)}`, ok: r.checksum === e.checksum };
         });
       }
     }
@@ -261,15 +261,15 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
 async function main(): Promise<void> {
   carregarEnvLocal();
   const lado = lerLado(process.argv.includes('--destino'));
-  console.log(`[seed:comparar] ${lado.nome} contra seed/esperado.json`);
+  console.log(`[seed:comparar] ${lado.nome} against seed/esperado.json`);
   const linhas = await comparar(lado);
   for (const l of linhas) {
     const marca = l.ok === null ? '--' : l.ok ? 'OK' : 'XX';
-    console.log(`  ${marca}  ${l.tipo.padEnd(5)}  ${l.nome.padEnd(22)}  esperado ${l.esperado.padEnd(28)}  encontrado ${l.encontrado}`);
+    console.log(`  ${marca}  ${l.tipo.padEnd(5)}  ${l.nome.padEnd(22)}  expected ${l.esperado.padEnd(28)}  found ${l.encontrado}`);
   }
   const falhas = linhas.filter((l) => l.ok === false).length;
   const comparados = linhas.filter((l) => l.ok !== null).length;
-  console.log(`[seed:comparar] ${comparados - falhas}/${comparados} iguais${falhas ? `; ${falhas} DIFERENTES` : ''}`);
+  console.log(`[seed:comparar] ${comparados - falhas}/${comparados} equal${falhas ? `; ${falhas} DIFFERENT` : ''}`);
   if (falhas) process.exitCode = 1;
 }
 

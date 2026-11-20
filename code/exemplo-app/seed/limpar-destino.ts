@@ -33,7 +33,7 @@ async function main(): Promise<void> {
   const origem = lerLado(false);
   // Salvaguarda: se o .env apontar o MinIO para o LocalStack, isto apagaria a origem.
   if (hostPorta(destino.s3.endpoint) === hostPorta(origem.s3.endpoint)) {
-    throw new Error(`MINIO_ENDPOINT (${destino.s3.endpoint}) é o mesmo que a origem: recuso apagar`);
+    throw new Error(`MINIO_ENDPOINT (${destino.s3.endpoint}) is the same as the source: refusing to delete`);
   }
   const esperado = JSON.parse(readFileSync(CAMINHO_ESPERADO, 'utf8')) as { esquema: string; buckets: Record<string, unknown>; filas: Record<string, unknown> };
   const buckets = Object.keys(esperado.buckets);
@@ -49,7 +49,7 @@ async function main(): Promise<void> {
             const chaves = (r.Contents ?? []).flatMap((o) => (o.Key ? [{ Key: o.Key }] : []));
             if (chaves.length === 0) break;
             const d = await s3.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: chaves, Quiet: true } }));
-            if (d.Errors?.length) throw new Error(`${bucket}: ${d.Errors.length} objetos não foram apagados (${d.Errors[0]?.Message ?? ''})`);
+            if (d.Errors?.length) throw new Error(`${bucket}: ${d.Errors.length} objects were not deleted (${d.Errors[0]?.Message ?? ''})`);
             total += chaves.length;
           }
         } else {
@@ -62,12 +62,12 @@ async function main(): Promise<void> {
         }
       } catch (erro) {
         if ((erro as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404) {
-          console.log(`  ${bucket}: não existe no destino (nada a fazer)`);
+          console.log(`  ${bucket}: does not exist at the destination (nothing to do)`);
           continue;
         }
         throw erro;
       }
-      console.log(`  ${bucket}: ${total} objetos ${apagar ? 'apagados' : 'seriam apagados'}`);
+      console.log(`  ${bucket}: ${total} objects ${apagar ? 'deleted' : 'would be deleted'}`);
     }
   } finally {
     s3.destroy();
@@ -76,36 +76,36 @@ async function main(): Promise<void> {
   // Valkey: salvaguarda igual à do MinIO (nunca o mesmo servidor que o redis-origem).
   if (destino.redisUrl) {
     if (origem.redisUrl && hostPorta(destino.redisUrl) === hostPorta(origem.redisUrl)) {
-      throw new Error('VALKEY_URL aponta para o mesmo servidor que REDIS_ORIGEM_URL: recuso apagar');
+      throw new Error('VALKEY_URL points to the same server as REDIS_ORIGEM_URL: refusing to delete');
     }
     const valkey = await ligarRedis(destino.redisUrl).catch(() => {
-      throw new Error('o Valkey não responde em VALKEY_URL');
+      throw new Error('Valkey does not answer at VALKEY_URL');
     });
     try {
       // FLUSHDB só na base do URL (db 0 por omissão): o Valkey de destino é só da demo, e chaves a mais
       // (de outras corridas) fazem a prova do migrador dar diferente.
       const n = await valkey.dbSize();
       if (apagar) await valkey.flushDb();
-      console.log(`  valkey: ${n} chaves (FLUSHDB) ${apagar ? 'apagadas' : 'seriam apagadas'}`);
+      console.log(`  valkey: ${n} keys (FLUSHDB) ${apagar ? 'deleted' : 'would be deleted'}`);
     } finally {
       await valkey.close().catch(() => {});
     }
   } else {
-    console.log('  valkey: sem VALKEY_URL no .env (saltado)');
+    console.log('  valkey: no VALKEY_URL in .env (skipped)');
   }
 
   if (destino.openbao) {
     const n = await apagarSegredosOpenBao(destino.openbao, apagar);
-    console.log(`  openbao: ${n} segredos e parâmetros da seed ${apagar ? 'apagados' : 'seriam apagados'}`);
+    console.log(`  openbao: ${n} seed secrets and parameters ${apagar ? 'deleted' : 'would be deleted'}`);
   } else {
-    console.log('  openbao: sem OPENBAO_TOKEN no .env (saltado)');
+    console.log('  openbao: no OPENBAO_TOKEN in .env (skipped)');
   }
 
   // RabbitMQ: apaga as filas da demo. Uma 2.ª corrida do migrarFila somaria mensagens, e o verificar()
   // acha que a fila já foi migrada enquanto a encomendas-criadas existir.
   if (destino.rabbitmqUrl) {
     const ligacao = await amqp.connect(destino.rabbitmqUrl).catch(() => {
-      throw new Error('o RabbitMQ não responde em RABBITMQ_URL');
+      throw new Error('RabbitMQ does not answer at RABBITMQ_URL');
     });
     ligacao.on('error', () => {});
     try {
@@ -116,17 +116,17 @@ async function main(): Promise<void> {
         try {
           const { messageCount } = await canal.checkQueue(fila);
           if (apagar) await canal.deleteQueue(fila);
-          console.log(`  rabbitmq ${fila}: fila com ${messageCount} mensagens ${apagar ? 'apagada' : 'seria apagada'}`);
+          console.log(`  rabbitmq ${fila}: queue with ${messageCount} messages ${apagar ? 'deleted' : 'would be deleted'}`);
           await canal.close().catch(() => {});
         } catch {
-          console.log(`  rabbitmq ${fila}: a fila não existe (nada a fazer)`);
+          console.log(`  rabbitmq ${fila}: queue does not exist (nothing to do)`);
         }
       }
     } finally {
       await ligacao.close().catch(() => {});
     }
   } else {
-    console.log('  rabbitmq: sem RABBITMQ_URL no .env (saltado)');
+    console.log('  rabbitmq: no RABBITMQ_URL in .env (skipped)');
   }
 
   // Postgres de destino: só o esquema da seed. Recusa se for a mesma base que a origem.
@@ -137,11 +137,11 @@ async function main(): Promise<void> {
       return `${x.hostname === 'localhost' ? '127.0.0.1' : x.hostname}:${x.port || '5432'}${x.pathname}`;
     };
     if (origemUrl && alvo(origemUrl) === alvo(destino.databaseUrl)) {
-      throw new Error('DATABASE_URL_DESTINO aponta para a mesma base que DATABASE_URL: recuso apagar');
+      throw new Error('DATABASE_URL_DESTINO points to the same database as DATABASE_URL: refusing to delete');
     }
     const bd = new pg.Client({ connectionString: destino.databaseUrl, connectionTimeoutMillis: 5000 });
     await bd.connect().catch(() => {
-      throw new Error('o Postgres de destino não responde em DATABASE_URL_DESTINO');
+      throw new Error('destination Postgres does not answer at DATABASE_URL_DESTINO');
     });
     try {
       const r = await bd.query<{ n: number }>('SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = $1', [esperado.esquema]);
@@ -151,15 +151,15 @@ async function main(): Promise<void> {
         await bd.query(`DROP SCHEMA IF EXISTS "${esperado.esquema}" CASCADE`);
         await bd.query('DROP TABLE IF EXISTS public.encomendas');
       }
-      console.log(`  postgres-destino: esquema ${esperado.esquema} (${n} tabelas)${app ? ' e public.encomendas' : ''} ${apagar ? 'apagados' : 'seriam apagados'}`);
+      console.log(`  postgres-destino: schema ${esperado.esquema} (${n} tables)${app ? ' and public.encomendas' : ''} ${apagar ? 'dropped' : 'would be dropped'}`);
     } finally {
       await bd.end().catch(() => {});
     }
   } else {
-    console.log('  postgres-destino: sem DATABASE_URL_DESTINO no .env (saltado)');
+    console.log('  postgres-destino: no DATABASE_URL_DESTINO in .env (skipped)');
   }
 
-  console.log(apagar ? `[seed:limpar-destino] destino limpo (só o que é da demo)` : '[seed:limpar-destino] nada apagado; para apagar: npm run seed:limpar-destino -- --sim');
+  console.log(apagar ? `[seed:limpar-destino] destination cleaned (only what the demo fills)` : '[seed:limpar-destino] nothing deleted; to delete: npm run seed:limpar-destino -- --sim');
 }
 
 main().catch((erro) => {
