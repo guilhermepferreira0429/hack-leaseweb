@@ -341,6 +341,39 @@ describe('orquestrador', () => {
     assert.equal(erro.falas.at(-1)?.de, 'chefe');
   });
 
+  it('relatório do incidente: um por achado tratado, depois da defesa e antes do resumo; uma falha não trava', async () => {
+    const t = montar();
+    const publicados: string[] = [];
+    const falasNoMomento: number[] = [];
+    t.deps.relatorio = {
+      publicar: async (id) => {
+        publicados.push(id);
+        falasNoMomento.push(t.falas.length);
+      },
+    };
+    await t.orq.correr();
+    assert.deepEqual(publicados, ['a1'], 'o achado da API (correlacionado com o do atacante) dá um só relatório');
+    assert.ok(t.corrigidos.length === 1 && falasNoMomento[0] < t.falas.length, 'sai depois do fecho e antes do chefe');
+    assert.equal(t.falas.at(-1)?.de, 'chefe');
+
+    const erro = montar();
+    erro.deps.relatorio = {
+      publicar: async () => {
+        throw new Error('enviarComDesfazer falhou');
+      },
+    };
+    await erro.orq.correr();
+    assert.ok(erro.notificacoes.some((n) => /relatório do incidente a1/.test(n)));
+    assert.deepEqual(erro.falas.slice(-2).map((f) => f.texto), ['RESUMO', 'CERT com relógio']);
+
+    const nada = montar({}, { atacar: false });
+    nada.deps.defesa.detetar = async () => [];
+    let chamado = false;
+    nada.deps.relatorio = { publicar: async () => void (chamado = true) };
+    await nada.orq.correr();
+    assert.equal(chamado, false, 'sem achados tratados não há relatório');
+  });
+
   it('filas (SQS -> RabbitMQ): terceira aprovação, prova por sha256; recusa ou erro não travam o resto', async () => {
     const t = montar({}, { atacar: false });
     t.deps.migrador.migrarPostgres = async () => ({ tabelas: 1, linhas: 20, checksumsOk: true });
