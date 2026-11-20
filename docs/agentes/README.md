@@ -6,8 +6,6 @@ This folder defines **what each agent says**, in Telegram and on the dashboard. 
 |---|---|---|
 | `vozes.md` | Persona and rules of each agent (system prompts) | `code/shared/voz.ts` (`PERSONAS`, `REGRAS`) and `code/shared/llm.ts` |
 | `mensagens-demo.md` | Fixed text of each demo step, with buttons and variables | `code/shared/mensagens.ts`, used by `code/orquestrador.ts`, `code/shared/telegram.ts` and the dashboard ("thinking" line) |
-| `checkup-12h.md` | First end-to-end demo at 12:00 and the public repo for the PRs | Nobody: it is for people |
-| `roteiro-dia.md` | What to turn on and check from 15:00 to 15:45 | Nobody: it is for people |
 
 Rules for everything:
 

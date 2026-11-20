@@ -409,7 +409,7 @@
             ).join('')}
           </div>
         </div>
-        <div class="qa-nota mono muted"><span>The long answers and sources: docs/perguntas-juri.md · A1–A8 for the deep dives.</span><span class="qa-hint">↓ scroll</span></div>`),
+        <div class="qa-nota mono muted"><span>Sources: README.md · A1–A8 for the deep dives.</span><span class="qa-hint">↓ scroll</span></div>`),
     },
   ].map((a) => ({ ...a, passos: 0, anexo: true }));
 

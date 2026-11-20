@@ -14,3 +14,14 @@ notas-equipa/
 pitch/js/guiao.js
 pitch/js/perguntas.js
 docs/material/design/telegram-avatars/
+
+# Notas internas da equipa: ficam só locais (fora do repo público enviado ao júri)
+CLAUDE.md
+AGENTS.md
+docs/plano.md
+docs/execucao.md
+docs/ideias-wow.md
+docs/riscos.md
+docs/perguntas-juri.md
+docs/agentes/roteiro-dia.md
+docs/agentes/checkup-12h.md

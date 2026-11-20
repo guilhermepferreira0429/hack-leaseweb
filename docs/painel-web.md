@@ -16,7 +16,7 @@ Desenho em `docs/material/design/web.pen`. Quem faz: Enio Carlos (com as horas d
 ## Ecrãs extra (nível B)
 
 - **/isco:** só o contador de tentativas e IPs distintos, para a abertura do pitch.
-- **/certificado:** o certificado de migração (ver `ideias-wow.md`), pronto a imprimir.
+- **/certificado:** o certificado de migração, pronto a imprimir.
 - **QR code** para o grupo "Direção", para o jurado entrar e aprovar.
 
 ## Regras
