@@ -29,6 +29,7 @@
     "seed:limpar-destino": "tsx code/exemplo-app/seed/limpar-destino.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "tsx --test \"code/**/*.test.ts\"",
+    "telegram:smoke": "tsx code/shared/telegram-smoke.ts",
     "infra:up": "docker compose -f env/docker-compose.yml --env-file .env up -d",
     "infra:down": "docker compose -f env/docker-compose.yml --env-file .env down",
     "lsw:diagnostico": "tsx code/defesa/diagnostico.ts",
