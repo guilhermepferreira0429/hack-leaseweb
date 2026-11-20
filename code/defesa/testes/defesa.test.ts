@@ -134,8 +134,8 @@ describe('ciclo detetar -> corrigir -> desfazer', () => {
     const pedido: Pedido = { id: 'p9', titulo: 'PG', texto: '', acao: { tipo: 'remover_regra', securityGroupId: SG, regra: regraPg }, estado: 'aprovado' };
     await corrigir(pedido, async (t) => void avisos.push(t));
     await desfazer('p9', async (t) => void avisos.push(t));
-    assert.match(avisos[0], /Fechado e confirmado.*\/desfazer p9/);
-    assert.match(avisos[1], /Desfeito/);
+    assert.match(avisos[0], /Closed and confirmed at \d\d:\d\d.*To roll back: \/desfazer p9/);
+    assert.match(avisos[1], /Undone at \d\d:\d\d: the rule is back/);
   });
 
   it('fecha só a regra culpada, audita o inverso e desfaz', async () => {
@@ -168,12 +168,12 @@ describe('ciclo detetar -> corrigir -> desfazer', () => {
     assert.equal(reposta.source, '0.0.0.0/0');
     assert.equal(reposta.state, 'ACTIVE');
     assert.equal(estado.obterPedido('p1')?.estado, 'desfeito');
-    await assert.rejects(desfazer('p1'), /Nada para desfazer/);
+    await assert.rejects(desfazer('p1'), /Nothing to undo/);
   });
 
   it('recusa pedidos não aprovados e grupos não geridos', async () => {
     const base: Pedido = { id: 'p2', titulo: 't', texto: '', acao: { tipo: 'remover_regra', securityGroupId: SG, regra: regraPg }, estado: 'pendente' };
-    await assert.rejects(corrigir(base), /não está aprovado/);
+    await assert.rejects(corrigir(base), /is not approved/);
     await assert.rejects(
       corrigir({ ...base, estado: 'aprovado', acao: { ...base.acao, securityGroupId: 'sg-isco' } as Pedido['acao'] }),
       /LSW_SG_GERIDOS/,
@@ -279,7 +279,7 @@ describe('modo noite', () => {
     const pg = () => regras.filter((r) => r.startPort === 5432).map((r) => r.source).sort();
     assert.deepEqual(pg(), ['203.0.113.50/32']);
     assert.equal(estado.obterPedido('pn')?.estado, 'feito');
-    assert.match(avisos[0], /Modo noite.*203\.0\.113\.50\/32.*\/desfazer pn/);
+    assert.match(avisos[0], /Night mode at.*203\.0\.113\.50\/32.*\/desfazer pn/);
     // authorize antes do revoke
     const posts = pedidosHttp.filter((p) => p.metodo === 'POST').map((p) => p.caminho.split('/').pop());
     assert.deepEqual(posts, ['authorizeFirewallRules', 'revokeFirewallRules']);
@@ -401,6 +401,6 @@ describe('botão Desfazer do relatório (Telegram)', () => {
     cb!('mau', '123');
     await new Promise((ok) => setTimeout(ok, 5));
     assert.deepEqual(feitos, ['p1', 'mau']);
-    assert.match(avisos[0], /Não consegui desfazer mau/);
+    assert.match(avisos[0], /Could not undo mau/);
   });
 });

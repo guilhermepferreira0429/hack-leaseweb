@@ -55,7 +55,7 @@ export function inversoDe(pedido: Pedido): Inverso | undefined {
 }
 
 export const horaCurta = (d = new Date()) =>
-  d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' });
+  d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' });
 
 export type Avisar = (texto: string) => Promise<void>;
 
@@ -73,18 +73,18 @@ export async function avisarSemFalhar(avisar: Avisar, texto: string): Promise<vo
  * para o "Fechado e confirmado ... /desfazer <id>" aparecer também em --consola.
  */
 export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.notificar(t)): Promise<void> {
-  if (pedido.estado !== 'aprovado') throw new Error(`Pedido ${pedido.id} não está aprovado (estado: ${pedido.estado})`);
-  if (!(TIPOS_ACAO as readonly string[]).includes(pedido.acao.tipo)) throw new Error(`Ação fora da lista: ${pedido.acao.tipo}`);
+  if (pedido.estado !== 'aprovado') throw new Error(`Request ${pedido.id} is not approved (state: ${pedido.estado})`);
+  if (!(TIPOS_ACAO as readonly string[]).includes(pedido.acao.tipo)) throw new Error(`Action not on the closed list: ${pedido.acao.tipo}`);
 
   const acao = pedido.acao;
   if (acao.tipo !== 'remover_regra') {
     // migrar e aprovar_pr são do migrador (Guilherme); o orquestrador chama-o diretamente. Aqui não se mexe em nada.
-    throw new Error(`Ação ${acao.tipo}: tratada pelo orquestrador (migrador), não pela defesa`);
+    throw new Error(`Action ${acao.tipo}: handled by the orchestrator (migrator), not by the defence`);
   }
 
   const geridos = securityGroupsGeridos();
   if (!geridos.includes(acao.securityGroupId)) {
-    throw new Error(`Security group ${acao.securityGroupId} não está em LSW_SG_GERIDOS: a defesa não lhe mexe`);
+    throw new Error(`Security group ${acao.securityGroupId} is not in LSW_SG_GERIDOS: the defence does not touch it`);
   }
 
   await verificarDeFora(pedido.id, acao.securityGroupId, acao.regra, 'antes');
@@ -105,7 +105,7 @@ export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.
   } catch (erro) {
     const msg = erro instanceof Error ? erro.message : String(erro);
     auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'falhou', quem: 'defesa', depois: msg });
-    await avisarSemFalhar(avisar, `Não consegui fechar "${pedido.titulo}": ${msg}`);
+    await avisarSemFalhar(avisar, `Could not close "${pedido.titulo}": ${msg}`);
     throw erro;
   }
 
@@ -113,6 +113,6 @@ export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.
   // `confirmacao`: 'de-fora' = o nmap já não chega à porta (a API ainda lista a regra em DELETING); 'api' = a regra saiu da API.
   auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'feito', quem: 'defesa', antes, depois, inverso, confirmacao } as EventoAuditoria);
   if (estado.obterPedido(pedido.id)) estado.mudarEstado(pedido.id, 'feito');
-  await avisarSemFalhar(avisar, `Fechado e confirmado às ${horaCurta()}: ${pedido.titulo}. Para voltar atrás: /desfazer ${pedido.id}`);
+  await avisarSemFalhar(avisar, `Closed and confirmed at ${horaCurta()}: ${pedido.titulo}. To roll back: /desfazer ${pedido.id}`);
   await verificarDeFora(pedido.id, acao.securityGroupId, acao.regra, 'depois');
 }

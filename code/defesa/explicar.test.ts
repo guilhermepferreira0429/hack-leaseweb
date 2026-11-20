@@ -27,9 +27,9 @@ describe('defesa/explicar', () => {
   });
 
   it('títulos por tipo, com recurso à porta se não houver serviço', () => {
-    assert.equal(tituloPara(base), 'PostgreSQL aberto a toda a internet');
-    assert.equal(tituloPara({ ...base, servico: null }), 'Porta 5432 aberto a toda a internet');
-    assert.match(tituloPara({ ...base, tipo: 'credenciais-por-defeito' }), /palavra-passe de fábrica/);
+    assert.equal(tituloPara(base), 'PostgreSQL open to the whole internet');
+    assert.equal(tituloPara({ ...base, servico: null }), 'Port 5432 open to the whole internet');
+    assert.match(tituloPara({ ...base, tipo: 'credenciais-por-defeito' }), /factory default password/);
   });
 
   it('pedido pendente, com id curto que cabe no callback_data do Telegram', () => {

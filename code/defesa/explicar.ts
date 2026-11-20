@@ -14,18 +14,18 @@ export function acaoPara(achado: Achado): Acao | undefined {
   return { tipo: 'remover_regra', securityGroupId: achado.securityGroupId, regra: achado.regra };
 }
 
-/** Título curto para a mensagem, ex.: "PostgreSQL aberto a toda a internet". */
+/** Título curto para a mensagem (em inglês: a demo é em inglês), ex.: "PostgreSQL open to the whole internet". */
 export function tituloPara(achado: Achado): string {
-  const servico = achado.servico ?? `Porta ${achado.porta}`;
+  const servico = achado.servico ?? `Port ${achado.porta}`;
   switch (achado.tipo) {
     case 'porta-exposta':
-      return `${servico} aberto a toda a internet`;
+      return `${servico} open to the whole internet`;
     case 'servico-exposto':
-      return `${servico} visível de fora (${achado.alvo})`;
+      return `${servico} visible from outside (${achado.alvo})`;
     case 'credenciais-por-defeito':
-      return `${servico} com palavra-passe de fábrica`;
+      return `${servico} with its factory default password`;
     case 'isco-tocado':
-      return `Tentativa de entrada no isco (${achado.alvo})`;
+      return `Login attempt on the honeypot (${achado.alvo})`;
   }
 }
 

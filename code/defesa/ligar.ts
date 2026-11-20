@@ -19,7 +19,7 @@ export function ligarDesfazer(canal: CanalDesfazer, fazer: (id: string, avisar: 
       .catch(async (erro) => {
         const msg = erro instanceof Error ? erro.message : String(erro);
         console.warn('[defesa] desfazer falhou:', msg);
-        await canal.notificar(`Não consegui desfazer ${pedidoId}: ${msg}`).catch(() => {});
+        await canal.notificar(`Could not undo ${pedidoId}: ${msg}`).catch(() => {});
       })
       .finally(() => emCurso.delete(pedidoId));
   });

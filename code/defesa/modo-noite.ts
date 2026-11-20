@@ -66,7 +66,7 @@ export async function modoNoite(pedido: Pedido, avisar: Avisar = (t) => telegram
     auditoria.registar({ hora: hora(), pedidoId: atual.id, tipo: 'falhou', quem: 'modo-noite', depois: msg });
     // Volta a ficar nas mãos do dono. As regras temporárias já criadas ficam na auditoria (modo-noite-permitir).
     estado.mudarEstado(atual.id, 'pendente');
-    await avisarSemFalhar(avisar, `Modo noite: não consegui aplicar a medida temporária em "${atual.titulo}": ${msg}`);
+    await avisarSemFalhar(avisar, `Night mode: could not apply the temporary measure to "${atual.titulo}": ${msg}`);
     return false;
   }
 
@@ -74,9 +74,9 @@ export async function modoNoite(pedido: Pedido, avisar: Avisar = (t) => telegram
   const porta = regra.startPort === regra.endPort ? `${regra.startPort}` : `${regra.startPort}-${regra.endPort}`;
   await avisarSemFalhar(
     avisar,
-    `Modo noite às ${horaCurta()}: sem resposta em ${cfg.minutos} min a uma falha crítica (${atual.titulo}). ` +
-      `Deixei a porta ${porta} aberta só para ${cfg.ips.join(', ')} e fechei-a ao resto da internet. ` +
-      `É temporário: /desfazer ${atual.id} repõe tudo como estava.`,
+    `Night mode at ${horaCurta()}: no answer in ${cfg.minutos} min to a critical finding (${atual.titulo}). ` +
+      `I left port ${porta} open only to ${cfg.ips.join(', ')} and closed it to the rest of the internet. ` +
+      `This is temporary: /desfazer ${atual.id} puts everything back as it was.`,
   );
   return true;
 }
