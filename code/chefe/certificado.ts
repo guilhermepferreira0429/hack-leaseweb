@@ -4,8 +4,8 @@ import type { EventoAuditoria, Pedido } from '@mwbe/shared';
 import { duracao } from './resumo';
 
 const HORA = (iso: string) =>
-  new Date(iso).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' });
-const DATA = (iso: string) => new Date(iso).toLocaleDateString('pt-PT', { timeZone: 'Europe/Lisbon' });
+  new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' });
+const DATA = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { timeZone: 'Europe/Lisbon' });
 
 // O último do ciclo: num processo que corre várias vezes, o primeiro seria de um ensaio antigo.
 const doPasso = (pedidos: Pedido[], passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache') =>
@@ -45,21 +45,21 @@ type ProvaPasso = {
 };
 type Reconhecimento = { achados?: number; portas?: { alvo: string; porta: number; servico: string | null }[] };
 
-const NAO_MEDIDO = 'não medido';
+const NAO_MEDIDO = 'not measured';
 const OK = (v: boolean | undefined) => (v === undefined ? NAO_MEDIDO : v ? '✓' : '✗');
 
 /** Cada serviço migrado: de onde vem, para onde foi, e como se escreve a prova (docs/certificado-migracao.md). */
 const SERVICOS: { passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache'; aws: string; destino: string; frase: (p: ProvaPasso) => string }[] = [
-  { passo: 's3', aws: 'S3', destino: 'MinIO', frase: (p) => `Ficheiros: ${p.objetos ?? NAO_MEDIDO} copiados` },
+  { passo: 's3', aws: 'S3', destino: 'MinIO', frase: (p) => `Files: ${p.objetos ?? NAO_MEDIDO} copied` },
   {
     passo: 'postgres',
     aws: 'RDS PostgreSQL',
     destino: 'PostgreSQL',
-    frase: (p) => `Base de dados: ${p.linhas ?? NAO_MEDIDO} linhas em ${p.tabelas ?? NAO_MEDIDO} ${p.tabelas === 1 ? 'tabela' : 'tabelas'}`,
+    frase: (p) => `Database: ${p.linhas ?? NAO_MEDIDO} rows in ${p.tabelas ?? NAO_MEDIDO} ${p.tabelas === 1 ? 'table' : 'tables'}`,
   },
-  { passo: 'fila', aws: 'SQS', destino: 'RabbitMQ', frase: (p) => `Filas: ${p.mensagens ?? NAO_MEDIDO} mensagens passadas` },
-  { passo: 'segredos', aws: 'Secrets Manager e Parameter Store', destino: 'OpenBao', frase: (p) => `Segredos: ${p.segredos ?? NAO_MEDIDO} passados, sem nunca mostrar um valor` },
-  { passo: 'cache', aws: 'ElastiCache Redis', destino: 'Valkey', frase: (p) => `Cache: ${p.chaves ?? NAO_MEDIDO} chaves copiadas` },
+  { passo: 'fila', aws: 'SQS', destino: 'RabbitMQ', frase: (p) => `Queues: ${p.mensagens ?? NAO_MEDIDO} messages moved` },
+  { passo: 'segredos', aws: 'Secrets Manager and Parameter Store', destino: 'OpenBao', frase: (p) => `Secrets: ${p.segredos ?? NAO_MEDIDO} moved, no value ever shown` },
+  { passo: 'cache', aws: 'ElastiCache Redis', destino: 'Valkey', frase: (p) => `Cache: ${p.chaves ?? NAO_MEDIDO} keys copied` },
 ];
 
 /** Países da UE (ISO 3166-1 alfa-2). */
@@ -111,72 +111,72 @@ export function certificado(eventos: EventoAuditoria[], pedidos: Pedido[], local
   const codigo = eventos.filter((e) => e.tipo === 'migracao-codigo').at(-1)?.depois as { causas?: number; url?: string } | undefined;
   const comInverso = eventos.filter((e) => e.tipo === 'feito' && e.inverso);
 
-  const l: string[] = [`CERTIFICADO DE MIGRAÇÃO · ${idCertificado(agora)}`, `${DATA(iso)} ${HORA(iso)} · ${onde}`, ''];
+  const l: string[] = [`MIGRATION CERTIFICATE · ${idCertificado(agora)}`, `${DATA(iso)} ${HORA(iso)} · ${onde}`, ''];
 
   // Resumo: frases fixas a partir dos números abaixo (a IA não entra aqui; a demo nunca espera por ela).
   const resumo: string[] = [];
   if (feitos.length) {
     resumo.push(
-      `Migrámos ${feitos.length} ${feitos.length === 1 ? 'serviço' : 'serviços'} da AWS para ${onde}` +
-        (algumDiferente ? ', mas há pelo menos um checksum diferente.' : ', com a impressão digital dos dados igual dos dois lados.'),
+      `We moved ${feitos.length} ${feitos.length === 1 ? 'service' : 'services'} from AWS to ${onde}` +
+        (algumDiferente ? ', but at least one checksum does not match.' : ', with the data fingerprint matching on both sides.'),
     );
   } else if (migrados.length) {
-    resumo.push('A migração não ficou concluída.');
+    resumo.push('The migration did not finish.');
   }
   if (recon) {
     const n = recon.portas?.length ?? 0;
     resumo.push(
       n === 0
-        ? 'O atacante não encontrou portas abertas.'
-        : `O atacante encontrou ${n} ${n === 1 ? 'porta aberta' : 'portas abertas'} e ${fechos.length === 0 ? 'ainda nenhuma foi fechada' : `${fechos.length === 1 ? 'foi fechada' : `${fechos.length} foram fechadas`} com aprovação`}.`,
+        ? 'The attacker found no open ports.'
+        : `The attacker found ${n} ${n === 1 ? 'open port' : 'open ports'} and ${fechos.length === 0 ? 'none has been closed yet' : `${fechos.length === 1 ? 'it was closed' : `${fechos.length} were closed`} with approval`}.`,
     );
   }
-  if (exp && !exp.aindaExposta) resumo.push(`Exposição: ${duracao(exp.segundos * 1000)}.`);
-  l.push('RESUMO', resumo.length ? resumo.join(' ') : NAO_MEDIDO, '');
+  if (exp && !exp.aindaExposta) resumo.push(`Exposure: ${duracao(exp.segundos * 1000)}.`);
+  l.push('SUMMARY', resumo.length ? resumo.join(' ') : NAO_MEDIDO, '');
 
-  l.push('1. ONDE ESTÃO OS DADOS');
+  l.push('1. WHERE THE DATA IS');
   if (migrados.length === 0) l.push(`· ${NAO_MEDIDO}`);
   for (const s of migrados) {
-    const estado = s.prova ? '' : ` · ${s.pedido!.estado === 'ignorado' ? 'não aprovado' : 'por concluir'}`;
+    const estado = s.prova ? '' : ` · ${s.pedido!.estado === 'ignorado' ? 'not approved' : 'not finished'}`;
     l.push(`· ${s.aws} → ${s.destino} · ${onde} · self-hosted${estado}`);
   }
   l.push('');
 
-  l.push('2. PROVA DE QUE NADA SE PERDEU');
+  l.push('2. PROOF NOTHING WAS LOST');
   if (feitos.length === 0) l.push(`· ${NAO_MEDIDO}`);
   for (const s of feitos) l.push(`· ${s.frase(s.prova!)} · checksum ${OK(s.prova!.checksumsOk)}`);
-  l.push(`· Testes da app: antes ${OK(testes?.antes)} · depois ${OK(testes?.depois)}`);
-  if (algumDiferente) l.push('✗ ATENÇÃO: há um checksum diferente. A migração não está completa.');
+  l.push(`· App tests: before ${OK(testes?.antes)} · after ${OK(testes?.depois)}`);
+  if (algumDiferente) l.push('✗ WARNING: a checksum does not match. The migration is not complete.');
   l.push('');
 
-  l.push('3. SEGURANÇA DEPOIS DA MIGRAÇÃO');
-  if (!recon) l.push(`· Encontrado: ${NAO_MEDIDO}`);
+  l.push('3. SECURITY AFTER THE MIGRATION');
+  if (!recon) l.push(`· Found: ${NAO_MEDIDO}`);
   else {
     const portas = recon.portas ?? [];
-    l.push(`· Encontrado: ${portas.length} ${portas.length === 1 ? 'falha' : 'falhas'}${portas.length ? `: ${portas.slice(0, 4).map((p) => `${p.servico ?? 'serviço'} ${p.porta}`).join(', ')}` : ''}`);
+    l.push(`· Found: ${portas.length} ${portas.length === 1 ? 'issue' : 'issues'}${portas.length ? `: ${portas.slice(0, 4).map((p) => `${p.servico ?? 'service'} ${p.porta}`).join(', ')}` : ''}`);
   }
   for (const f of fechos.slice(0, 4)) {
     const pedido = pedidos.find((p) => p.id === f.pedidoId);
     const aprov = eventos.find((e) => e.pedidoId === f.pedidoId && e.tipo === 'aprovado');
-    const quem = !aprov ? NAO_MEDIDO : aprov.quem === 'modo-noite' ? 'modo noite (sem resposta do dono), só os IPs conhecidos entram' : 'uma pessoa, no Telegram';
-    const desfeito = pedido?.estado === 'desfeito' ? ' · depois desfeito pelo dono' : '';
-    l.push(`· ${pedido?.titulo ?? f.pedidoId} → fechada às ${HORA(f.hora)}, aprovado por ${quem}${desfeito}`);
+    const quem = !aprov ? NAO_MEDIDO : aprov.quem === 'modo-noite' ? 'night mode (no answer from the owner), only known IPs get in' : 'a person, in Telegram';
+    const desfeito = pedido?.estado === 'desfeito' ? ' · later undone by the owner' : '';
+    l.push(`· ${pedido?.titulo ?? f.pedidoId} → closed at ${HORA(f.hora)}, approved by ${quem}${desfeito}`);
   }
-  l.push(`· Tempo exposto: ${exp && !exp.aindaExposta ? `${exp.segundos} segundos` : exp?.aindaExposta && fechos.length === 0 && recon?.portas?.length ? 'ainda exposta' : NAO_MEDIDO}`);
-  l.push(`· Confirmação do atacante: ${confirmacao?.chega === undefined ? NAO_MEDIDO : confirmacao.chega ? 'ainda chega lá ✗' : 'já não chega lá ✓'}`);
-  if (codigo?.causas) l.push(`· Causa corrigida no código: regra aberta na configuração da infraestrutura${codigo.url ? ` (${codigo.url})` : ''}`);
+  l.push(`· Time exposed: ${exp && !exp.aindaExposta ? `${exp.segundos} seconds` : exp?.aindaExposta && fechos.length === 0 && recon?.portas?.length ? 'still exposed' : NAO_MEDIDO}`);
+  l.push(`· Attacker confirmation: ${confirmacao?.chega === undefined ? NAO_MEDIDO : confirmacao.chega ? 'can still reach it ✗' : 'can no longer reach it ✓'}`);
+  if (codigo?.causas) l.push(`· Root cause fixed in code: open rule in the infrastructure config${codigo.url ? ` (${codigo.url})` : ''}`);
   l.push('');
 
-  l.push('4. COMO VOLTAR ATRÁS');
-  if (comInverso.length === 0) l.push('· Nenhuma ação com inverso neste ciclo');
+  l.push('4. HOW TO UNDO');
+  if (comInverso.length === 0) l.push('· No action with a stored inverse in this run');
   else {
     const ids = [...new Set(comInverso.map((e) => e.pedidoId))];
-    l.push(`· ${ids.length} ${ids.length === 1 ? 'ação guardada' : 'ações guardadas'} com o inverso · desfazer: ${ids.slice(0, 3).map((id) => `/desfazer ${id}`).join(', ')}`);
+    l.push(`· ${ids.length} ${ids.length === 1 ? 'action stored' : 'actions stored'} with the inverse · undo: ${ids.slice(0, 3).map((id) => `/desfazer ${id}`).join(', ')}`);
   }
   l.push('');
 
   // "Nenhum dado saiu da UE" só quando o destino dito por nós (LOCAL_DADOS) é um país da UE, ex.: "(NL)".
-  const ue = naUE(localDados) && feitos.length > 0 ? 'Nenhum dado saiu da UE. ' : '';
-  l.push(`${ue}Destino dos dados: ${onde}. Gerado automaticamente a partir do registo de auditoria (${eventos.length} ${eventos.length === 1 ? 'evento' : 'eventos'}).`);
+  const ue = naUE(localDados) && feitos.length > 0 ? 'No data left the EU. ' : '';
+  l.push(`${ue}Data destination: ${onde}. Generated automatically from the audit log (${eventos.length} ${eventos.length === 1 ? 'event' : 'events'}).`);
   return l.join('\n');
 }

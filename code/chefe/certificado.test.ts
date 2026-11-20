@@ -65,59 +65,59 @@ describe('chefe/certificado (modelo de docs/certificado-migracao.md)', () => {
 
   it('as 4 secções, com id CERT-AAAAMMDD-HHMM e só números medidos', () => {
     const t = certificado(completo, [migrar, pg, fl, sg, ch, fechar], LOCAL, new Date(em(50)));
-    assert.match(t, /^CERTIFICADO DE MIGRAÇÃO · CERT-20261120-1400\n20\/11\/2026 14:00 · Leaseweb, Frankfurt \(DE\)\n/);
-    assert.match(t, /RESUMO\nMigrámos 5 serviços da AWS para Leaseweb, Frankfurt \(DE\), com a impressão digital dos dados igual dos dois lados\. O atacante encontrou 1 porta aberta e foi fechada com aprovação\. Exposição: 38 segundos\./);
-    assert.match(t, /1\. ONDE ESTÃO OS DADOS\n· S3 → MinIO · Leaseweb, Frankfurt \(DE\) · self-hosted\n· RDS PostgreSQL → PostgreSQL/);
+    assert.match(t, /^MIGRATION CERTIFICATE · CERT-20261120-1400\n20\/11\/2026 14:00 · Leaseweb, Frankfurt \(DE\)\n/);
+    assert.match(t, /SUMMARY\nWe moved 5 services from AWS to Leaseweb, Frankfurt \(DE\), with the data fingerprint matching on both sides\. The attacker found 1 open port and it was closed with approval\. Exposure: 38 seconds\./);
+    assert.match(t, /1\. WHERE THE DATA IS\n· S3 → MinIO · Leaseweb, Frankfurt \(DE\) · self-hosted\n· RDS PostgreSQL → PostgreSQL/);
     assert.match(t, /· ElastiCache Redis → Valkey · Leaseweb, Frankfurt \(DE\) · self-hosted/);
-    assert.match(t, /2\. PROVA DE QUE NADA SE PERDEU\n· Ficheiros: 20 copiados · checksum ✓\n· Base de dados: 17498 linhas em 5 tabelas · checksum ✓\n· Filas: 50 mensagens passadas · checksum ✓\n· Segredos: 16 passados, sem nunca mostrar um valor · checksum ✓\n· Cache: 594 chaves copiadas · checksum ✓\n· Testes da app: antes ✓ · depois ✓/);
-    assert.match(t, /3\. SEGURANÇA DEPOIS DA MIGRAÇÃO\n· Encontrado: 1 falha: PostgreSQL 5432\n· PostgreSQL aberto a toda a internet → fechada às 14:00, aprovado por uma pessoa, no Telegram\n· Tempo exposto: 38 segundos\n· Confirmação do atacante: já não chega lá ✓\n· Causa corrigida no código/);
-    assert.match(t, /4\. COMO VOLTAR ATRÁS\n· 1 ação guardada com o inverso · desfazer: \/desfazer a1/);
-    assert.match(t, /Destino dos dados: Leaseweb, Frankfurt \(DE\)\. Gerado automaticamente a partir do registo de auditoria/);
-    assert.match(t, /Nenhum dado saiu da UE\. Destino dos dados: Leaseweb, Frankfurt \(DE\)\./, 'destino num país da UE');
+    assert.match(t, /2\. PROOF NOTHING WAS LOST\n· Files: 20 copied · checksum ✓\n· Database: 17498 rows in 5 tables · checksum ✓\n· Queues: 50 messages moved · checksum ✓\n· Secrets: 16 moved, no value ever shown · checksum ✓\n· Cache: 594 keys copied · checksum ✓\n· App tests: before ✓ · after ✓/);
+    assert.match(t, /3\. SECURITY AFTER THE MIGRATION\n· Found: 1 issue: PostgreSQL 5432\n· PostgreSQL aberto a toda a internet → closed at 14:00, approved by a person, in Telegram\n· Time exposed: 38 seconds\n· Attacker confirmation: can no longer reach it ✓\n· Root cause fixed in code/);
+    assert.match(t, /4\. HOW TO UNDO\n· 1 action stored with the inverse · undo: \/desfazer a1/);
+    assert.match(t, /Data destination: Leaseweb, Frankfurt \(DE\)\. Generated automatically from the audit log/);
+    assert.match(t, /No data left the EU\. Data destination: Leaseweb, Frankfurt \(DE\)\./, 'destino num país da UE');
     assert.doesNotMatch(t, /203\.0\.113\.10/, 'o certificado não precisa do IP');
   });
 
   it('"Nenhum dado saiu da UE" só com um destino num país da UE', () => {
     const fora = certificado(completo, [migrar, pg, fl, sg, ch, fechar], 'Leaseweb, Singapura (SG)', new Date(em(50)));
-    assert.doesNotMatch(fora, /Nenhum dado saiu da UE/);
+    assert.doesNotMatch(fora, /No data left the EU/);
     const semLocal = certificado(completo, [migrar, pg, fl, sg, ch, fechar], undefined, new Date(em(50)));
-    assert.doesNotMatch(semLocal, /Nenhum dado saiu da UE/);
+    assert.doesNotMatch(semLocal, /No data left the EU/);
   });
 
   it('o que falta sai "não medido"; não inventa o local', () => {
     const t = certificado([ev('m1', 'feito', 5, { depois: { checksumsOk: true } })], [migrar], undefined, new Date(em(50)));
-    assert.match(t, /^CERTIFICADO DE MIGRAÇÃO · CERT-\d{8}-\d{4}\n\S+ \S+ · não medido\n/);
-    assert.match(t, /· Ficheiros: não medido copiados · checksum ✓/);
-    assert.match(t, /· Testes da app: antes não medido · depois não medido/);
-    assert.match(t, /· Encontrado: não medido/);
-    assert.match(t, /· Confirmação do atacante: não medido/);
+    assert.match(t, /^MIGRATION CERTIFICATE · CERT-\d{8}-\d{4}\n\S+ \S+ · not measured\n/);
+    assert.match(t, /· Files: not measured copied · checksum ✓/);
+    assert.match(t, /· App tests: before not measured · after not measured/);
+    assert.match(t, /· Found: not measured/);
+    assert.match(t, /· Attacker confirmation: not measured/);
   });
 
   it('checksum diferente: ✗ em destaque e o aviso de migração incompleta', () => {
     const t = certificado([...completo, ev('f1', 'feito', 49, { depois: { mensagens: 50, checksumsOk: false } })], [migrar, pg, fl, sg, ch, fechar], LOCAL, new Date(em(50)));
-    assert.match(t, /· Filas: 50 mensagens passadas · checksum ✗/);
-    assert.match(t, /✗ ATENÇÃO: há um checksum diferente\. A migração não está completa\./);
-    assert.match(t, /mas há pelo menos um checksum diferente/);
+    assert.match(t, /· Queues: 50 messages moved · checksum ✗/);
+    assert.match(t, /✗ WARNING: a checksum does not match\. The migration is not complete\./);
+    assert.match(t, /but at least one checksum does not match/);
   });
 
   it('reconhecimento: usa o mais recente', () => {
     const velho = ev('-', 'reconhecimento', 1, { depois: { portas: [{ alvo: '198.51.100.7', porta: 22, servico: 'SSH' }] } });
     const t = certificado([velho, ...demo], [migrar, fechar], undefined, new Date(em(50)));
-    assert.match(t, /· Encontrado: 1 falha: PostgreSQL 5432/);
+    assert.match(t, /· Found: 1 issue: PostgreSQL 5432/);
     assert.doesNotMatch(t, /SSH 22/);
   });
 
   it('modo noite: o fecho diz modo noite, não "uma pessoa"', () => {
     const noite = demo.map((e) => (e.tipo === 'aprovado' ? { ...e, quem: 'modo-noite' } : e));
     const t = certificado(noite, [migrar, fechar], undefined, new Date(em(50)));
-    assert.match(t, /aprovado por modo noite \(sem resposta do dono\), só os IPs conhecidos entram/);
-    assert.doesNotMatch(t, /uma pessoa/);
+    assert.match(t, /approved by night mode \(no answer from the owner\), only known IPs get in/);
+    assert.doesNotMatch(t, /a person/);
   });
 
   it('migração não aprovada e sem ataque', () => {
     const t = certificado([], [{ ...migrar, estado: 'ignorado' }], LOCAL, new Date(em(50)));
-    assert.match(t, /· S3 → MinIO · Leaseweb, Frankfurt \(DE\) · self-hosted · não aprovado/);
-    assert.match(t, /A migração não ficou concluída\./);
-    assert.match(t, /4\. COMO VOLTAR ATRÁS\n· Nenhuma ação com inverso neste ciclo/);
+    assert.match(t, /· S3 → MinIO · Leaseweb, Frankfurt \(DE\) · self-hosted · not approved/);
+    assert.match(t, /The migration did not finish\./);
+    assert.match(t, /4\. HOW TO UNDO\n· No action with a stored inverse in this run/);
   });
 });
