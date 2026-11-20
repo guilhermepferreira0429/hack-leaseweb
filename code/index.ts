@@ -1,18 +1,63 @@
-// Orquestrador: um só processo Node no cérebro (npm run dev).
-// Encadeia: migrador -> atacante -> defesa, com o chefe a resumir. Os agentes falam pelo bus
-// (shared/bus.ts) e cada um publica a sua fala no grupo "Direção" com o seu bot.
-//
-//  1. carregarConfig; iniciarPainel(PORT)
-//  2. telegram.aoResponder: aprovar -> corrigir(pedido); ignorar -> estado 'ignorado'
-//     telegram.aoMensagemDoDono: /estado -> chefe.estadoAtual; /desfazer <id> -> desfazer
-//  3. migrador.analisar -> Pedido { acao: migrar s3 } -> aprovação -> migrarS3 -> verificar
-//  4. bus: migrador -> atacante "infraestrutura nova no ar" -> reconhecer(ALVOS_PERMITIDOS)
-//  5. bus: atacante -> defesa achados; defesa.detetar() (API) + correlacionar -> tratar cada um
-//  6. depois de corrigir: atacante volta a confirmar; chefe.resumir
-import { naoImplementado } from '@mwbe/shared';
+// Orquestrador: um só processo Node no cérebro.
+//   npm run dev                         tudo: migrar -> atacar -> defender -> resumir
+//   npm run dev -- --sem-migrador       corte 1 (docs/plano.md)
+//   npm run dev -- --sem-atacante       corte 2: a defesa lê só os security groups pela API
+// A lógica está em orquestrador.ts; aqui só se ligam os módulos reais.
+import { fileURLToPath } from 'node:url';
+import { auditoria, bus, estado, telegram } from '@mwbe/shared';
+import * as defesa from '@mwbe/defesa';
+import { reconhecer } from '@mwbe/atacante';
+import { analisar, migrarS3, verificar } from '@mwbe/migrador';
+import { estadoAtual, resumir } from '@mwbe/chefe';
+import { iniciarPainel } from '@mwbe/painel';
+import { criarOrquestrador } from './orquestrador';
+
+const RAIZ = fileURLToPath(new URL('../', import.meta.url));
+
+function carregarEnv(): void {
+  try {
+    process.loadEnvFile(`${RAIZ}.env`);
+  } catch {
+    console.warn('[orquestrador] sem .env na raiz: a usar só as variáveis do ambiente.');
+  }
+}
+
+function lista(valor: string | undefined): string[] {
+  return (valor ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 async function main(): Promise<void> {
-  naoImplementado('orquestrador main');
+  carregarEnv();
+  const args = new Set(process.argv.slice(2));
+
+  iniciarPainel(Number(process.env.PORT ?? 3000));
+
+  const orquestrador = criarOrquestrador(
+    {
+      telegram,
+      bus,
+      estado,
+      auditoria,
+      defesa,
+      atacante: { reconhecer },
+      migrador: { analisar, migrarS3, verificar },
+      chefe: { resumir, estadoAtual },
+    },
+    {
+      migrar: !args.has('--sem-migrador'),
+      atacar: !args.has('--sem-atacante'),
+      dirApp: `${RAIZ}code/exemplo-app`,
+      alvos: lista(process.env.ALVOS_PERMITIDOS),
+      donoId: process.env.TELEGRAM_DONO_ID || undefined,
+    },
+  );
+
+  orquestrador.ligar();
+  await orquestrador.correr();
+  console.log('[orquestrador] ciclo terminado; o painel e o Telegram continuam ativos (/estado, /desfazer).');
 }
 
 main().catch((erro) => {
