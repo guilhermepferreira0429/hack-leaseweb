@@ -219,16 +219,16 @@ describe("orquestrador", () => {
     assert.equal(t.corrigidos.length, 1);
     assert.match(
       textos(t.falas, "migrador").at(-1)!,
-      /12 ficheiros copiados para o MinIO, checksums iguais\. Testes da app a passar dos dois lados\./,
+      /12 files copied to MinIO, checksums match\. App tests passing on both sides\./,
     );
-    assert.match(textos(t.falas, "atacante")[0], /PostgreSQL na porta 5432/);
+    assert.match(textos(t.falas, "atacante")[0], /PostgreSQL on port 5432/);
     assert.match(
       textos(t.falas, "defesa").at(-1)!,
-      /@atacante, fechei "PostgreSQL aberto a toda a internet" às \d\d:\d\d/,
+      /@atacante, I closed "PostgreSQL open to the whole internet" at \d\d:\d\d/,
     );
     assert.equal(
       textos(t.falas, "atacante").at(-1),
-      "Confirmo. Já não chego lá.",
+      "Confirmed. I can no longer reach it.",
     );
     assert.equal(t.falas.at(-1)?.de, "chefe");
     assert.deepEqual(
@@ -269,20 +269,20 @@ describe("orquestrador", () => {
     assert.equal(pensarDefesa.quem, "defesa");
     assert.match(
       (pensarDefesa.depois as { texto: string }).texto,
-      /A explicar o risco/,
+      /Explaining the risk/,
     );
     const chefe = textos(t.falas, "chefe");
-    assert.match(chefe[0]!, /^Bom dia\. Vamos tirar a app exemplo-app da AWS/);
+    assert.match(chefe[0]!, /^Good morning\. We are moving the exemplo-app app from AWS to Leaseweb/);
     assert.ok(
       chefe.some((f) =>
-        /^Plano aprovado por o dono às \d\d:\d\d\. @migrador, avança\.$/.test(
+        /^Plan approved by the owner at \d\d:\d\d\. @migrador, go ahead\.$/.test(
           f,
         ),
       ),
     );
     assert.ok(
       chefe.includes(
-        "Validação final: testes ✓, nada exposto ✓, dados iguais ✓.",
+        "Final check: tests ✓, nothing exposed ✓, data identical ✓.",
       ),
     );
 
@@ -290,7 +290,7 @@ describe("orquestrador", () => {
     const so = montar({}, { migrar: false, atacar: false });
     await so.orq.correr();
     assert.ok(
-      !textos(so.falas, "chefe").some((f) => /Validação final/.test(f)),
+      !textos(so.falas, "chefe").some((f) => /Final check/.test(f)),
     );
   });
 
@@ -301,7 +301,7 @@ describe("orquestrador", () => {
     assert.equal(t.corrigidos.length, 1, "o jurado fechou a porta");
     assert.ok(
       textos(t.falas, "chefe").some((f) =>
-        /^Plano aprovado por uma pessoa autorizada às/.test(f),
+        /^Plan approved by an authorised person at/.test(f),
       ),
     );
 
@@ -327,8 +327,8 @@ describe("orquestrador", () => {
       decisao: (p) => (p.acao.tipo === "migrar" ? "ignorar" : "aprovar"),
     });
     await t.orq.correr();
-    assert.match(textos(t.falas, "migrador").at(-1)!, /não aprovada/);
-    assert.ok(!t.falas.some((f) => /ficheiros copiados/.test(f.texto)));
+    assert.match(textos(t.falas, "migrador").at(-1)!, /not approved/);
+    assert.ok(!t.falas.some((f) => /files copied/.test(f.texto)));
   });
 
   it("ignora decisões de quem não é o dono", async () => {
@@ -395,7 +395,7 @@ describe("orquestrador", () => {
     await t.orq.correr();
     assert.equal(
       textos(t.falas, "atacante").at(-1),
-      "Confirmo. Já não chego lá.",
+      "Confirmed. I can no longer reach it.",
     );
   });
 
@@ -407,7 +407,7 @@ describe("orquestrador", () => {
     await t.orq.correr();
     assert.match(
       textos(t.falas, "migrador").at(-1)!,
-      /Sem resposta ao pedido de migração: não migro/,
+      /No answer to the migration request: I will not migrate/,
     );
     const migracao = t.pedidosEnviados.find(
       (p) => p.agente === "migrador",
@@ -432,7 +432,7 @@ describe("orquestrador", () => {
       /Move-se hoje: 1 VM/.test(f.texto),
     );
     assert.ok(iPlano >= 0, "o plano foi dito");
-    assert.match(ok.falas[iPlano].texto, /só o plano, ainda não criei nada/);
+    assert.match(ok.falas[iPlano].texto, /only the plan; I have not created anything/);
 
     const falha = montar({}, { atacar: false });
     falha.deps.migrador.planoInfra = async () => {
@@ -440,10 +440,10 @@ describe("orquestrador", () => {
     };
     await falha.orq.correr();
     assert.ok(
-      falha.notificacoes.some((n) => /tradução da configuração AWS/.test(n)),
+      falha.notificacoes.some((n) => /AWS configuration translation/.test(n)),
     );
     assert.ok(
-      falha.falas.some((f) => /ficheiros copiados/.test(f.texto)),
+      falha.falas.some((f) => /files copied/.test(f.texto)),
       "a migração S3 continuou",
     );
   });
@@ -484,7 +484,7 @@ describe("orquestrador", () => {
       (f) => f.texto === "O PostgreSQL vai para gerido.",
     );
     const iCopia = ok.falas.findIndex((f) =>
-      /ficheiros copiados/.test(f.texto),
+      /files copied/.test(f.texto),
     );
     assert.ok(iDestino >= 0 && iDestino < iCopia);
 
@@ -493,8 +493,8 @@ describe("orquestrador", () => {
       throw new Error("tabela de preços");
     };
     await falha.orq.correr();
-    assert.ok(falha.notificacoes.some((n) => /decisor de destino/.test(n)));
-    assert.ok(falha.falas.some((f) => /ficheiros copiados/.test(f.texto)));
+    assert.ok(falha.notificacoes.some((n) => /destination planner/.test(n)));
+    assert.ok(falha.falas.some((f) => /files copied/.test(f.texto)));
   });
 
   it("ao aprovar o plano, o atacante começa a atacar em paralelo com a migração", async () => {
@@ -529,7 +529,7 @@ describe("orquestrador", () => {
     assert.equal(migrar.length, 1, "um só pedido de aprovação");
     assert.match(
       migrar[0].pedido.titulo,
-      /Migrar para a Leaseweb: S3, Postgres, SQS/,
+      /Migrate to Leaseweb: S3, Postgres, SQS/,
     );
     assert.deepEqual(ordem, ["postgres", "fila"]);
     assert.equal(verificacoes, 1, "os testes da app correm uma vez, no fim");
@@ -575,7 +575,7 @@ describe("orquestrador", () => {
     const fala = textos(t.falas, "migrador").at(-1)!;
     assert.match(
       fala,
-      /12 ficheiros copiados para o MinIO, checksums iguais\. Base de dados: 1 tabela e 20 linhas copiadas para PostgreSQL, checksums iguais\. Filas: 5 mensagens passadas para o RabbitMQ, checksums iguais\. Testes da app a passar dos dois lados\. @atacante/,
+      /12 files copied to MinIO, checksums match\. Database: 1 table and 20 rows copied to PostgreSQL, checksums match\. Queues: 5 messages moved to RabbitMQ, checksums match\. App tests passing on both sides\. @atacante/,
     );
   });
 
@@ -620,7 +620,7 @@ describe("orquestrador", () => {
     await t.orq.correr();
     assert.ok(
       t.notificacoes.some((n) =>
-        /migração Postgres.*Postgres de destino não responde/.test(n),
+        /migration Postgres.*Postgres de destino não responde/.test(n),
       ),
     );
     const estado = (passo: string) =>
@@ -640,7 +640,7 @@ describe("orquestrador", () => {
     );
     assert.ok(
       t.falas.some((f) =>
-        /Filas: 5 mensagens passadas para o RabbitMQ, checksums DIFERENTES/.test(
+        /Queues: 5 messages moved to RabbitMQ, checksums DIFFER/.test(
           f.texto,
         ),
       ),
@@ -661,7 +661,7 @@ describe("orquestrador", () => {
     );
     assert.ok(
       testes.falas.some((f) =>
-        /Testes antes ok, depois falharam/.test(f.texto),
+        /Tests before ok, after failed/.test(f.texto),
       ),
     );
   });
@@ -702,7 +702,7 @@ describe("orquestrador", () => {
     );
     assert.match(
       pedidoPR!.texto,
-      /Inclui a correção da regra que deixava a base de dados aberta/,
+      /Includes the fix for the rule that left the database open/,
     );
     assert.deepEqual(merges, ["dono/app#7"]);
     assert.equal(t.pedidos.get(pedidoPR!.id)?.estado, "feito");
@@ -717,7 +717,7 @@ describe("orquestrador", () => {
     });
     assert.ok(
       t.falas.some((f) =>
-        /PR #7 aprovado e juntado ao ramo principal do repo da app às \d\d:\d\d\. Para voltar atrás: \/desfazer/.test(
+        /PR #7 approved and merged into the app repo main branch at \d\d:\d\d\. To undo: \/desfazer/.test(
           f.texto,
         ),
       ),
@@ -739,7 +739,7 @@ describe("orquestrador", () => {
     assert.equal(t.pedidos.get(pedidoPR!.id)?.estado, "desfeito");
     assert.ok(
       t.falas.some((f) =>
-        /Abri um PR que reverte o PR #7: https:\/\/github\.com\/dono\/app\/pull\/8/.test(
+        /I opened a PR that reverts PR #7: https:\/\/github\.com\/dono\/app\/pull\/8/.test(
           f.texto,
         ),
       ),
@@ -797,11 +797,11 @@ describe("orquestrador", () => {
     const t = montar({}, { atacar: false });
     t.deps.migrador.planoDestino = async () => 'A base de dados é crítica: proponho Scaleway DB-DEV-S, cerca de € 11,39/mês (preço visto a 20/11/2026).';
     await t.orq.correr();
-    assert.ok(t.falas.some((f) => /proponho Scaleway[\s\S]*Isto é só a minha recomendação: nesta migração fica tudo na VM \(self-hosted\) e não contrato nada\./.test(f.texto)));
+    assert.ok(t.falas.some((f) => /proponho Scaleway[\s\S]*This is only my recommendation: in this migration everything stays on the VM \(self-hosted\) and I do not buy anything\./.test(f.texto)));
     const so = montar({}, { atacar: false });
     so.deps.migrador.planoDestino = async () => 'O MinIO e o RabbitMQ ficam na VM.';
     await so.orq.correr();
-    assert.ok(!so.falas.some((f) => /só a minha recomendação/.test(f.texto)), 'sem gerido proposto, não há aviso');
+    assert.ok(!so.falas.some((f) => /only my recommendation/.test(f.texto)), 'sem gerido proposto, não há aviso');
   });
 
   it("migrador de código: no mesmo plano, depois dos testes; sem PR diz porquê; um erro não trava", async () => {
@@ -829,24 +829,24 @@ describe("orquestrador", () => {
       1,
       "o PR não pede outro clique",
     );
-    assert.match(plano.texto, /No fim preparo um pull request/);
+    assert.match(plano.texto, /At the end I prepare a pull request/);
     assert.deepEqual(chamadas, [[plano.id, true]]);
     const migrador = textos(t.falas, "migrador");
     const iPR = migrador.findIndex((f) =>
-      /Código: abri um pull request com 1 ficheiro \(leaseweb\.env\.example\).*https:\/\/github\.com\/x\/y\/pull\/3/.test(
+      /Code: I opened a pull request with 1 file \(leaseweb\.env\.example\).*https:\/\/github\.com\/x\/y\/pull\/3/.test(
         f,
       ),
     );
     assert.ok(iPR > 0, "o PR é anunciado");
     // Guião (mensagens-demo.md): migrar → atacar → defender → só depois o PR do código.
     const iPassagem = t.falas.findIndex((f) =>
-      /@atacante, a infraestrutura nova está no ar\./.test(f.texto),
+      /@atacante, the new infrastructure is live\./.test(f.texto),
     );
     const iFecho = t.falas.findIndex(
-      (f) => f.de === "defesa" && /fechei/.test(f.texto),
+      (f) => f.de === "defesa" && /I closed/.test(f.texto),
     );
     const iPRGlobal = t.falas.findIndex((f) =>
-      /Código: abri um pull request/.test(f.texto),
+      /Code: I opened a pull request/.test(f.texto),
     );
     assert.ok(
       iPassagem >= 0 && iFecho > iPassagem && iPRGlobal > iFecho,
@@ -866,12 +866,12 @@ describe("orquestrador", () => {
     sem.deps.migrador.migrarCodigo = async (_id, ok) => ({
       ficheiros: [],
       fora: [],
-      problemas: ok ? [] : ["os testes da app não passaram contra a Leaseweb"],
+      problemas: ok ? [] : ["the app tests did not pass against Leaseweb"],
     });
     await sem.orq.correr();
     assert.ok(
       sem.falas.some((f) =>
-        /Não abri o pull request do código: os testes da app não passaram contra a Leaseweb\./.test(
+        /I did not open the code pull request: the app tests did not pass against Leaseweb\./.test(
           f.texto,
         ),
       ),
@@ -884,7 +884,7 @@ describe("orquestrador", () => {
     await erro.orq.correr();
     assert.ok(
       erro.notificacoes.some((n) =>
-        /migrador de código.*gh não está autenticado/.test(n),
+        /code migrator.*gh não está autenticado/.test(n),
       ),
     );
     assert.equal(erro.corrigidos.length, 1, "a defesa segue");
@@ -947,7 +947,7 @@ describe("orquestrador", () => {
     const fala = textos(t.falas, "migrador").at(-1)!;
     assert.match(
       fala,
-      /Segredos: 7 passados para o OpenBao sem nunca aparecerem em texto, checksums iguais\. Cache: 40 chaves copiadas para o Valkey, checksums iguais/,
+      /Secrets: 7 moved to OpenBao without ever showing a value, checksums match\. Cache: 40 keys copied to Valkey, checksums match/,
     );
     const seg = [...t.pedidos.values()].find(
       (p) => (p.acao as { passo?: string }).passo === "segredos",
@@ -994,7 +994,7 @@ describe("orquestrador", () => {
     };
     await erro.orq.correr();
     assert.ok(
-      erro.notificacoes.some((n) => /relatório do incidente a1/.test(n)),
+      erro.notificacoes.some((n) => /incident report a1/.test(n)),
     );
     assert.deepEqual(
       erro.falas.slice(-2).map((f) => f.texto),
@@ -1047,7 +1047,7 @@ describe("orquestrador", () => {
     await t.orq.correr();
     assert.match(
       textos(t.falas, "atacante").at(-1)!,
-      /Ainda chego à porta 5432/,
+      /I can still reach port 5432/,
     );
   });
 
@@ -1078,7 +1078,7 @@ describe("orquestrador", () => {
 
 describe("textoAtacante", () => {
   it("sem achados", () => {
-    assert.match(textoAtacante([]), /Não encontrei portas abertas/);
+    assert.match(textoAtacante([]), /I found no open ports/);
   });
   it("resume no máximo 3 e indica o resto", () => {
     const muitos = [5432, 6379, 22, 9200].map((porta, i) => ({
@@ -1087,7 +1087,7 @@ describe("textoAtacante", () => {
       porta,
     }));
     const t = textoAtacante(muitos);
-    assert.match(t, /e mais 1/);
-    assert.match(t, /Gravidade alta/);
+    assert.match(t, /and 1 more/);
+    assert.match(t, /Severity high/);
   });
 });

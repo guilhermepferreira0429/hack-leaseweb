@@ -228,7 +228,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       quem: "orquestrador",
       depois: { fase, erro: mensagem(erro) },
     });
-    await notificar(`Falha em ${fase}: ${mensagem(erro)}. A demo continua.`);
+    await notificar(`Failure in ${fase}: ${mensagem(erro)}. The demo goes on.`);
   }
 
   /** Respostas que chegaram antes de alguém estar à espera (o dono pode ser mais rápido do que o fluxo). */
@@ -347,7 +347,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       falar(
         "defesa",
         "dono",
-        `Não consegui fechar "${pedido.titulo}". Nada foi alterado sem confirmação; vejam o painel.`,
+        `I could not close "${pedido.titulo}". Nothing was changed without confirmation; check the dashboard.`,
       );
       return concluir(pedidoId, "falhou");
     }
@@ -355,7 +355,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     falar(
       "defesa",
       "atacante",
-      `@atacante, fechei "${pedido.titulo}" às ${horaCurta()} e guardei como voltar atrás. Podes confirmar?`,
+      `@atacante, I closed "${pedido.titulo}" at ${horaCurta()} and stored how to undo it. Can you confirm?`,
     );
     if (opcoes.atacar) await confirmarFecho(pedido);
     concluir(pedidoId, "feito");
@@ -388,10 +388,10 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
         "todos",
         ainda.length === 0
           ? msgAtacanteConfirma()
-          : `Ainda chego à porta ${ainda[0].porta} em ${ainda[0].alvo}. Pode demorar uns segundos a aplicar.`,
+          : `I can still reach port ${ainda[0].porta} on ${ainda[0].alvo}. It may take a few seconds to apply.`,
       );
     } catch (erro) {
-      await falha("confirmação do atacante", erro);
+      await falha("attacker confirmation", erro);
     }
   }
 
@@ -427,7 +427,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     const atacar = t.match(/^\/atacar(?:@\S+)?(?:\s+(\S+))?$/);
     if (atacar) {
       if (!deps.atacante.iniciarAtaque) {
-        await notificar("Ataque não está ligado neste processo.");
+        await notificar("The attack is not enabled in this process.");
         return;
       }
       try {
@@ -477,11 +477,11 @@ ${deps.chefe.resumir(doCiclo(), pedidos)}`;
       falar(
         "migrador",
         "dono",
-        `Li a configuração da AWS (Terraform) e traduzi-a para a Leaseweb. Por agora é só o plano, ainda não criei nada:
+        `I read the AWS configuration (Terraform) and translated it to Leaseweb. For now it is only the plan; I have not created anything:
 ${resumo}`,
       );
     } catch (erro) {
-      await falha("tradução da configuração AWS", erro);
+      await falha("AWS configuration translation", erro);
     }
   }
 
@@ -498,16 +498,16 @@ ${resumo}`,
         depois: { texto },
       });
       // A recomendação mostra o raciocínio e os preços; nada se contrata. Hoje migra-se tudo para a VM.
-      const geridos = /proponho/i.test(texto);
+      const geridos = /proponho|propose|recommend/i.test(texto);
       falar(
         "migrador",
         "dono",
         geridos
-          ? `${texto}\nIsto é só a minha recomendação: nesta migração fica tudo na VM (self-hosted) e não contrato nada. Passar um serviço para gerido é uma decisão vossa, para depois.`
+          ? `${texto}\nThis is only my recommendation: in this migration everything stays on the VM (self-hosted) and I do not buy anything. Moving a service to a managed offer is your decision, for later.`
           : texto,
       );
     } catch (erro) {
-      await falha("decisor de destino", erro);
+      await falha("destination planner", erro);
     }
   }
 
@@ -520,9 +520,9 @@ ${resumo}`,
     falar(
       "migrador",
       "dono",
-      `Encontrei ${servicos.length} ${servicos.length === 1 ? "serviço" : "serviços"} AWS na app: ${nomes}.` +
+      `I found ${servicos.length} AWS ${servicos.length === 1 ? "service" : "services"} in the app: ${nomes}.` +
         (passos.length
-          ? " Peço um só OK para o plano todo e faço um passo de cada vez, com prova em cada um."
+          ? " I ask for one OK for the whole plan and go one step at a time, with proof at each step."
           : ""),
     );
     await mostrarPlanoInfra();
@@ -530,9 +530,9 @@ ${resumo}`,
     if (passos.length === 0) return;
 
     // Um só "Aprovar plano": o pedido aprovado é o do primeiro passo; os outros nascem aprovados por ele.
-    const titulo = `Migrar para a Leaseweb: ${passos.map((s) => NOME_SERVICO[s]).join(", ")}`;
+    const titulo = `Migrate to Leaseweb: ${passos.map((s) => NOME_SERVICO[s]).join(", ")}`;
     const texto = deps.migrador.migrarCodigo
-      ? `${plano}\nNo fim preparo um pull request para a app passar a usar a Leaseweb. O ramo principal só muda quando alguém fizer merge.`
+      ? `${plano}\nAt the end I prepare a pull request so the app uses Leaseweb. The main branch only changes when someone merges it.`
       : plano;
     pensar("confirmacao");
     const pedidoPlano = await pedirMigracao(passos[0], titulo, texto, {
@@ -550,8 +550,8 @@ ${resumo}`,
       msgPlanoAprovado({
         quem:
           aprovacao?.quem === opcoes.donoId
-            ? "o dono"
-            : "uma pessoa autorizada",
+            ? "the owner"
+            : "an authorised person",
         hora: horaCurta(),
       }),
     );
@@ -570,14 +570,14 @@ ${resumo}`,
           quem: "migrador",
           depois: { passo, erro: mensagem(erro) },
         });
-        await falha(`migração ${NOME_SERVICO[passo]}`, erro);
+        await falha(`migration ${NOME_SERVICO[passo]}`, erro);
       }
     }
     if (feitos.length === 0) {
       falar(
         "migrador",
         "dono",
-        "A migração falhou em todos os passos. Nada foi apagado na AWS; vejam o painel.",
+        "The migration failed in every step. Nothing was deleted on AWS; check the dashboard.",
       );
       return;
     }
@@ -587,7 +587,7 @@ ${resumo}`,
     try {
       testes = await deps.migrador.verificar();
     } catch (erro) {
-      await falha("testes da app (verificar)", erro);
+      await falha("app tests (verify)", erro);
     }
     const testesOk = testes.antes && testes.depois;
     medido.testes = testesOk;
@@ -604,15 +604,15 @@ ${resumo}`,
       });
     }
     const testesTexto = testesOk
-      ? "Testes da app a passar dos dois lados"
-      : `Testes antes ${testes.antes ? "ok" : "falharam"}, depois ${testes.depois ? "ok" : "falharam"}`;
+      ? "App tests passing on both sides"
+      : `Tests before ${testes.antes ? "ok" : "failed"}, after ${testes.depois ? "ok" : "failed"}`;
     const provas = `${feitos.map((f) => f.copia.frase).join(". ")}. ${testesTexto}.`;
     if (deps.migrador.migrarCodigo)
       codigoPorFazer = { planoId: pedidoPlano.id, testesOk };
     falar(
       "migrador",
       "atacante",
-      `${provas} @atacante, a infraestrutura nova está no ar.`,
+      `${provas} @atacante, the new infrastructure is live. Your turn.`,
     );
   }
 
@@ -641,33 +641,33 @@ ${resumo}`,
       if (!r.pr) {
         const porque = r.problemas.length
           ? r.problemas.join("; ")
-          : "não há nada para mudar no código";
+          : "there is nothing to change in the code";
         falar(
           "migrador",
           "dono",
-          `Não abri o pull request do código: ${porque}.`,
+          `I did not open the code pull request: ${porque}.`,
         );
         return;
       }
       const n = r.ficheiros.length;
       const onde =
         r.pr.url ??
-        `ramo ${r.pr.ramo}, ensaio sem GitHub: o diff ficou no cérebro`;
+        `branch ${r.pr.ramo}, rehearsal without GitHub: the diff stayed on the server`;
       falar(
         "migrador",
         "dono",
-        `Código: ${r.pr.simulado ? "preparei" : "abri"} um pull request com ${n} ${n === 1 ? "ficheiro" : "ficheiros"} (${r.ficheiros.join(", ")}) ` +
-          `para a app usar a Leaseweb, com os testes a passar e sem segredos (${onde}). O ramo principal só muda com o vosso merge.` +
+        `Code: I ${r.pr.simulado ? "prepared" : "opened"} a pull request with ${n} ${n === 1 ? "file" : "files"} (${r.ficheiros.join(", ")}) ` +
+          `so the app uses Leaseweb, with tests passing and no secrets (${onde}). The main branch only changes when you merge.` +
           (r.causas
-            ? " Corrigi também a configuração que deixava a base de dados aberta, para não voltar no próximo deploy."
+            ? " I also fixed the configuration that left the database open, so it does not come back on the next deploy."
             : "") +
           (r.fora.length
-            ? ` Fica fora: ${r.fora.length} ${r.fora.length === 1 ? "ponto" : "pontos"}, explicados no PR.`
+            ? ` Left out: ${r.fora.length} ${r.fora.length === 1 ? "item" : "items"}, explained in the PR.`
             : ""),
       );
       await pedirAprovarPR(r);
     } catch (erro) {
-      await falha("migrador de código", erro);
+      await falha("code migrator", erro);
     }
   }
 
@@ -677,13 +677,13 @@ ${resumo}`,
     if (!pr || r.pr?.simulado || !deps.migrador.aprovarPR) return;
     const pedido: Pedido = {
       id: deps.defesa.novoIdPedido(),
-      titulo: `Aprovar o PR #${pr.numero} no repo da app`,
+      titulo: `Approve PR #${pr.numero} in the app repo`,
       texto: [
-        `PR #${pr.numero}: ${r.ficheiros.length} ${r.ficheiros.length === 1 ? "ficheiro" : "ficheiros"} (${r.ficheiros.join(", ")}), testes a passar, sem segredos.`,
+        `PR #${pr.numero}: ${r.ficheiros.length} ${r.ficheiros.length === 1 ? "file" : "files"} (${r.ficheiros.join(", ")}), tests passing, no secrets.`,
         r.causas
-          ? "Inclui a correção da regra que deixava a base de dados aberta."
+          ? "Includes the fix for the rule that left the database open."
           : "",
-        `Ao aprovar, faço o merge no ramo principal do repo da app. Para voltar atrás, /desfazer abre um PR que o reverte.`,
+        `If you approve, I merge it into the main branch of the app repo. To undo, /desfazer opens a PR that reverts it.`,
         r.pr?.url ?? "",
       ]
         .filter(Boolean)
@@ -704,7 +704,7 @@ ${resumo}`,
       falar(
         "migrador",
         "dono",
-        `O PR #${pr.numero} fica aberto à espera de decisão. Nada mudou no ramo principal.`,
+        `PR #${pr.numero} stays open, waiting for a decision. Nothing changed on the main branch.`,
       );
     }
   }
@@ -727,15 +727,15 @@ ${resumo}`,
       falar(
         "migrador",
         "dono",
-        `PR #${numero} aprovado e juntado ao ramo principal do repo da app às ${horaCurta()}. Para voltar atrás: /desfazer ${pedido.id}`,
+        `PR #${numero} approved and merged into the app repo main branch at ${horaCurta()}. To undo: /desfazer ${pedido.id}`,
       );
       return "feito";
     } catch (erro) {
-      await falha(`merge do PR #${numero}`, erro);
+      await falha(`merge of PR #${numero}`, erro);
       falar(
         "migrador",
         "dono",
-        `Não consegui fazer o merge do PR #${numero}. O ramo principal ficou como estava.`,
+        `I could not merge PR #${numero}. The main branch is unchanged.`,
       );
       return "falhou";
     }
@@ -750,7 +750,7 @@ ${resumo}`,
     );
     const inv = feito?.inverso;
     if (!inv || inv.tipo !== "reverter_pr" || !deps.migrador.reverterPR) {
-      await notificar(`O pedido ${pedido.id} não tem um merge para reverter.`);
+      await notificar(`Request ${pedido.id} has no merge to revert.`);
       return;
     }
     const { url } = await deps.migrador.reverterPR(
@@ -768,7 +768,7 @@ ${resumo}`,
     falar(
       "migrador",
       "dono",
-      `Abri um PR que reverte o PR #${inv.numero}${url ? `: ${url}` : ""}. O ramo principal só muda com o vosso merge.`,
+      `I opened a PR that reverts PR #${inv.numero}${url ? `: ${url}` : ""}. The main branch only changes when you merge.`,
     );
   }
 
@@ -778,7 +778,7 @@ ${resumo}`,
   function executor(passo: PassoMigracao): (() => Promise<Copia>) | undefined {
     const m = deps.migrador;
     const igual = (ok: boolean) =>
-      ok ? "checksums iguais" : "checksums DIFERENTES";
+      ok ? "checksums match" : "checksums DIFFER";
     switch (passo) {
       case "s3":
         return async () => {
@@ -786,7 +786,7 @@ ${resumo}`,
           return {
             ok: c.checksumsOk,
             prova: c,
-            frase: `${c.objetos} ficheiros copiados para o MinIO, ${igual(c.checksumsOk)}`,
+            frase: `${c.objetos} files copied to MinIO, ${igual(c.checksumsOk)}`,
           };
         };
       case "postgres": {
@@ -794,11 +794,11 @@ ${resumo}`,
         return f
           ? async () => {
               const c = await f();
-              const t = `${c.tabelas} ${c.tabelas === 1 ? "tabela" : "tabelas"} e ${c.linhas} linhas`;
+              const t = `${c.tabelas} ${c.tabelas === 1 ? "table" : "tables"} and ${c.linhas} rows`;
               return {
                 ok: c.checksumsOk,
                 prova: c,
-                frase: `Base de dados: ${t} copiadas para PostgreSQL, ${igual(c.checksumsOk)}`,
+                frase: `Database: ${t} copied to PostgreSQL, ${igual(c.checksumsOk)}`,
               };
             }
           : undefined;
@@ -808,11 +808,11 @@ ${resumo}`,
         return f
           ? async () => {
               const c = await f();
-              const t = `${c.mensagens} ${c.mensagens === 1 ? "mensagem passada" : "mensagens passadas"}`;
+              const t = `${c.mensagens} ${c.mensagens === 1 ? "message moved" : "messages moved"}`;
               return {
                 ok: c.iguais,
                 prova: { mensagens: c.mensagens, checksumsOk: c.iguais },
-                frase: `Filas: ${t} para o RabbitMQ, ${igual(c.iguais)}`,
+                frase: `Queues: ${t} to RabbitMQ, ${igual(c.iguais)}`,
               };
             }
           : undefined;
@@ -825,7 +825,7 @@ ${resumo}`,
               return {
                 ok: c.iguais,
                 prova: { segredos: c.segredos, checksumsOk: c.iguais },
-                frase: `Segredos: ${c.segredos} passados para o OpenBao sem nunca aparecerem em texto, ${igual(c.iguais)}`,
+                frase: `Secrets: ${c.segredos} moved to OpenBao without ever showing a value, ${igual(c.iguais)}`,
               };
             }
           : undefined;
@@ -835,11 +835,11 @@ ${resumo}`,
         return f
           ? async () => {
               const c = await f();
-              const t = `${c.chaves} ${c.chaves === 1 ? "chave copiada" : "chaves copiadas"}`;
+              const t = `${c.chaves} ${c.chaves === 1 ? "key copied" : "keys copied"}`;
               return {
                 ok: c.iguais,
                 prova: { chaves: c.chaves, checksumsOk: c.iguais },
-                frase: `Cache: ${t} para o Valkey, ${igual(c.iguais)}`,
+                frase: `Cache: ${t} to Valkey, ${igual(c.iguais)}`,
               };
             }
           : undefined;
@@ -851,7 +851,7 @@ ${resumo}`,
   function pedidoDoPlano(passo: PassoMigracao, plano: Pedido): Pedido {
     const pedido: Pedido = {
       id: deps.defesa.novoIdPedido(),
-      titulo: `Migrar ${NOME_SERVICO[passo]} (plano ${plano.id})`,
+      titulo: `Migrate ${NOME_SERVICO[passo]} (plan ${plano.id})`,
       texto: plano.texto,
       acao: { tipo: "migrar", passo },
       estado: "aprovado",
@@ -905,7 +905,7 @@ ${resumo}`,
       falar(
         "migrador",
         "dono",
-        `Sem resposta ao pedido de migração: não migro (${titulo.toLowerCase()}). Fica tudo como estava.`,
+        `No answer to the migration request: I will not migrate (${titulo}). Everything stays as it was.`,
       );
       return undefined;
     }
@@ -913,7 +913,7 @@ ${resumo}`,
       falar(
         "migrador",
         "dono",
-        `Migração não aprovada (${titulo.toLowerCase()}). Fica tudo como estava.`,
+        `Migration not approved (${titulo}). Everything stays as it was.`,
       );
       return undefined;
     }
@@ -949,7 +949,7 @@ ${resumo}`,
     try {
       daApi = await deps.defesa.detetar();
     } catch (erro) {
-      await falha("deteção pela API", erro);
+      await falha("API detection", erro);
     }
     let achados: Achado[];
     try {
@@ -965,8 +965,8 @@ ${resumo}`,
         "defesa",
         "dono",
         achados.length === 0
-          ? "Não encontrei nada aberto a toda a internet."
-          : "Há portas visíveis, mas nenhuma regra nossa para fechar.",
+          ? "I found nothing open to the whole Internet."
+          : "Some ports are visible, but none of our rules can close them.",
       );
       return [];
     }
@@ -979,7 +979,7 @@ ${resumo}`,
         armarModoNoite(pedido);
         resultados.push(esperarResultado(pedido.id));
       } catch (erro) {
-        await falha(`pedido para ${achado.alvo}:${achado.porta}`, erro);
+        await falha(`request for ${achado.alvo}:${achado.porta}`, erro);
       }
     }
     return resultados;
@@ -1037,7 +1037,7 @@ ${resumo}`,
           deps.chefe.certificado(doCiclo(), deps.estado.listarPedidos()),
         );
       } catch (erro) {
-        await falha("certificado de migração", erro);
+        await falha("migration certificate", erro);
       }
     }
   }
@@ -1053,7 +1053,7 @@ ${resumo}`,
           // O aviso ("Modo noite às HH:MM … /desfazer <id>") já vem da defesa.
           if (aplicou) concluir(pedido.id, "feito");
         })
-        .catch((erro) => falha(`modo noite em "${pedido.titulo}"`, erro));
+        .catch((erro) => falha(`night mode on "${pedido.titulo}"`, erro));
     }, opcoes.modoNoiteMs);
     // Não segura o processo (--uma-vez) só por causa deste temporizador.
     t.unref?.();
@@ -1074,7 +1074,7 @@ ${resumo}`,
         // Só os eventos deste ciclo: com os ensaios anteriores, o relatório somava fechos e tempos de outras corridas.
         await deps.relatorio.publicar(achadoId, doCiclo());
       } catch (erro) {
-        await falha(`relatório do incidente ${achadoId}`, erro);
+        await falha(`incident report ${achadoId}`, erro);
       }
     }
   }
@@ -1084,7 +1084,7 @@ ${resumo}`,
     try {
       deps.telegram.aoResponder((id, decisao, quem) => {
         aoResponder(id, decisao, quem).catch((e) =>
-          falha("resposta do dono", e),
+          falha("owner answer", e),
         );
       });
     } catch (erro) {
@@ -1093,7 +1093,7 @@ ${resumo}`,
     try {
       deps.telegram.aoMensagemDoDono((agente, texto) => {
         aoMensagemDoDono(agente, texto).catch((e) =>
-          falha("mensagem do dono", e),
+          falha("owner message", e),
         );
       });
     } catch (erro) {
@@ -1107,14 +1107,14 @@ ${resumo}`,
 /** Fala do atacante a partir dos achados (determinística; a voz com IA vem depois). */
 export function textoAtacante(achados: Achado[]): string {
   if (achados.length === 0)
-    return "Recebido. Não encontrei portas abertas nas nossas máquinas. @defesa";
+    return "Received. I found no open ports on our machines. @defesa";
   const altas = achados.filter((a) => a.severidade === "alta");
   const lista = achados
     .slice(0, 3)
-    .map((a) => `${a.servico ?? "serviço"} na porta ${a.porta} (${a.alvo})`)
+    .map((a) => `${a.servico ?? "service"} on port ${a.porta} (${a.alvo})`)
     .join("; ");
-  const resto = achados.length > 3 ? ` e mais ${achados.length - 3}` : "";
-  return `Recebido. Responde a qualquer pessoa na internet: ${lista}${resto}. Gravidade ${altas.length > 0 ? "alta" : "média"}. @defesa`;
+  const resto = achados.length > 3 ? ` and ${achados.length - 3} more` : "";
+  return `Received. It answers anyone on the Internet: ${lista}${resto}. Severity ${altas.length > 0 ? "high" : "medium"}. @defesa`;
 }
 
 /** Repo e número a partir do URL do PR (https://github.com/dono/repo/pull/12). */
