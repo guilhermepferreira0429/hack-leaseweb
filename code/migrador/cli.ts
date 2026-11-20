@@ -1,12 +1,16 @@
 // npm run dev:migrador [-- --so-analisar | --so-s3]
 // Corre o migrador sozinho (sem pedir aprovação); na demo corre pelo orquestrador (npm run dev).
 // Por omissão: S3 -> MinIO e, se DATABASE_URL_DESTINO estiver definida, Postgres -> Postgres na Leaseweb.
-// E, se RABBITMQ_URL estiver definida, SQS -> RabbitMQ (move as mensagens de todas as filas).
+// E, se RABBITMQ_URL estiver definida, SQS -> RabbitMQ (move as mensagens de todas as filas);
+// se OPENBAO_TOKEN estiver definido, Secrets Manager/SSM -> OpenBao; se VALKEY_URL, ElastiCache -> Valkey.
+// Os segredos só aparecem por nome e sha256 abreviado, nunca o valor.
 import { join } from 'node:path';
 import { analisar } from './analisar';
 import { carregarEnv, RAIZ_REPO } from './ambiente';
 import { migrarS3Detalhado } from './migrar-dados';
+import { migrarCacheDetalhado } from './migrar-cache';
 import { migrarFilaDetalhado } from './migrar-fila';
+import { migrarSegredosDetalhado } from './migrar-segredos';
 import { migrarPostgresDetalhado } from './migrar-postgres';
 import { verificarDetalhado } from './verificar';
 
@@ -54,6 +58,25 @@ async function main(): Promise<void> {
     for (const x of f.filas) console.log(`  ${x.fila}: ${x.mensagens} movidas, ${x.encontradas} com o mesmo sha256 no RabbitMQ`);
     console.log(`[migrador] mensagens ${f.iguais ? 'todas iguais' : 'DIFERENTES'}`);
     falhou ||= !f.iguais;
+  }
+
+  const definida = (nome: string): boolean => Boolean(process.env[nome]?.trim());
+  if (servicos.includes('segredos') && !process.argv.includes('--so-s3') && definida('OPENBAO_TOKEN')) {
+    t0 = Date.now();
+    const s = await migrarSegredosDetalhado();
+    console.log(`[migrador] Secrets Manager/SSM -> OpenBao: ${s.segredos.length} segredos em ${Date.now() - t0} ms (só nomes e sha256)`);
+    for (const x of s.segredos) {
+      console.log(`  ${x.origem} ${x.nome} (${x.tipo}) ${curto(x.shaOrigem)} ${x.shaOrigem === x.shaDestino ? '=' : '≠'} ${curto(x.shaDestino)}`);
+    }
+    console.log(`[migrador] segredos ${s.iguais ? 'todos iguais' : 'DIFERENTES'}`);
+    falhou ||= !s.iguais;
+  }
+
+  if (servicos.includes('cache') && !process.argv.includes('--so-s3') && definida('VALKEY_URL')) {
+    t0 = Date.now();
+    const c = await migrarCacheDetalhado();
+    console.log(`[migrador] ElastiCache Redis -> Valkey: ${c.chaves} chaves em ${Date.now() - t0} ms, ${c.iguais ? 'iguais' : 'DIFERENTES'}`);
+    falhou ||= !c.iguais;
   }
 
   const v = await verificarDetalhado();
