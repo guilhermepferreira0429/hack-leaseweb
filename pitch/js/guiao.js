@@ -69,7 +69,7 @@
       { passo: 0, texto: 'This little app runs on AWS. We simulate the AWS side; everything on Leaseweb is real.' },
       { passo: 1, espera: 5, texto: "First, the migrator reads it and decides where each piece goes: self-hosted on Leaseweb, or a managed European service. The translation is plain code, so it can't invent infrastructure." },
       { passo: 2, palco: 'Um jurado só consegue aprovar se o ID do Telegram dele estiver em TELEGRAM_APROVADORES (o bot ignora os outros). Sem isso, aprova o dono. Se não aprovar em 10 s, aprova o dono.' },
-      { passo: 2, espera: 8, texto: "It asks before it touches anything. Go ahead: you're the owner now. Tap approve." },
+      { passo: 2, espera: 8, texto: "It asks before it touches anything. Only the owner can approve. Today, that's us." },
       { passo: 3, espera: 12, texto: "Data copied. Checksums match. The app's tests pass on both sides." },
       { passo: 4, espera: 8, texto: 'Now our attacker, with permission and only against our own machines, scans the new infrastructure. A database, open to the whole internet.' },
       { passo: 5, palco: 'Aprovar "Fechar". nmap: open passa a filtered. O relógio de exposição para.' },

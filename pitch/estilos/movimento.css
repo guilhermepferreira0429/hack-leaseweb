@@ -74,9 +74,10 @@
   opacity: 1;
   transform: none;
 }
+/* filter e não opacity: assim não briga com a animação de entrada (que fixa a opacidade). */
 .recua {
-  opacity: 0.25;
-  transition: opacity 0.6s ease;
+  filter: brightness(0.32) saturate(0.4);
+  transition: filter 0.6s ease;
 }
 
 /* Sem movimento nas miniaturas e para quem pede menos movimento. */

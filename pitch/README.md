@@ -12,7 +12,8 @@ para abrir a vista do apresentador no segundo ecrã. As duas janelas andam junta
 | ← · PageUp | Recuar |
 | Shift + → / ← | Slide seguinte / anterior |
 | número + Enter | Ir para o slide (por exemplo `6` Enter para a demo) |
-| A | Saltar para os anexos (perguntas) |
+| A, depois 1–8 | Anexos (perguntas). As setas param no fecho e nunca entram nos anexos |
+| Esc (num anexo) · End | Voltar ao fecho |
 | O | Vista geral de todos os slides |
 | P | Vista do apresentador: guião do clique atual, slide seguinte, cronómetro, perguntas (Q) |
 | G | Guião completo, pronto a imprimir |
