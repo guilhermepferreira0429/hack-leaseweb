@@ -1,0 +1,59 @@
+/* Marca do deck: azul-marinho de fundo, verde e lilás como acentos (o mesmo do pitching.pen). */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('../fontes/inter.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-display: block;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fontes/jetbrains-mono.woff2') format('woff2-variations');
+  font-weight: 100 800;
+  font-display: block;
+}
+
+:root {
+  --fundo: #0a1128;
+  --fundo-2: #121c40;
+  --linha: #26325e;
+  --verde: #2ee59d;
+  --lilas: #b9a6ff;
+  --texto: #f4f6fb;
+  --muted: #8c96b8;
+  --sans: 'Inter', system-ui, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #05091a;
+  color: var(--texto);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+.verde {
+  color: var(--verde);
+}
+.lilas {
+  color: var(--lilas);
+}
+.muted {
+  color: var(--muted);
+}
+.mono {
+  font-family: var(--mono);
+}
+kbd {
+  font-family: var(--mono);
+  background: var(--fundo-2);
+  border: 1px solid var(--linha);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.9em;
+}
