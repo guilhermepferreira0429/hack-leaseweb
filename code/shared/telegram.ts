@@ -270,6 +270,34 @@ export function aoDesfazer(cb: CbDesfazer): void {
   iniciarPolling();
 }
 
+// ---------- escolha por botão (ex.: destino Recommended / Self-hosted / Why?) ----------
+// callback_data = "escolha:<valor>". Chega por aoEscolha; os botões ficam na mensagem (o dono pode ver o Why? e depois escolher).
+
+export type OpcaoEscolha = { texto: string; valor: string };
+
+export function codificarEscolha(valor: string): string {
+  return `escolha:${valor}`;
+}
+
+export function descodificarEscolha(dados: string): string | undefined {
+  return dados.match(/^escolha:([a-z-]{1,40})$/)?.[1];
+}
+
+/** Mensagem com botões de escolha, todos numa linha. */
+export async function enviarComEscolhas(agente: Agente, texto: string, opcoes: OpcaoEscolha[]): Promise<void> {
+  const teclado = { inline_keyboard: [opcoes.map((o) => ({ text: o.texto.slice(0, 40), callback_data: codificarEscolha(o.valor) }))] };
+  await enviarTexto(agente, texto, opcoes.length ? teclado : undefined);
+}
+
+type CbEscolha = (valor: string, quem: string) => void;
+const cbsEscolha: CbEscolha[] = [];
+
+/** Botão de escolha carregado pelo dono ou por um aprovador. */
+export function aoEscolha(cb: CbEscolha): void {
+  cbsEscolha.push(cb);
+  iniciarPolling();
+}
+
 export function podeAprovar(id: string | number): boolean {
   return cfg().aprovadores.includes(String(id));
 }
@@ -381,6 +409,16 @@ async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: U
         }).catch(() => {});
       }
       for (const cb of cbsDesfazer) cb(aDesfazer, String(q.from.id));
+      return;
+    }
+    const escolha = q.data ? descodificarEscolha(q.data) : undefined;
+    if (escolha) {
+      if (!podeComandar(q.from.id)) {
+        await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'No permission.', show_alert: true });
+        return;
+      }
+      await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'OK' });
+      for (const cb of cbsEscolha) cb(escolha, String(q.from.id));
       return;
     }
     const botao = q.data ? descodificarBotao(q.data) : undefined;

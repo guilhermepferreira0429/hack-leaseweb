@@ -78,6 +78,8 @@ const NOME_SERVICO = {
 async function planoDestino(
   servicos: (keyof typeof NOME_SERVICO)[],
   modo: "recomendado" | "tudo-self-hosted" = "recomendado",
+  /** true = o porquê completo para o botão Why? (regras, orçamento e as chamadas à API que se fariam, só simuladas). */
+  detalhe = false,
 ): Promise<string | undefined> {
   const n = (v: string | undefined) =>
     v && Number(v) > 0 ? Number(v) : undefined;
@@ -110,7 +112,8 @@ async function planoDestino(
   // Nada é criado: no Telegram vai só o resumo curto.
   let simulacao = "";
   try {
-    simulacao = resumoSimulacao(simularProvisionamento(decisoes, { redeApp: process.env.MIGRADOR_REDE_APP || undefined }));
+    const sim = simularProvisionamento(decisoes, { redeApp: process.env.MIGRADOR_REDE_APP || undefined });
+    simulacao = detalhe ? sim.texto : resumoSimulacao(sim);
   } catch {
     simulacao = "";
   }
@@ -166,6 +169,7 @@ async function main(): Promise<void> {
         verificar,
         planoInfra,
         planoDestino,
+        detalheDestino: (servicos, modo) => planoDestino(servicos, modo, true),
         // PR real no GitHub só com MIGRADOR_PR=real; por omissão é um ensaio (o diff fica numa pasta temporária).
         // "Aprovar PR" no Telegram: merge no repo da app e, no /desfazer, um PR que reverte. Só com PR real.
         aprovarPR:

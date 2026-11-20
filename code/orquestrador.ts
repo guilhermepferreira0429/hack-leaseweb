@@ -39,6 +39,9 @@ export interface Dependencias {
     notificar(texto: string): Promise<void>;
     /** Anexo no grupo (ex.: o relatório PDF). Opcional: sem ele, não se anexa. */
     enviarDocumento?(agente: Agente, nome: string, conteudo: string | Uint8Array, legenda?: string, tipo?: string): Promise<void>;
+    /** Mensagem com botões de escolha (ex.: destino Recommended / Self-hosted / Why?). Sem ele, escolhe-se por comando. */
+    enviarComEscolhas?(agente: Agente, texto: string, opcoes: { texto: string; valor: string }[]): Promise<void>;
+    aoEscolha?(cb: (valor: string, quem: string) => void): void;
   };
   bus: { enviar(m: Mensagem): void };
   estado: {
@@ -107,6 +110,8 @@ export interface Dependencias {
     planoInfra?(): Promise<string | undefined>;
     /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
     planoDestino?(servicos: PassoMigracao[], modo?: 'recomendado' | 'tudo-self-hosted'): Promise<string | undefined>;
+    /** O porquê completo da recomendação (regras, orçamento e o provisionamento simulado pela API). Para o botão Why?. */
+    detalheDestino?(servicos: PassoMigracao[], modo?: 'recomendado' | 'tudo-self-hosted'): Promise<string | undefined>;
   };
   /** Voz dos agentes: resposta em texto, no papel do agente, a partir do estado. Opcional. */
   voz?: {
@@ -491,34 +496,11 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     // O decisor volta a correr no modo escolhido. Os geridos da Leaseweb são simulados: por baixo, tudo corre na VM.
     const escolha = /^\/(self-?hosted|recomendado|recommended|leaseweb)(?:@\S+)?$/i.exec(t);
     if (escolha) {
-      if (!deps.migrador.planoDestino || !servicosDoPlano) {
-        await notificar("There is no migration plan yet. The migrator will propose one first.");
-        return;
-      }
-      // Depois de o plano estar decidido, a migração já corre (ou não vai correr) no modo que havia: não se aceita.
-      if (planoDecidido) {
-        await notificar("The plan is already decided, so the destination can no longer change in this run.");
-        return;
-      }
-      const modo = /self/i.test(escolha[1]) ? "tudo-self-hosted" : "recomendado";
-      // Tocar no comando dentro de uma mensagem pode chegar duas vezes (dois bots): a mesma escolha seguida ignora-se.
-      if (ultimaEscolha && ultimaEscolha.modo === modo && Date.now() - ultimaEscolha.em < 10_000) return;
-      ultimaEscolha = { modo, em: Date.now() };
-      try {
-        const texto = await deps.migrador.planoDestino(servicosDoPlano, modo);
-        modoDestino = modo;
-        auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "dono", depois: { modo, texto } });
-        falar(
-          "migrador",
-          "dono",
-          (modo === "tudo-self-hosted"
-            ? "OK: everything self-hosted on your VM, no managed services."
-            : "OK: the recommended plan, with Leaseweb managed services where it makes sense (simulated in this demo: the data runs on the VM underneath).") +
-            (texto ? `\n${texto}` : ""),
-        );
-      } catch (erro) {
-        await falha("destination planner (owner's choice)", erro);
-      }
+      await escolherDestino(/self/i.test(escolha[1]) ? "tudo-self-hosted" : "recomendado");
+      return;
+    }
+    if (/^\/(?:why|porque)(?:@\S+)?$/i.test(t)) {
+      await explicarDestino();
       return;
     }
 
@@ -610,6 +592,23 @@ ${resumo}`,
       auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "migrador", depois: { modo: modoDestino, porOmissao: true } });
       // A recomendação mostra o raciocínio e os preços; nada se contrata. Hoje migra-se tudo para a VM.
       const geridos = /proponho|propose|recommend/i.test(texto);
+      // Com botões (Telegram): a primeira pergunta é a escolha do destino, com o Why? ao lado. Sem eles: por comando.
+      if (geridos && deps.telegram.enviarComEscolhas) {
+        try {
+          await deps.telegram.enviarComEscolhas(
+            "migrador",
+            `${texto}\nWhere should it run? Managed services are simulated today; the data runs on the VM.`,
+            [
+              { texto: "✅ Recommended", valor: "recomendado" },
+              { texto: "🖥 Self-hosted", valor: "selfhosted" },
+              { texto: "❓ Why?", valor: "porque" },
+            ],
+          );
+          return;
+        } catch (erro) {
+          log("botões de destino falharam, a usar comandos:", mensagem(erro));
+        }
+      }
       falar(
         "migrador",
         "dono",
@@ -619,6 +618,55 @@ ${resumo}`,
       );
     } catch (erro) {
       await falha("destination planner", erro);
+    }
+  }
+
+  /** Escolha do destino pelo dono (comando /recomendado|/selfhosted ou botão). O decisor volta a correr nesse modo. */
+  async function escolherDestino(modo: "recomendado" | "tudo-self-hosted"): Promise<void> {
+    if (!deps.migrador.planoDestino || !servicosDoPlano) {
+      await notificar("There is no migration plan yet. The migrator will propose one first.");
+      return;
+    }
+    // Depois de o plano estar decidido, a migração já corre (ou não vai correr) no modo que havia: não se aceita.
+    if (planoDecidido) {
+      await notificar("The plan is already decided, so the destination can no longer change in this run.");
+      return;
+    }
+    // Tocar no comando/botão pode chegar duas vezes (dois bots): a mesma escolha seguida ignora-se.
+    if (ultimaEscolha && ultimaEscolha.modo === modo && Date.now() - ultimaEscolha.em < 10_000) return;
+    ultimaEscolha = { modo, em: Date.now() };
+    try {
+      const texto = await deps.migrador.planoDestino(servicosDoPlano, modo);
+      modoDestino = modo;
+      auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "dono", depois: { modo, texto } });
+      falar(
+        "migrador",
+        "dono",
+        (modo === "tudo-self-hosted"
+          ? "OK: everything self-hosted on your VM, no managed services."
+          : "OK: the recommended plan, with Leaseweb managed services where it makes sense (simulated in this demo: the data runs on the VM underneath).") +
+          (texto ? `\n${texto}` : "") +
+          "\nNow tap Approve plan to start.",
+      );
+    } catch (erro) {
+      await falha("destination planner (owner's choice)", erro);
+    }
+  }
+
+  /** Botão Why?: o porquê completo (regras, orçamento e o que se pediria à API da Leaseweb, só simulado). */
+  async function explicarDestino(): Promise<void> {
+    if (!servicosDoPlano || !(deps.migrador.detalheDestino ?? deps.migrador.planoDestino)) {
+      await notificar("There is no migration plan yet. The migrator will propose one first.");
+      return;
+    }
+    try {
+      const texto = deps.migrador.detalheDestino
+        ? await deps.migrador.detalheDestino(servicosDoPlano, modoDestino)
+        : await deps.migrador.planoDestino!(servicosDoPlano, modoDestino);
+      auditar({ pedidoId: "-", tipo: "explicacao-destino", quem: "dono", depois: { modo: modoDestino } });
+      falar("migrador", "dono", texto ? `Why this plan:\n${texto}` : "I have no details for this plan.");
+    } catch (erro) {
+      await falha("destination planner (why)", erro);
     }
   }
 
@@ -1229,9 +1277,25 @@ ${resumo}`,
     } catch (erro) {
       void falha("ligar as mensagens do dono (aoMensagemDoDono)", erro);
     }
+    // Botões da escolha de destino (Recommended / Self-hosted / Why?). O telegram.ts já só entrega dono/aprovadores.
+    try {
+      deps.telegram.aoEscolha?.((valor) => {
+        const tarefa =
+          valor === "porque"
+            ? explicarDestino()
+            : valor === "selfhosted"
+              ? escolherDestino("tudo-self-hosted")
+              : valor === "recomendado"
+                ? escolherDestino("recomendado")
+                : Promise.resolve();
+        tarefa.catch((e) => falha("destination button", e));
+      });
+    } catch (erro) {
+      void falha("ligar os botões de destino (aoEscolha)", erro);
+    }
   }
 
-  return { ligar, correr, aoResponder, aoMensagemDoDono };
+  return { ligar, correr, aoResponder, aoMensagemDoDono, escolherDestino, explicarDestino };
 }
 
 /** Fala do atacante a partir dos achados (determinística; a voz com IA vem depois). */

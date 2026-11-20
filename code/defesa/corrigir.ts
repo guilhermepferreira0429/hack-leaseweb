@@ -63,6 +63,8 @@ export type Avisar = (texto: string) => Promise<void>;
 export async function avisarSemFalhar(avisar: Avisar, texto: string): Promise<void> {
   try {
     await avisar(texto);
+    // Diagnóstico (Undo sem mensagem no grupo): confirma no log que o aviso saiu.
+    console.log('[defesa] aviso enviado:', texto.slice(0, 80));
   } catch (erro) {
     console.warn('[defesa] aviso no Telegram falhou:', erro instanceof Error ? erro.message : erro);
   }
