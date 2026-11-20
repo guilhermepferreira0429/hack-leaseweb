@@ -52,9 +52,13 @@ export interface Opcoes {
   alvos: string[];
   /** Se definido, só aceita decisões e comandos deste utilizador (defesa em profundidade; o telegram.ts já filtra). */
   donoId?: string;
+  /** Quanto se espera pelas decisões do dono antes de seguir (por omissão ESPERA_DECISAO_MS = 10 min). */
+  esperaDecisaoMs?: number;
   agora?: () => Date;
   log?: (...args: unknown[]) => void;
 }
+
+export const ESPERA_DECISAO_MS = 10 * 60_000;
 
 export type Resultado = 'feito' | 'ignorado' | 'falhou' | 'aprovado';
 
@@ -125,6 +129,15 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       return Promise.resolve(ja);
     }
     return new Promise((resolve) => espera.set(pedidoId, resolve));
+  }
+
+  /** Espera por `p`, mas no máximo esperaDecisaoMs: o dono pode nunca responder. */
+  function comLimite<T>(p: Promise<T>): Promise<T | 'sem-resposta'> {
+    let relogio: ReturnType<typeof setTimeout> | undefined;
+    const limite = new Promise<'sem-resposta'>((r) => {
+      relogio = setTimeout(() => r('sem-resposta'), opcoes.esperaDecisaoMs ?? ESPERA_DECISAO_MS);
+    });
+    return Promise.race([p, limite]).finally(() => clearTimeout(relogio));
   }
 
   function concluir(pedidoId: string, r: Resultado): void {
@@ -234,7 +247,15 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     auditar({ pedidoId: pedido.id, tipo: 'pedido', quem: 'migrador', depois: { servicos, plano } });
     const decisao = esperarResultado(pedido.id);
     await deps.telegram.pedirAprovacao('migrador', pedido);
-    if ((await decisao) !== 'aprovado') {
+    const r = await comLimite(decisao);
+    if (r === 'sem-resposta') {
+      // Fecha o pedido: um clique tardio já não arranca uma migração a meio da demo.
+      deps.estado.mudarEstado(pedido.id, 'ignorado');
+      auditar({ pedidoId: pedido.id, tipo: 'sem-resposta', quem: 'migrador' });
+      falar('migrador', 'dono', 'Sem resposta ao pedido de migração: não migro. Fica tudo como estava.');
+      return;
+    }
+    if (r !== 'aprovado') {
       falar('migrador', 'dono', 'Migração não aprovada. Fica tudo como estava.');
       return;
     }
@@ -298,7 +319,8 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     let doAtacante: Achado[] = [];
     if (opcoes.atacar) doAtacante = await faseAtacar().catch(async (e) => (await falha('reconhecimento', e), []));
     const resultados = await faseDefender(doAtacante);
-    await Promise.all(resultados);
+    // Os pedidos sem resposta ficam "por decidir" no resumo; um Aprovar tardio ainda fecha (foi um humano).
+    if ((await comLimite(Promise.all(resultados))) === 'sem-resposta') log('há pedidos sem resposta; resumo na mesma');
     falar('chefe', 'dono', deps.chefe.resumir(lerAuditoria(), deps.estado.listarPedidos()));
   }
 

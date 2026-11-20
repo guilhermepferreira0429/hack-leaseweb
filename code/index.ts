@@ -57,6 +57,7 @@ async function main(): Promise<void> {
       dirApp: `${RAIZ}code/exemplo-app`,
       alvos: lista(process.env.ALVOS_PERMITIDOS),
       donoId: consola ? DONO_CONSOLA : process.env.TELEGRAM_DONO_ID || undefined,
+      esperaDecisaoMs: Number(process.env.ESPERA_DECISAO_MS) > 0 ? Number(process.env.ESPERA_DECISAO_MS) : undefined,
     },
   );
 

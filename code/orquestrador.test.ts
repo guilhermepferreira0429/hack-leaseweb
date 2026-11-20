@@ -242,6 +242,23 @@ describe('orquestrador', () => {
     assert.equal(textos(t.falas, 'atacante').at(-1), 'Confirmo. Já não chego lá.');
   });
 
+  it('sem resposta do dono: não migra, resume na mesma e deixa a porta por decidir', async () => {
+    const t = montar({ decisao: () => undefined }, { atacar: false, esperaDecisaoMs: 20 });
+    await t.orq.correr();
+    assert.match(textos(t.falas, 'migrador').at(-1)!, /Sem resposta ao pedido de migração: não migro/);
+    const migracao = t.pedidosEnviados.find((p) => p.agente === 'migrador')!.pedido;
+    assert.equal(t.pedidos.get(migracao.id)?.estado, 'ignorado');
+    assert.equal(t.corrigidos.length, 0);
+    assert.equal(t.falas.at(-1)?.de, 'chefe');
+    // Um clique tardio na migração já não conta; na porta ainda fecha (foi um humano a aprovar).
+    const porta = t.pedidosEnviados.find((p) => p.agente === 'defesa')!.pedido;
+    t.responder(migracao.id, 'aprovar');
+    t.responder(porta.id, 'aprovar');
+    await esperar();
+    await esperar();
+    assert.equal(t.corrigidos.length, 1);
+  });
+
   it('o atacante diz se ainda chega à porta depois de fechar', async () => {
     const t = montar({ portaFechada: false }, { migrar: false });
     await t.orq.correr();
