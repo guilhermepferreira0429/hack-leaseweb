@@ -62,7 +62,7 @@ pedirAprovacao(agente: Agente, pedido: Pedido): Promise<void>  // botões "Aprov
 aoResponder(cb: (pedidoId: string, decisao: 'aprovar' | 'ignorar', quem: string) => void): void
 aoMensagemDoDono(cb: (agente: Agente | null, texto: string) => void): void  // privado ou com menção
 notificar(texto: string): Promise<void>
-// comandos: /estado, /desfazer <pedidoId>
+// comandos (EN; antigos PT como alias): /status, /undo <pedidoId>, /attack
 ```
 
 ```ts
