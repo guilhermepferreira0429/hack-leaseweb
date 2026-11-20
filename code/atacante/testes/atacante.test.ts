@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { AlvoRecusadoError, carregarAllowlist } from '../alvos';
-import { paraAchado, reconhecer, verificarPortas } from '../reconhecimento';
+import { PORTAS_ALVO, paraAchado, reconhecer, verificarPortas } from '../reconhecimento';
 import { executarForcaBruta, lerWordlist } from '../index';
 
 const ALLOW = carregarAllowlist('203.0.113.10');
@@ -24,6 +24,16 @@ describe('atacante/reconhecimento', () => {
     const achado = paraAchado({ alvo: '203.0.113.10', porta: 8080, estado: 'aberta' });
     assert.equal(achado.servico, null);
     assert.equal(achado.severidade, 'media');
+  });
+
+  it('cobre as portas sensíveis da arquitetura e do mapeamento AWS', () => {
+    const sensiveis = [22, 23, 445, 1433, 3306, 3389, 5432, 5984, 6379, 9200, 27017];
+    for (const porta of sensiveis) {
+      assert.ok((PORTAS_ALVO as readonly number[]).includes(porta), `porta ${porta}`);
+    }
+    assert.ok((PORTAS_ALVO as readonly number[]).includes(80));
+    assert.ok((PORTAS_ALVO as readonly number[]).includes(443));
+    assert.equal(new Set(PORTAS_ALVO).size, PORTAS_ALVO.length);
   });
 
   it('classifica como alta todas as portas sensíveis de docs/arquitetura.md', () => {

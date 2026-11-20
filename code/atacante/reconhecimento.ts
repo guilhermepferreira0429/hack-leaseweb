@@ -6,8 +6,11 @@ import type { Achado } from '@mwbe/shared';
 import { carregarEnv } from '@mwbe/shared';
 import { carregarAllowlist, garantirPermitido } from './alvos';
 
-/** Portas que a demo observa: SSH, HTTP, HTTPS e o PostgreSQL que ficou exposto por engano. */
-export const PORTAS_ALVO = [22, 80, 443, 5432] as const;
+/**
+ * Portas verificadas: as sensíveis de docs/arquitetura.md e da tabela "Refuses to copy" de
+ * docs/research/aws-to-leaseweb-mapping.md, mais HTTP/HTTPS da demo.
+ */
+export const PORTAS_ALVO = [22, 23, 80, 443, 445, 1433, 3306, 3389, 5432, 5984, 6379, 9200, 27017] as const;
 
 /** Tempo máximo por porta. Uma porta filtrada esgota isto; as restantes respondem de imediato. */
 export const TIMEOUT_PORTA_MS = 2_000;
@@ -21,7 +24,7 @@ export interface PortaTestada {
 }
 
 /**
- * Nome e gravidade das portas de docs/arquitetura.md. `PORTAS_ALVO` é curta (a demo),
+ * Nome e gravidade das portas de docs/arquitetura.md. `PORTAS_ALVO` é a lista que o reconhece,
  * mas `paraAchado` tem de classificar bem qualquer porta que o chamador peça.
  */
 const SERVICOS: Record<number, { nome: string; severidade: Achado['severidade'] }> = {
