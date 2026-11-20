@@ -162,31 +162,19 @@ function juntar(itens: string[]): string {
 }
 
 /**
- * Versão curta da simulação para o Telegram (no máximo 3 linhas). O texto completo vai para a auditoria e o painel.
- * Só usa o que a simulação calculou: nenhum número novo.
+ * Versão curta da simulação para o Telegram: uma linha. O texto completo (chamadas à API, orçamento com a data)
+ * vai para o botão Why?, a auditoria e o painel. Só usa o que a simulação calculou: nenhum número novo.
  */
 export function resumoSimulacao(sim: Simulacao): string {
-  const linhas: string[] = [];
+  const partes: string[] = [];
   if (sim.vms.length > 0) {
     const recursos = sim.chamadas.filter((c) => c.caminho === '/instances' || c.caminho === '/securityGroups').length;
-    const tipos = [...new Set(sim.vms.map((v) => v.type))];
-    const custos = [...new Set(sim.vms.map((v) => v.custoMes))];
-    const servicos = juntar(sim.vms.map((v) => v.servico));
-    const detalhe =
-      tipos.length === 1 && custos.length === 1
-        ? `${tipos[0]} in Amsterdam for ${servicos}, about €${formatarNumero(custos[0]!)}/month${sim.vms.length > 1 ? ' each' : ''}`
-        : `in Amsterdam: ${juntar(sim.vms.map((v) => `${v.type} for ${v.servico} (about €${formatarNumero(v.custoMes)}/month)`))}`;
-    linhas.push(`DRY-RUN: I would create ${recursos} resources on Leaseweb via API (${detalhe}).`);
-  } else {
-    linhas.push('DRY-RUN: no Leaseweb VM to create for these services.');
+    const porTipo = new Map<string, number>();
+    for (const v of sim.vms) porTipo.set(v.type, (porTipo.get(v.type) ?? 0) + 1);
+    const vms = [...porTipo].map(([tipo, n]) => (n > 1 ? `${n}× ${tipo}` : tipo)).join(', ');
+    partes.push(`${recursos} resources (${vms}, Amsterdam), ~€${formatarNumero(sim.custoMesTotal)}/month`);
   }
-  if (sim.portal.length > 0)
-    linhas.push(`Plus ${juntar(sim.portal.map((p) => `Leaseweb ${p.plano} for ${p.servicoAws}`))}, ordered in the portal.`);
-  // Orçamento na última linha (mantém o resumo em ≤3 linhas): a escolha mostra o custo mensal, sem inventar poupança.
-  linhas.push(
-    sim.custoMesTotal > 0
-      ? `Nothing was created. Estimated budget: about €${formatarNumero(sim.custoMesTotal)}/month (Leaseweb list prices, ${PRECOS_VISTOS_EM.split('-').reverse().join('/')}).`
-      : 'Nothing was created.',
-  );
-  return linhas.join('\n');
+  if (sim.portal.length > 0) partes.push(juntar(sim.portal.map((p) => `${p.servicoAws} → Leaseweb ${p.plano} (portal)`)));
+  if (partes.length === 0) return 'DRY-RUN on the Leaseweb API: nothing to create. Nothing created.';
+  return `DRY-RUN on the Leaseweb API: ${partes.join('; ')}. Nothing created.`;
 }

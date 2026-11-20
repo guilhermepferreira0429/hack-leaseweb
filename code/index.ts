@@ -36,6 +36,7 @@ import { iniciarPainel } from "@mwbe/painel";
 import {
   decidirDestino,
   mensagemDestino,
+  mensagemDestinoCurta,
   resumoPlano,
   resumoSimulacao,
   simularProvisionamento,
@@ -107,7 +108,9 @@ async function planoDestino(
     modo,
   });
   // Tudo self-hosted: não há geridos, por isso não há nada a simular na API.
-  if (modo === "tudo-self-hosted") return mensagemDestino(decisoes, vm);
+  // Curto no Telegram; o completo (RAM, regras, "Why:") só no botão Why? (detalhe).
+  const texto = detalhe ? mensagemDestino(decisoes, vm) : mensagemDestinoCurta(decisoes);
+  if (modo === "tudo-self-hosted") return texto;
   // Simulação (dry-run) do que se criaria na Leaseweb pela API para os serviços que o decisor manda para gerido.
   // Nada é criado: no Telegram vai só o resumo curto.
   let simulacao = "";
@@ -117,7 +120,7 @@ async function planoDestino(
   } catch {
     simulacao = "";
   }
-  return simulacao ? `${mensagemDestino(decisoes, vm)}\n${simulacao}` : mensagemDestino(decisoes, vm);
+  return simulacao ? `${texto}\n${simulacao}` : texto;
 }
 
 async function main(): Promise<void> {
