@@ -53,11 +53,31 @@ describe('shared/relatorio', () => {
         '• terminei a sessão que o atacante tinha aberta (não se pode desfazer)',
         '• não fechei o acesso remoto ao servidor à Internet: falhou (precisa de reiniciar a VM)',
         '',
+        'Prova:',
+        '• aprovado por uma pessoa no Telegram às ' + new Date(t(13)).toTimeString().slice(0, 5),
+        '',
         'A migração terminou às ' + new Date(t(5)).toTimeString().slice(0, 5) + '. Mais nada foi alterado.',
         'Desfazer qualquer passo: usa os botões abaixo.',
       ].join('\n'),
     );
     assert.deepEqual(r.botoes, [{ texto: 'Desfazer bloqueio do atacante (203.0.113.7)', pedidoId: 'p1' }]);
+  });
+
+  it('prova da porta fechada: verificação de fora, confirmação do atacante e exposição desde a infra no ar', () => {
+    const porta = { ...achado, id: 'a2', tipo: 'servico-exposto', porta: 5432, servico: 'PostgreSQL', utilizador: undefined, ipOrigem: undefined };
+    const inv = { tipo: 'criar_regra', securityGroupId: 'sg', regra: { protocol: 'TCP', source: '0.0.0.0/0', startPort: 5432, endPort: 5432 } };
+    const eventos = [
+      { hora: t(0), pedidoId: '-', tipo: 'infra-no-ar', quem: 'orquestrador' },
+      { hora: t(20), pedidoId: 'd1', tipo: 'pedido', quem: 'defesa', depois: { achado: porta } },
+      { hora: t(30), pedidoId: 'd1', tipo: 'aprovado', quem: '42' },
+      { hora: t(31), pedidoId: 'd1', tipo: 'verificado', quem: 'defesa', depois: { porta: 5432, fase: 'antes', estado: 'open' } },
+      { hora: t(38), pedidoId: 'd1', tipo: 'feito', quem: 'defesa', inverso: inv },
+      { hora: t(40), pedidoId: 'd1', tipo: 'verificado', quem: 'defesa', depois: { porta: 5432, fase: 'depois', estado: 'filtered' } },
+      { hora: t(42), pedidoId: 'd1', tipo: 'confirmacao-atacante', quem: 'atacante', depois: { chega: false } },
+    ] as unknown as EventoAuditoria[];
+    const r = montarRelatorio('a2', eventos);
+    assert.match(r.texto, /Prova:\n• aprovado por uma pessoa no Telegram às \d\d:\d\d\n• verifiquei de fora: a porta 5432 já não responde \(filtered\) ✓\n• o atacante voltou a tentar e já não chega lá ✓\n• esteve exposta 38 segundos desde que a infraestrutura nova ficou no ar/);
+    assert.equal(r.botoes.length, 1, 'um Desfazer para o fecho');
   });
 
   it('pedido recusado não conta como feito', () => {
@@ -91,7 +111,7 @@ describe('shared/relatorio', () => {
     process.env.RELATORIO_NOME_SERVIDOR = 'vitima-demo';
     try {
       const r = montarRelatorio('porta1', eventos);
-      assert.match(r.texto, /Há uma porta aberta a qualquer pessoa na Internet no servidor vitima-demo: a base de dados \(porta 5432\)\./);
+      assert.match(r.texto, /Encontrei uma porta aberta a qualquer pessoa na Internet no servidor vitima-demo: a base de dados \(porta 5432\)\./);
       assert.doesNotMatch(r.texto, /Alguém entrou/);
     } finally {
       if (antes === undefined) delete process.env.RELATORIO_NOME_SERVIDOR;

@@ -298,8 +298,8 @@ export function montarRelatorio(achadoId: string, eventos: EventoAuditoria[] = a
     const nome = NOME_PORTA[achado.porta];
     l.push(
       nome
-        ? `Há uma porta aberta a qualquer pessoa na Internet no servidor ${servidor}: ${nome} (porta ${achado.porta}).`
-        : `Há a porta ${achado.porta} aberta a qualquer pessoa na Internet no servidor ${servidor}.`,
+        ? `Encontrei uma porta aberta a qualquer pessoa na Internet no servidor ${servidor}: ${nome} (porta ${achado.porta}).`
+        : `Encontrei a porta ${achado.porta} aberta a qualquer pessoa na Internet no servidor ${servidor}.`,
     );
   } else if (achado?.tipo === 'credenciais-por-defeito') {
     l.push(`Encontrei credenciais de fábrica no servidor ${servidor} (porta ${achado.porta}).`);
@@ -314,6 +314,38 @@ export function montarRelatorio(achadoId: string, eventos: EventoAuditoria[] = a
   for (const p of unicos) l.push(linha(p, achado));
   if (!unicos.length) l.push('• nenhum passo registado na auditoria');
   l.push('');
+
+  // Prova, só com o que está na auditoria: quem aprovou, a verificação de fora, a confirmação do atacante
+  // (evento do orquestrador) e a exposição desde que a infraestrutura nova ficou no ar. O que falta não aparece.
+  const doIncidente = (e: Evento) => pedidosDoIncidente.includes(e.pedidoId);
+  const prova: string[] = [];
+  const aprovacao = todos.filter((e) => doIncidente(e) && e.tipo === 'aprovado').at(-1);
+  if (aprovacao) {
+    prova.push(
+      aprovacao.quem === 'modo-noite'
+        ? `• aprovado pelo modo noite às ${hora(aprovacao.hora)} (sem resposta do dono)`
+        : `• aprovado por uma pessoa no Telegram às ${hora(aprovacao.hora)}`,
+    );
+  }
+  const verificado = todos
+    .filter((e) => doIncidente(e) && e.tipo === 'verificado' && (e.depois as { fase?: string } | undefined)?.fase === 'depois')
+    .at(-1)?.depois as { porta?: number; estado?: string } | undefined;
+  if (verificado?.estado) {
+    prova.push(
+      verificado.estado === 'open'
+        ? `• verifiquei de fora: a porta ${verificado.porta ?? '?'} continua a responder ✗`
+        : `• verifiquei de fora: a porta ${verificado.porta ?? '?'} já não responde (${verificado.estado}) ✓`,
+    );
+  }
+  const confirmacao = todos.filter((e) => doIncidente(e) && e.tipo === 'confirmacao-atacante').at(-1)?.depois as { chega?: boolean } | undefined;
+  if (typeof confirmacao?.chega === 'boolean') {
+    prova.push(confirmacao.chega ? '• o atacante voltou a tentar e ainda chega lá ✗' : '• o atacante voltou a tentar e já não chega lá ✓');
+  }
+  const noAr = fim ? todos.filter((e) => e.tipo === 'infra-no-ar' && e.hora <= fim).at(-1) : undefined;
+  if (noAr && fim) {
+    prova.push(`• esteve exposta ${duracao(Math.max(0, Math.round((Date.parse(fim) - Date.parse(noAr.hora)) / 1000)))} desde que a infraestrutura nova ficou no ar`);
+  }
+  if (prova.length) l.push('Prova:', ...prova, '');
 
   // "Mais nada foi alterado" só se a auditoria o confirmar: nenhum outro pedido feito além deste incidente e da migração.
   const outros = [...porPedido.entries()].filter(
