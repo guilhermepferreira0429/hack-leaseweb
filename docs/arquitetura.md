@@ -8,7 +8,24 @@
 | **vítima** | A falha da demo | Security group com `5432/tcp` aberto a `0.0.0.0/0` e um escutador inofensivo (`nc -lk 5432`) para o `nmap` dar `open` antes e `filtered` depois |
 | **isco** | O número da abertura do pitch | Ligado de manhã. SSH só por chave, porta 22 aberta a todos, nenhum serviço real |
 
-Se a conta Leaseweb falhar, a VM que a organização dá serve de cérebro.
+## VM da organização (analisar às 09:30, Enio Carlos, 10 min)
+
+A organização dá uma VM Linux por equipa, desligada no fim do evento. Antes de criar outras máquinas, ver:
+
+1. **Recursos:** `nproc`, `free -h`, `df -h`, `cat /etc/os-release`. Aguenta Node, Docker, LocalStack e MinIO juntos?
+2. **Rede:** IP público, saída para a Internet (`curl -I https://api.telegram.org`), portas abertas.
+3. **Docker:** instalado ou instalável.
+4. **A mais importante:** aparece na API da Leaseweb com a nossa chave (`GET /instances`) e dá para mexer no security group dela?
+
+Decisão:
+
+| Resultado | Papel da VM |
+|---|---|
+| Aparece na API e tem recursos | **Vítima** (poupa uma máquina), ou cérebro e vítima ao mesmo tempo |
+| Não aparece na API | **Cérebro** (agentes, LocalStack, MinIO). A vítima cria-se na nossa conta, porque a demo depende de fechar a porta pela API |
+| É fraca | Só **isco** |
+
+Registar o resultado em `leaseweb-api.md`, nas notas.
 
 ## Fluxo
 
