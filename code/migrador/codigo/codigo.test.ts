@@ -71,7 +71,7 @@ describe('migrador de código', () => {
     assert.match(config.depois, /DATABASE_URL=postgres:\/\/<utilizador>:<senha>@<postgres-na-leaseweb>:5432\/<base>/);
     assert.match(config.depois, /# AWS_SECRET_ACCESS_KEY/);
     assert.ok(p.fora.some((f) => /SQS → RabbitMQ: a app chama o SQS diretamente/.test(f)), 'trocar o cliente SQS fica fora (nível B)');
-    assert.ok(p.fora.some((f) => /\.env\.example:1: endereço da AWS/.test(f)));
+    assert.ok(p.fora.some((f) => /\.env\.example:1: endereço ou ARN da AWS/.test(f)));
     assert.deepEqual(validarAlteracao(p, usos), []);
     assert.ok(!p.diff.includes(SENHA) && !p.diff.includes(CHAVE));
     assert.match(p.diff, /\+  forcePathStyle: true/);
@@ -105,31 +105,126 @@ describe('migrador de código', () => {
 
     const sim = await migrarCodigo(dirApp, { raizRepo: raiz, id: 'ab12cd34', testesOk: true });
     assert.equal(sim.pr?.simulado, true);
-    assert.equal(sim.pr?.ramo, 'migrador/leaseweb-ab12cd34');
+    assert.match(sim.pr!.ramo, /^migrador\/leaseweb-ab12cd34-\d{14}$/);
     assert.deepEqual(sim.pr?.ficheiros.sort(), ['app/leaseweb.env.example', 'app/src/armazenamento.ts']);
     const diff = await readFile(sim.pr!.diffEm!, 'utf8');
     assert.match(diff, /forcePathStyle: true/);
     assert.ok(!diff.includes(SENHA));
   });
 
-  it('PR real: worktree num ramo novo, push só desse ramo e PR para main; nunca push para main', async () => {
+  it('PR real: ramo novo a partir do origin/main, push só desse ramo e PR para main; nunca push para main', async () => {
+    const { raiz, dirApp } = await appLegada();
+    const original = await readFile(join(dirApp, 'src', 'armazenamento.ts'), 'utf8');
+    const comandos: string[] = [];
+    const executar = async (cmd: string, args: string[]) => {
+      comandos.push(`${cmd} ${args.join(' ')}`);
+      if (cmd === 'gh') return 'https://github.com/exemplo/repo/pull/7';
+      if (args[0] === 'show') return original;
+      return '';
+    };
+    const r = await migrarCodigo(dirApp, { raizRepo: raiz, id: 'ab12cd34', testesOk: true, real: true, executar });
+    assert.equal(r.pr?.url, 'https://github.com/exemplo/repo/pull/7');
+    const ramo = r.pr!.ramo;
+    assert.match(ramo, /^migrador\/leaseweb-ab12cd34-\d{14}$/);
+    assert.ok(comandos.includes('git show origin/main:app/src/armazenamento.ts'), 'confere o ficheiro no GitHub antes');
+    assert.ok(comandos.some((c) => c.startsWith(`git worktree add -b ${ramo} `) && c.endsWith(' origin/main')), 'sai do origin/main, não do HEAD local');
+    assert.ok(comandos.includes(`git push -u origin ${ramo}:${ramo}`));
+    assert.ok(comandos.some((c) => c.startsWith(`gh pr create --base main --head ${ramo}`)));
+    assert.ok(!comandos.some((c) => /git push\b.*\bmain\b/.test(c)), 'nunca há push para main');
+    assert.ok(comandos.some((c) => c.startsWith('git worktree remove')), 'a worktree temporária sai sempre');
+    assert.equal(comandos.at(-1), `git branch -D ${ramo}`, 'o ramo local sai no fim');
+  });
+
+  it('PR real recusado se o ficheiro no GitHub for diferente do local (falta o push do revisor)', async () => {
     const { raiz, dirApp } = await appLegada();
     const comandos: string[] = [];
-    const r = await migrarCodigo(dirApp, {
-      raizRepo: raiz,
-      id: 'ab12cd34',
-      testesOk: true,
-      real: true,
-      executar: async (cmd, args) => {
-        comandos.push(`${cmd} ${args.join(' ')}`);
-        return cmd === 'gh' ? 'https://github.com/exemplo/repo/pull/7' : '';
-      },
-    });
-    assert.equal(r.pr?.url, 'https://github.com/exemplo/repo/pull/7');
-    assert.ok(comandos[0]!.startsWith('git worktree add -b migrador/leaseweb-ab12cd34 '));
-    assert.ok(comandos.includes('git push -u origin migrador/leaseweb-ab12cd34:migrador/leaseweb-ab12cd34'));
-    assert.ok(comandos.some((c) => c.startsWith('gh pr create --base main --head migrador/leaseweb-ab12cd34')));
-    assert.ok(!comandos.some((c) => /git push\b.*\bmain\b/.test(c)), 'nunca há push para main');
-    assert.ok(comandos.at(-1)!.startsWith('git worktree remove'), 'a worktree temporária sai sempre');
+    await assert.rejects(
+      migrarCodigo(dirApp, {
+        raizRepo: raiz,
+        id: 'x',
+        testesOk: true,
+        real: true,
+        executar: async (cmd, args) => (comandos.push(`${cmd} ${args.join(' ')}`), 'outra versão'),
+      }),
+      /no origin\/main não é igual ao local/,
+    );
+    assert.ok(!comandos.some((c) => /worktree add|push/.test(c)), 'não cria ramo nem faz push');
+  });
+
+  it('revisão: senhas em URLs (utilizador vazio, / e @), chaves JSON e .env só com nomes', async () => {
+    assert.equal(semSegredos('REDIS_ORIGEM_URL=redis://:s3nh4@127.0.0.1:6380'), 'REDIS_ORIGEM_URL=redis://:***@127.0.0.1:6380');
+    assert.equal(semSegredos('amqp://app:ab/cd@h'), 'amqp://app:***@h');
+    assert.equal(semSegredos('postgres://app:p@ss@h:5432/x'), 'postgres://app:***@h:5432/x');
+    assert.equal(semSegredos('{"endpoint":"https://s3.amazonaws.com","secretKey":"abc"}'), '{"endpoint":"https://s3.amazonaws.com","secretKey":"***"}');
+    assert.equal(semSegredos('LLM_KEY=abc'), 'LLM_KEY=***');
+    assert.equal(semSegredos('DATABASE_URL=postgres://<utilizador>:<senha>@h/x'), 'DATABASE_URL=postgres://<utilizador>:<senha>@h/x', 'marcadores ficam');
+
+    const { dirApp } = await appLegada();
+    await writeFile(join(dirApp, '.env'), 'APP_REDIS_URL=redis://:muitoSecreta@h:6379\nDB_SENHA=abc\n');
+    const usos = await encontrarUsosAws(dirApp);
+    const doEnv = usos.filter((u) => u.ficheiro === '.env');
+    assert.ok(doEnv.some((u) => u.nome === 'APP_REDIS_URL' && u.servico === 'cache'), 'APP_REDIS_URL conta como cache');
+    assert.ok(doEnv.every((u) => u.trecho.endsWith('=***')), 'do .env só sai o nome');
+    assert.ok(!JSON.stringify(usos).includes('muitoSecreta'));
+  });
+
+  it('revisão: deteção mais larga (SDK v2, presigner, rds-signer, ARN, FATURAS_BUCKET, AWS_REGION, segredos)', async () => {
+    const { dirApp } = await appLegada();
+    await writeFile(
+      join(dirApp, 'src', 'mais.ts'),
+      [
+        "import AWS from 'aws-sdk';",
+        "import { getSignedUrl } from '@aws-sdk/s3-request-presigner';",
+        "import { Signer } from '@aws-sdk/rds-signer';",
+        "const topico = 'arn:aws:sns:eu-west-1:123456789012:encomendas';",
+        'const b = process.env.FATURAS_BUCKET;',
+        'const r = process.env.AWS_REGION;',
+        'const s = process.env.SEGREDOS_TIPO;',
+        'const c = new S3Client(config);',
+        "const d = new S3Client({ region: 'x', forcePathStyle: process.env.PATH_STYLE === 'true' });",
+        '',
+      ].join('\n'),
+    );
+    const usos = (await encontrarUsosAws(dirApp)).filter((u) => u.ficheiro === 'src/mais.ts');
+    const tem = (linha: number, servico: string, tipo: string) => usos.some((u) => u.linha === linha && u.servico === servico && u.tipo === tipo);
+    assert.ok(tem(1, 'outro', 'sdk'), 'aws-sdk v2');
+    assert.ok(tem(2, 's3', 'sdk'), 'presigner');
+    assert.ok(tem(3, 'postgres', 'sdk'), 'rds-signer');
+    assert.ok(tem(4, 'outro', 'endpoint'), 'ARN');
+    assert.ok(usos.some((u) => u.nome === 'FATURAS_BUCKET' && u.servico === 's3'));
+    assert.ok(usos.some((u) => u.nome === 'AWS_REGION' && u.servico === 'outro'));
+    assert.ok(usos.some((u) => u.nome === 'SEGREDOS_TIPO' && u.servico === 'segredos'));
+    assert.ok(tem(8, 's3', 's3-config-externa'), 'cliente a partir de uma variável vai para o fora');
+    assert.ok(!usos.some((u) => u.linha === 9 && u.tipo.startsWith('s3-')), 'qualquer forcePathStyle conta como resolvido');
+
+    const todos = await encontrarUsosAws(dirApp);
+    const p = await proporAlteracao(dirApp, todos);
+    const config = p.alteracoes.find((a) => a.ficheiro === FICHEIRO_CONFIG)!.depois;
+    assert.match(config, /SEGREDOS_TIPO=openbao/);
+    assert.match(config, /OPENBAO_ADDR=http:\/\/<openbao-na-leaseweb>:8200/);
+    assert.match(config, /# AWS_REGION/);
+    assert.ok(!p.alteracoes.some((a) => a.ficheiro === 'src/mais.ts'), 'mais.ts não muda: nada de forcePathStyle duplicado');
+    assert.ok(p.fora.some((f) => /src\/mais\.ts:8: o cliente S3 é criado a partir de uma variável/.test(f)));
+    assert.ok(p.fora.some((f) => /rds-signer/.test(f)));
+    assert.ok(p.fora.some((f) => /pré-assinados/.test(f)));
+    assert.ok(p.fora.some((f) => /Outros serviços da AWS no código \(src\/mais\.ts\)/.test(f)));
+    assert.deepEqual(validarAlteracao(p, todos), []);
+  });
+
+  it('revisão: o Valkey leva senha no marcador; uma senha real num URL é recusada', async () => {
+    const { dirApp } = await appLegada();
+    await writeFile(join(dirApp, 'src', 'cache.ts'), 'export const url = process.env.CACHE_URL;\n');
+    const usos = await encontrarUsosAws(dirApp);
+    const p = await proporAlteracao(dirApp, usos);
+    const config = p.alteracoes.find((a) => a.ficheiro === FICHEIRO_CONFIG)!;
+    assert.match(config.depois, /VALKEY_URL=redis:\/\/:<senha>@<valkey-na-leaseweb>:6379/);
+    const mau = { ...p, alteracoes: [{ ...config, depois: `${config.depois}X=redis://:abc123@h:6379\n` }] };
+    assert.ok(validarAlteracao(mau, usos).some((x) => /parece ter um segredo/.test(x)));
+  });
+
+  it('a app tem de estar dentro do repo', async () => {
+    const { dirApp } = await appLegada();
+    const fora = await mkdtemp(join(tmpdir(), 'outro-repo-'));
+    await assert.rejects(migrarCodigo(dirApp, { raizRepo: fora, id: 'x', testesOk: true }), /a app tem de estar dentro do repo/);
   });
 });

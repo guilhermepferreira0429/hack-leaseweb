@@ -37,8 +37,9 @@ const DESTINO: Record<string, string> = {
   RABBITMQ_URL: 'amqp://<utilizador>:<senha>@<rabbitmq-na-leaseweb>:5672',
   SEGREDOS_TIPO: 'openbao',
   OPENBAO_ADDR: 'http://<openbao-na-leaseweb>:8200',
+  OPENBAO_TOKEN: '<token do OpenBao; só no .env>',
   CACHE_TIPO: 'valkey',
-  VALKEY_URL: 'redis://<valkey-na-leaseweb>:6379',
+  VALKEY_URL: 'redis://:<senha>@<valkey-na-leaseweb>:6379',
 };
 
 /** Variáveis que deixam de ser precisas no destino (o RabbitMQ não usa as chaves do SQS). */
@@ -73,6 +74,7 @@ function configuracao(usos: UsoAws[]): string | undefined {
     for (const n of NOVAS[u.servico] ?? []) nomes.add(n);
     porServico.set(u.servico, nomes);
   }
+  porServico.delete('outro');
   if (porServico.size === 0) return undefined;
   const linhas = [
     '# Configuração da app na Leaseweb, proposta pelo migrador de código.',
@@ -88,9 +90,11 @@ function configuracao(usos: UsoAws[]): string | undefined {
       else linhas.push(`# ${nome}: fica igual (o mesmo nome no destino)`);
     }
   }
-  const credenciais = [...new Set(usos.filter((u) => u.tipo === 'credencial').map((u) => u.nome!))].sort();
+  const credenciais = [
+    ...new Set(usos.filter((u) => u.tipo === 'credencial' || (u.tipo === 'variavel' && u.servico === 'outro')).map((u) => u.nome!)),
+  ].sort();
   if (credenciais.length) {
-    linhas.push('', '# Credenciais da AWS: deixam de ser precisas. Não se copiam; apaguem-nas do .env.');
+    linhas.push('', '# Variáveis e credenciais da AWS: deixam de ser precisas. Não se copiam; apaguem-nas do .env.');
     for (const c of credenciais) linhas.push(`# ${c}`);
   }
   return `${linhas.join('\n')}\n`;
@@ -167,8 +171,21 @@ export async function proporAlteracao(dirApp: string, usos: UsoAws[]): Promise<P
   if (sdkFila && !filaPorVariavel) {
     fora.push('SQS → RabbitMQ: a app chama o SQS diretamente. Trocar o cliente é uma reescrita (nível B), com testes antes e depois; não entra neste PR.');
   }
-  for (const u of usos.filter((x) => x.tipo === 'endpoint' && /amazonaws\.com/i.test(x.trecho))) {
-    fora.push(`${u.ficheiro}:${u.linha}: endereço da AWS escrito no código. Passar para uma variável de ambiente.`);
+  for (const u of usos.filter((x) => x.tipo === 'endpoint' && /amazonaws\.com|arn:aws:|s3:\/\//i.test(x.trecho))) {
+    fora.push(`${u.ficheiro}:${u.linha}: endereço ou ARN da AWS escrito no código. Passar para uma variável de ambiente.`);
+  }
+  for (const u of usos.filter((x) => x.tipo === 's3-config-externa')) {
+    fora.push(`${u.ficheiro}:${u.linha}: o cliente S3 é criado a partir de uma variável. Confirmar à mão que leva forcePathStyle: true.`);
+  }
+  if (usos.some((u) => /s3-request-presigner|lib-storage/.test(u.trecho))) {
+    fora.push('URLs pré-assinados ou uploads em partes do S3: funcionam no MinIO, mas o endereço público muda. Testar à mão.');
+  }
+  if (usos.some((u) => /rds-signer/.test(u.trecho))) {
+    fora.push('Autenticação IAM no RDS (rds-signer): não existe no PostgreSQL novo. Passar a utilizador e senha no DATABASE_URL.');
+  }
+  const outrosSdk = [...new Set(usos.filter((u) => u.tipo === 'sdk' && u.servico === 'outro').map((u) => u.ficheiro))];
+  if (outrosSdk.length) {
+    fora.push(`Outros serviços da AWS no código (${outrosSdk.join(', ')}): precisam de redesenho, não de migração.`);
   }
 
   return { alteracoes, diff: diffDe(alteracoes), fora };
@@ -178,8 +195,8 @@ export async function proporAlteracao(dirApp: string, usos: UsoAws[]): Promise<P
 const SEGREDO_NA_LINHA: RegExp[] = [
   /\b(AKIA|ASIA)[A-Z0-9]{16}\b/,
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
-  // Senha num URL que não seja um <marcador>.
-  /:\/\/[^\s/:@]+:(?!<)[^\s@/]+@/,
+  // Senha num URL que não seja um <marcador> (também com utilizador vazio: redis://:senha@).
+  /:\/\/[^\s/:@]*:(?!<)\S+@/,
   // Nome sensível com um valor literal que não seja vazio nem <marcador>.
   /^\s*[A-Z_]*(SECRET|PASSWORD|PASSWD|TOKEN|ACCESS_KEY|API_KEY)[A-Z_]*\s*=\s*(?!<|$)\S/i,
 ];
