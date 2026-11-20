@@ -9,3 +9,4 @@ export * as leaseweb from './leaseweb';
 export * as auditoria from './auditoria';
 export * as estado from './estado';
 export * as telegram from './telegram';
+export * as relatorio from './relatorio';
