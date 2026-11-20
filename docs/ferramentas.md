@@ -33,6 +33,28 @@ Para cada serviço o migrador faz sempre os mesmos 5 passos: **analisar** (encon
 
 A origem "AWS" é simulada com o LocalStack, que emula S3, SQS, SNS, DynamoDB, Secrets Manager e outros.
 
+## Planeador de destino (parte do migrador)
+
+Antes de migrar, o migrador decide **onde fica cada serviço**, e explica porquê no Telegram:
+
+- **Self-hosted numa VM da Leaseweb:** quando a máquina tem recursos e o serviço não é crítico.
+- **Serviço gerido pago, europeu:** quando não há RAM ou disco que chegue, ou o serviço é crítico e precisa de alta disponibilidade e backups geridos.
+- **Leaseweb primeiro:** se a Leaseweb tiver o serviço gerido, é essa a escolha. Outro fornecedor europeu só quando a Leaseweb não o tiver.
+
+Exemplo da mensagem: "A tua VM tem 8 GB de RAM. O MinIO e o NATS ficam nela. A base de dados das encomendas é crítica: proponho um Postgres gerido europeu, com backups diários. Custo estimado: …. [Aprovar] [Tudo self-hosted]"
+
+Como decide:
+
+1. Regras fixas no código (RAM e disco necessários por serviço, criticidade marcada pelo dono, dados pessoais ou não). As regras decidem.
+2. A IA só explica a decisão em português simples e responde a perguntas do dono. Não inventa preços: só usa os que estiverem na tabela do código, com a data em que foram vistos.
+
+| Peça | Nível |
+|---|---|
+| Recomendar o destino de cada serviço com regras + explicação da IA no Telegram | **B** |
+| O dono escolhe entre "recomendado" e "tudo self-hosted" | **B** |
+| Criar e configurar os serviços geridos pelas APIs dos fornecedores europeus | C |
+| Comparar custos atualizados entre fornecedores | C |
+
 ## Atacante: só às nossas máquinas (allowlist)
 
 | Ferramenta | O que procura | Nível |
