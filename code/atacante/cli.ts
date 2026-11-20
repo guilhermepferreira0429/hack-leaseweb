@@ -1,15 +1,37 @@
 // npm run dev:atacante [-- <ip> ...]     reconhecimento TCP das portas sensíveis
 // npm run dev:atacante -- --ssh <ip>     passo de SSH da demo (um só alvo, sempre na allowlist)
+// npm run dev:atacante -- --segredos [pasta]   chaves AWS e segredos no código (nível B)
 // Sem argumentos: todos os IPs de ALVOS_PERMITIDOS. IPs fora da lista são recusados e nunca contactados.
 // Na demo, o reconhecimento corre pelo orquestrador (npm run dev).
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { carregarEnv } from '@mwbe/shared';
 import { carregarAllowlist, filtrarAlvos } from './alvos';
 import { mainForcaBruta } from './index';
 import { PORTAS_ALVO, verificarPortas } from './reconhecimento';
+import { varrerSegredos } from './segredos';
+
+const RAIZ_REPO = fileURLToPath(new URL('../../', import.meta.url));
+
+async function mainSegredos(args: string[]): Promise<number> {
+  const dir = resolve(RAIZ_REPO, args[0] ?? 'code/exemplo-app');
+  const encontrados = await varrerSegredos(dir);
+  if (encontrados.length === 0) {
+    console.log(`[atacante] nenhum segredo em ${dir}`);
+    return 0;
+  }
+  console.log(`[atacante] ${encontrados.length} segredo(s) em ${dir}`);
+  for (const s of encontrados) {
+    // O valor nunca é impresso; só o tipo, o nome e o sítio.
+    console.log(`  ${s.tipo} (${s.nome}) em ${s.ficheiro}:${s.linha}`);
+  }
+  return 0;
+}
 
 async function main(): Promise<number> {
   const args = process.argv.slice(2);
   if (args[0] === '--ssh') return mainForcaBruta(args.slice(1));
+  if (args[0] === '--segredos') return mainSegredos(args.slice(1));
 
   carregarEnv();
   const allowlist = carregarAllowlist(process.env.ALVOS_PERMITIDOS);

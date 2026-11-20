@@ -11,6 +11,7 @@ import { carregarAllowlist, garantirPermitido } from './alvos';
 
 export * from './alvos';
 export * from './reconhecimento';
+export * from './segredos';
 
 /** Máximo de tentativas, mesmo que a wordlist cresça. */
 export const MAX_TENTATIVAS = 20;
