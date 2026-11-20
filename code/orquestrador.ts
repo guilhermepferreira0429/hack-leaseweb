@@ -459,11 +459,12 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     texto: string,
   ): Promise<void> {
     const t = texto.trim();
-    if (t === "/estado" || t.startsWith("/estado@")) {
+    // Comandos em inglês (a demo é em inglês), com os antigos como alias: /status=/estado, /undo=/desfazer, /attack=/atacar.
+    if (/^\/(?:estado|status)(?:@\S+)?$/.test(t)) {
       await notificar(deps.chefe.estadoAtual(deps.estado.listarPedidos()));
       return;
     }
-    const desfazer = t.match(/^\/desfazer(?:@\S+)?\s+(\S+)/);
+    const desfazer = t.match(/^\/(?:desfazer|undo)(?:@\S+)?\s+(\S+)/);
     if (desfazer) {
       const id = desfazer[1];
       try {
@@ -476,6 +477,9 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
         }
         // O aviso "Desfeito às HH:MM: a regra voltou (...)" já vem do desfazer() da defesa.
         await deps.defesa.desfazer(id);
+        // A porta reabriu: o achado volta a ser acionável, para um /atacar a seguir poder pedir Close outra vez.
+        const reaberto = achadoDoPedido.get(id);
+        if (reaberto) achadosDoCiclo.delete(reaberto.id);
         log(`pedido ${id} desfeito`);
       } catch (erro) {
         await falha(`desfazer ${id}`, erro);
