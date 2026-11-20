@@ -50,7 +50,8 @@ export function fraseDe(e: EventoAuditoria): string {
     case 'migracao-plano-destino':
       return 'Escolheu o destino de cada serviço na Leaseweb.';
     case 'decisao-destino':
-      return 'Escolheu: tudo self-hosted na VM, nada gerido.';
+      if (d.porOmissao) return 'Destino por omissão: o recomendado.';
+      return d.modo === 'tudo-self-hosted' ? 'Escolheu: tudo self-hosted na VM, nada gerido.' : 'Escolheu o recomendado: Leaseweb gerido onde faz sentido (simulado na VM).';
     case 'pedido':
       if (e.quem === 'migrador') return 'Pede aprovação para migrar.';
       return `Proponho fechar: ${String(d.titulo ?? e.pedidoId)}.`;

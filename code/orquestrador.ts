@@ -483,18 +483,29 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       return;
     }
 
-    // Decisor de destino: o dono escolhe "tudo self-hosted" (só a VM, nada gerido). O decisor volta a correr nesse modo.
-    if (/^\/self-?hosted(?:@\S+)?$/i.test(t)) {
+    // Decisor de destino: o dono escolhe entre o recomendado (Leaseweb, geridos onde faz sentido) e tudo self-hosted.
+    // O decisor volta a correr no modo escolhido. Os geridos da Leaseweb são simulados: por baixo, tudo corre na VM.
+    const escolha = /^\/(self-?hosted|recomendado|recommended|leaseweb)(?:@\S+)?$/i.exec(t);
+    if (escolha) {
       if (!deps.migrador.planoDestino || !servicosDoPlano) {
         await notificar("There is no migration plan yet. The migrator will propose one first.");
         return;
       }
+      const modo = /self/i.test(escolha[1]) ? "tudo-self-hosted" : "recomendado";
       try {
-        const texto = await deps.migrador.planoDestino(servicosDoPlano, "tudo-self-hosted");
-        auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "dono", depois: { modo: "tudo-self-hosted", texto } });
-        falar("migrador", "dono", `OK: everything self-hosted on your VM, no managed services.${texto ? `\n${texto}` : ""}`);
+        const texto = await deps.migrador.planoDestino(servicosDoPlano, modo);
+        modoDestino = modo;
+        auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "dono", depois: { modo, texto } });
+        falar(
+          "migrador",
+          "dono",
+          (modo === "tudo-self-hosted"
+            ? "OK: everything self-hosted on your VM, no managed services."
+            : "OK: the recommended plan, with Leaseweb managed services where it makes sense (simulated in this demo: the data runs on the VM underneath).") +
+            (texto ? `\n${texto}` : ""),
+        );
       } catch (erro) {
-        await falha("destination planner (self-hosted)", erro);
+        await falha("destination planner (owner's choice)", erro);
       }
       return;
     }
@@ -563,6 +574,8 @@ ${resumo}`,
   /** Onde fica cada serviço (regras do decisor, preços com data). Só informa; um erro não trava a migração. */
   /** Serviços do último plano: o /selfhosted volta a correr o decisor com eles, no modo escolhido pelo dono. */
   let servicosDoPlano: PassoMigracao[] | undefined;
+  /** Escolha do dono para o destino; por omissão, o recomendado. Fica na auditoria (decisao-destino). */
+  let modoDestino: "recomendado" | "tudo-self-hosted" = "recomendado";
 
   async function mostrarPlanoDestino(servicos: PassoMigracao[]): Promise<void> {
     if (!deps.migrador.planoDestino) return;
@@ -576,13 +589,15 @@ ${resumo}`,
         quem: "migrador",
         depois: { texto },
       });
+      modoDestino = "recomendado";
+      auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "migrador", depois: { modo: modoDestino, porOmissao: true } });
       // A recomendação mostra o raciocínio e os preços; nada se contrata. Hoje migra-se tudo para a VM.
       const geridos = /proponho|propose|recommend/i.test(texto);
       falar(
         "migrador",
         "dono",
         geridos
-          ? `${texto}\nThis is only my recommendation: in this migration everything stays on the VM (self-hosted) and I do not buy anything. Moving a service to a managed offer is your decision, for later.\nPrefer everything self-hosted, with no managed services at all? Write /selfhosted.`
+          ? `${texto}\nYou choose before approving: /recomendado (this plan: Leaseweb managed where it makes sense) or /selfhosted (everything on your own VM). Without a choice I follow the recommendation. Managed services are simulated in this demo; the data runs on the VM underneath.`
           : texto,
       );
     } catch (erro) {

@@ -7,6 +7,7 @@ import { auditoria, carregarEnv, estado } from '@mwbe/shared';
 import { relogioExposicao } from '@mwbe/chefe';
 import { cabecalho, escapar, horaLisboa, numero } from './estilo';
 import { aprovadoPor, cicloAtual, portasDoCiclo, provas } from './linha-tempo';
+import { destinoEscolhido } from './palco';
 
 const CSS = `body{padding:48px 16px;color:#15171C}main{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:36px;background:#F5F3EE}
 .id{font:14px var(--mono);color:#8B929C;letter-spacing:1px}h1{margin:10px 0;font:400 52px/1.05 var(--serif)}.data{font:15px var(--mono);color:#8B929C}
@@ -38,7 +39,15 @@ export function renderizarCertificado(pedidos: Pedido[], todos: EventoAuditoria[
   const yyyymmdd = agora.toISOString().slice(0, 10).replace(/-/g, '');
   const hhmm = horaLisboa(agora, false).replace(':', '');
 
+  const dest = destinoEscolhido(eventos);
+  const linhaDestino = dest
+    ? kv(
+        'Destino escolhido',
+        `${dest.modo === 'tudo-self-hosted' ? 'tudo self-hosted na VM' : 'o recomendado: Leaseweb gerido onde faz sentido (simulado: os dados correm na VM)'} · ${dest.peloDono ? 'escolha do dono' : 'por omissão'}`,
+      )
+    : '';
   const servicos = [
+    linhaDestino,
     p.objetos !== undefined ? kv('S3 → MinIO', `${onde} · self-hosted`) : '',
     p.linhas !== undefined ? kv('RDS Postgres → Postgres', `${onde} · self-hosted`) : '',
     p.mensagens !== undefined ? kv('SQS → RabbitMQ', `${onde} · self-hosted`) : '',

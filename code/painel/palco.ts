@@ -22,6 +22,14 @@ const hora = (iso: string) => {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { timeZone: 'Europe/Lisbon' });
 };
 
+/** Destino escolhido (último decisao-destino do ciclo): o dono escolheu, ou o recomendado por omissão. */
+export function destinoEscolhido(eventos: EventoAuditoria[]): { modo: 'recomendado' | 'tudo-self-hosted'; peloDono: boolean } | undefined {
+  const e = eventos.findLast((x) => x.tipo === 'decisao-destino');
+  if (!e) return undefined;
+  const d = obj(e.depois);
+  return { modo: d.modo === 'tudo-self-hosted' ? 'tudo-self-hosted' : 'recomendado', peloDono: e.quem === 'dono' };
+}
+
 export interface EstadoPalco {
   /** Fase em curso; undefined antes de começar. `concluido` = a porta fechou e tudo acabou. */
   fase?: FasePalco;
@@ -95,7 +103,10 @@ export function fraseIngles(e: EventoAuditoria): string | undefined {
       if (e.inverso?.tipo === 'criar_regra') return 'Closed and confirmed. Undo saved.';
       return undefined;
     case 'decisao-destino':
-      return 'Chose everything self-hosted on the VM, no managed services.';
+      if (d.porOmissao) return undefined;
+      return d.modo === 'tudo-self-hosted'
+        ? 'Chose everything self-hosted on the VM, no managed services.'
+        : 'Chose the recommended plan: Leaseweb managed where it makes sense (simulated).';
     case 'infra-no-ar':
       return 'New infrastructure is live.';
     case 'reconhecimento': {
@@ -203,6 +214,15 @@ export function renderizarPalco(pedidos: Pedido[], todos: EventoAuditoria[], opc
     return `<span class="f ${classe}">${i + 1} ${f.toUpperCase()}${classe === 'feita' ? ' ✓' : ''}</span>`;
   }).join('<span class="seta">──</span>');
 
+  // Destino escolhido pelo dono (ou o recomendado por omissão). Os geridos da Leaseweb são simulados.
+  const dest = destinoEscolhido(eventos);
+  const quem = dest ? (dest.peloDono ? 'owner\'s choice' : 'recommended by default') : '';
+  const destinoTexto = !dest
+    ? 'Leaseweb<span class="tag real">REAL</span>'
+    : dest.modo === 'tudo-self-hosted'
+      ? `everything self-hosted on the VM<span class="tag real">REAL</span> <span style="color:var(--faint)">(${quem})</span>`
+      : `Leaseweb, managed where it makes sense<span class="tag sim">MANAGED: SIMULATED</span> <span style="color:var(--faint)">(${quem})</span>`;
+
   // 2. Protagonista: a porta.
   const textoEstado = { open: 'OPEN TO THE INTERNET', closing: 'CLOSING…', closed: 'CLOSED', reopened: 'REOPENED (undo)' } as const;
   const porta = s.porta
@@ -210,7 +230,7 @@ export function renderizarPalco(pedidos: Pedido[], todos: EventoAuditoria[], opc
 <div class="estado e-${s.porta.estado}">${textoEstado[s.porta.estado]}</div>
 <div class="onde">victim VM ${escapar(s.porta.alvo)} · ${escapar(opcoes.local || 'Leaseweb Public Cloud')}<span class="tag real">REAL</span></div>`
     : `<div class="rot">NEW INFRASTRUCTURE</div><div class="estado e-wait">${s.fase === 'migrate' ? 'MIGRATING…' : 'NOT STARTED'}</div>
-<div class="onde">from AWS<span class="tag sim">SIMULATED</span> to Leaseweb<span class="tag real">REAL</span></div>`;
+<div class="onde">from AWS<span class="tag sim">SIMULATED</span> to ${destinoTexto}</div>`;
 
   // 3. Relógio de exposição (a conta é do chefe).
   const relogio = exp

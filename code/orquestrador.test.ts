@@ -535,11 +535,15 @@ describe("orquestrador", () => {
     await t.orq.aoMensagemDoDono(null, "/selfhosted");
     assert.ok(t.notificacoes.some((n) => /no migration plan yet/i.test(n)));
     await t.orq.correr();
-    assert.ok(t.falas.some((f) => /Write \/selfhosted/.test(f.texto)), "a recomendação com geridos oferece o comando");
+    assert.ok(t.falas.some((f) => /\/recomendado[\s\S]*\/selfhosted/.test(f.texto)), "a recomendação com geridos oferece as duas escolhas");
+    assert.ok(t.eventos.some((e) => e.tipo === "decisao-destino" && e.quem === "migrador"), "por omissão: o recomendado, registado");
     await t.orq.aoMensagemDoDono(null, "/selfhosted");
-    assert.deepEqual(modos, [undefined, "tudo-self-hosted"]);
     assert.ok(t.falas.some((f) => /everything self-hosted on your VM[\s\S]*All on the VM\./.test(f.texto)));
-    assert.ok(t.eventos.some((e) => e.tipo === "decisao-destino" && e.quem === "dono"));
+    await t.orq.aoMensagemDoDono(null, "/recomendado");
+    assert.ok(t.falas.some((f) => /recommended plan[\s\S]*simulated/.test(f.texto)));
+    assert.deepEqual(modos, [undefined, "tudo-self-hosted", "recomendado"]);
+    const escolhas = t.eventos.filter((e) => e.tipo === "decisao-destino" && e.quem === "dono").map((e) => (e.depois as { modo: string }).modo);
+    assert.deepEqual(escolhas, ["tudo-self-hosted", "recomendado"]);
   });
 
   it("ao aprovar o plano, o atacante começa a atacar em paralelo com a migração", async () => {
@@ -836,14 +840,14 @@ describe("orquestrador", () => {
     );
   });
 
-  it("decisor: com um serviço gerido proposto, diz que é só recomendação e que fica tudo na VM", async () => {
+  it("decisor: com um serviço gerido proposto, dá a escolha ao dono e diz que os geridos são simulados (tudo na VM)", async () => {
     const t = montar({}, { atacar: false });
     t.deps.migrador.planoDestino = async () =>
       "A base de dados é crítica: proponho Scaleway DB-DEV-S, cerca de € 11,39/mês (preço visto a 20/11/2026).";
     await t.orq.correr();
     assert.ok(
       t.falas.some((f) =>
-        /proponho Scaleway[\s\S]*This is only my recommendation: in this migration everything stays on the VM \(self-hosted\) and I do not buy anything\./.test(
+        /proponho Scaleway[\s\S]*\/recomendado[\s\S]*\/selfhosted[\s\S]*simulated in this demo; the data runs on the VM underneath\./.test(
           f.texto,
         ),
       ),
@@ -853,8 +857,8 @@ describe("orquestrador", () => {
       "O MinIO e o RabbitMQ ficam na VM.";
     await so.orq.correr();
     assert.ok(
-      !so.falas.some((f) => /only my recommendation/.test(f.texto)),
-      "sem gerido proposto, não há aviso",
+      !so.falas.some((f) => /\/selfhosted/.test(f.texto)),
+      "sem gerido proposto, não há escolha a fazer",
     );
   });
 

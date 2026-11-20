@@ -82,3 +82,25 @@ describe('/palco: em inglês', () => {
     assert.ok(!/\$<\/i> migrar/.test(inicio));
   });
 });
+
+describe('/palco: destino escolhido pelo dono', () => {
+  const base = [{ hora: '2026-11-20T14:00:00Z', pedidoId: 'm', tipo: 'pedido', quem: 'migrador', depois: { servicos: ['s3'] } }];
+  const omissao = { hora: '2026-11-20T14:00:01Z', pedidoId: '-', tipo: 'decisao-destino', quem: 'migrador', depois: { modo: 'recomendado', porOmissao: true } };
+  const self = { hora: '2026-11-20T14:00:02Z', pedidoId: '-', tipo: 'decisao-destino', quem: 'dono', depois: { modo: 'tudo-self-hosted' } };
+
+  it('por omissão o recomendado, com os geridos marcados como simulados', () => {
+    const html = renderizarPalco([], [...base, omissao] as never[]);
+    assert.match(html, /Leaseweb, managed where it makes sense<span class="tag sim">MANAGED: SIMULATED<\/span>/);
+    assert.match(html, /recommended by default/);
+  });
+
+  it('o dono escolhe tudo self-hosted: aparece no ecrã, no feed e no certificado', async () => {
+    const ev = [...base, omissao, self] as never[];
+    const html = renderizarPalco([], ev);
+    assert.match(html, /everything self-hosted on the VM/);
+    assert.match(html, /owner&#39;s choice|owner's choice/);
+    assert.match(html, /Chose everything self-hosted on the VM/);
+    const { renderizarCertificado } = await import('@mwbe/painel');
+    assert.match(renderizarCertificado([], [...ev, { hora: '2026-11-20T14:00:09Z', pedidoId: 'm', tipo: 'feito', quem: 'migrador', depois: { passo: 's3', objetos: 10, checksumsOk: true } }] as never[]), /tudo self-hosted na VM · escolha do dono/);
+  });
+});
