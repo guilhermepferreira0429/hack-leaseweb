@@ -161,7 +161,8 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       falar('defesa', 'dono', `Não consegui fechar "${pedido.titulo}". Nada foi alterado sem confirmação; vejam o painel.`);
       return concluir(pedidoId, 'falhou');
     }
-    falar('defesa', 'atacante', `Fechado às ${horaCurta()} e confirmado. Guardei como voltar atrás. @atacante, podes confirmar?`);
+    // O aviso "Fechado e confirmado às HH:MM ... /desfazer <id>" já vem do corrigir(); aqui só se passa a vez ao atacante.
+    falar('defesa', 'atacante', `@atacante, fechei "${pedido.titulo}" às ${horaCurta()} e guardei como voltar atrás. Podes confirmar?`);
     if (opcoes.atacar) await confirmarFecho(pedido);
     concluir(pedidoId, 'feito');
   }

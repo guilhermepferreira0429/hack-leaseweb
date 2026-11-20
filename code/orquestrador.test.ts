@@ -154,7 +154,7 @@ describe('orquestrador', () => {
     assert.equal(t.corrigidos.length, 1);
     assert.match(textos(t.falas, 'migrador').at(-1)!, /12 ficheiros copiados, checksums iguais, testes a passar dos dois lados/);
     assert.match(textos(t.falas, 'atacante')[0], /PostgreSQL na porta 5432/);
-    assert.match(textos(t.falas, 'defesa').at(-1)!, /Fechado às \d\d:\d\d e confirmado/);
+    assert.match(textos(t.falas, 'defesa').at(-1)!, /@atacante, fechei "PostgreSQL aberto a toda a internet" às \d\d:\d\d/);
     assert.equal(textos(t.falas, 'atacante').at(-1), 'Confirmo. Já não chego lá.');
     assert.equal(t.falas.at(-1)?.de, 'chefe');
     assert.equal(t.falas.at(-1)?.texto, 'RESUMO');
