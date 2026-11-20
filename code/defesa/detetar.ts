@@ -55,17 +55,21 @@ export function avaliarRegra(sg: string, regra: Regra): Achado | undefined {
   };
 }
 
+/** IPs públicos de cada security group gerido, da última chamada a detetar(). Usado por correlacionar(). */
+let ipsDoSg: Record<string, string[]> = {};
+
 export async function detetar(): Promise<Achado[]> {
   const geridos = securityGroupsGeridos();
-  if (geridos.length === 0) {
-    console.warn('[defesa] LSW_SG_GERIDOS vazio: não há security groups em que a defesa possa mexer');
-    return [];
-  }
+  // Falha alto: com a lista vazia não se olhou para nada, e "não encontrei nada" seria mentira.
+  if (geridos.length === 0) throw new Error('LSW_SG_GERIDOS vazio: não verifiquei nenhum security group');
+  ipsDoSg = await leaseweb.ipsPorSecurityGroup();
   const achados: Achado[] = [];
   for (const sg of geridos) {
+    const ip = ipsDoSg[sg]?.[0];
     for (const regra of await leaseweb.listarRegras(sg)) {
       const a = avaliarRegra(sg, regra);
-      if (a) achados.push(a);
+      // Com o IP conhecido, o alvo é o IP (o que o atacante e o nmap veem); senão fica o id do grupo.
+      if (a) achados.push(ip ? { ...a, alvo: ip } : a);
     }
   }
   // Mais graves primeiro: é por aí que a demo começa.
@@ -74,13 +78,17 @@ export async function detetar(): Promise<Achado[]> {
 
 /**
  * Liga os achados do atacante (porta aberta vista de fora) à regra que a permite e remove duplicados.
- * O achado do atacante fica com a regra e o security group do achado da API (assim pode ser fechado);
- * o achado da API correspondente sai da lista. Achados do atacante sem regra ficam (só se avisa).
+ * Só liga quando o IP do atacante pertence ao security group da regra (mapa de detetar() ou alvo igual).
+ * Sem essa prova não liga: o achado do atacante fica só como aviso. Nunca se fecha a regra de outra máquina
+ * (ex.: o isco tem 22 aberto de propósito; não pode virar um pedido para fechar o SSH da vítima).
+ * `mapa` (sg -> IPs) é opcional; por omissão usa o da última chamada a detetar().
  */
-export function correlacionar(daApi: Achado[], doAtacante: Achado[]): Achado[] {
+export function correlacionar(daApi: Achado[], doAtacante: Achado[], mapa: Record<string, string[]> = ipsDoSg): Achado[] {
   const usados = new Set<string>();
   const resultado: Achado[] = [];
   const vistos = new Set<string>();
+  const doMesmoAlvo = (api: Achado, at: Achado) =>
+    api.alvo === at.alvo || (!!api.securityGroupId && (mapa[api.securityGroupId] ?? []).includes(at.alvo));
 
   for (const at of doAtacante) {
     const chave = `${at.alvo}:${at.porta}:${at.tipo}`;
@@ -90,9 +98,7 @@ export function correlacionar(daApi: Achado[], doAtacante: Achado[]): Achado[] {
       resultado.push(at);
       continue;
     }
-    // Prefere a regra do mesmo alvo (se o atacante souber o sg); senão qualquer regra aberta que cubra a porta.
-    const candidatos = daApi.filter((a) => a.regra && cobre(a.regra, at.porta));
-    const par = candidatos.find((a) => a.alvo === at.alvo || a.securityGroupId === at.securityGroupId) ?? candidatos[0];
+    const par = daApi.find((a) => a.regra && cobre(a.regra, at.porta) && doMesmoAlvo(a, at));
     if (!par) {
       resultado.push(at);
       continue;

@@ -24,7 +24,7 @@ services:
 
   minio:
     # minio/minio saiu do Docker Hub (e quay.io pede login); a build da Chainguard é pública e tem o mesmo binário.
-    image: cgr.dev/chainguard/minio:latest
+    image: cgr.dev/chainguard/minio@sha256:e9cf6b99c226e9539ed0f14b6f00e37b07da153c7ba1f4f8709c807574b471ec # RELEASE.2026-11-16T00-11-40Z, testado pelo migrador
     user: "0"
     command: server /data --console-address ":9001"
     ports:

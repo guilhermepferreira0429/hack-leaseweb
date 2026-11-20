@@ -30,7 +30,8 @@
     "infra:down": "docker compose -f env/docker-compose.yml --env-file .env down",
     "lsw:diagnostico": "tsx code/defesa/diagnostico.ts",
     "lsw:nmap": "tsx code/defesa/verificar-porta.ts",
-    "lsw:ensaio": "tsx code/defesa/ensaio.ts"
+    "lsw:ensaio": "tsx code/defesa/ensaio.ts",
+    "lsw:falsa": "tsx code/defesa/api-falsa.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

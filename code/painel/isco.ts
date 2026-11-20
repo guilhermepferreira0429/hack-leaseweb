@@ -17,13 +17,21 @@ const FALHA =
   /sshd(?:-session)?\[(\d+)\]: (?:Failed (?:password|publickey) for (?:invalid user )?\S+ from |Invalid user \S* from |Connection closed by (?:authenticating|invalid) user \S* |Disconnected from (?:authenticating|invalid) user \S* )(\d{1,3}(?:\.\d{1,3}){3}|[0-9a-f:]+)/i;
 
 /** Função pura: conta tentativas (sessões distintas) e IPs distintos nas linhas do auth.log. */
-export function contarLinhas(texto: string, ignorarIps: string[] = []): { tentativas: number; ipsDistintos: number; desde: string } {
+export function contarLinhas(
+  texto: string,
+  ignorarIps: string[] = [],
+  janela: { desde?: number; ate?: number } = {},
+): { tentativas: number; ipsDistintos: number; desde: string } {
   const sessoes = new Set<string>();
   const ips = new Set<string>();
   let desde = '';
   for (const linha of texto.split('\n')) {
     const m = FALHA.exec(linha);
     if (!m || ignorarIps.includes(m[2])) continue;
+    if (janela.desde !== undefined || janela.ate !== undefined) {
+      const t = Date.parse(linha.split(' ')[0]);
+      if (Number.isNaN(t) || (janela.desde !== undefined && t < janela.desde) || (janela.ate !== undefined && t > janela.ate)) continue;
+    }
     sessoes.add(m[1]);
     ips.add(m[2]);
     if (!desde) desde = linha.split(' ')[0];
@@ -31,7 +39,7 @@ export function contarLinhas(texto: string, ignorarIps: string[] = []): { tentat
   return { tentativas: sessoes.size, ipsDistintos: ips.size, desde };
 }
 
-let cache: { valor: ContagemIsco; em: number } | undefined;
+let cache: { texto: string; em: number } | undefined;
 
 function ssh(host: string, user: string, comando: string): Promise<string> {
   return new Promise((ok, falha) =>
@@ -44,28 +52,34 @@ function ssh(host: string, user: string, comando: string): Promise<string> {
   );
 }
 
-/** ssh (execFile, sem shell) + contagem das linhas de falha de autenticação. Cache de 30 s. */
-export async function contarTentativas(): Promise<ContagemIsco> {
-  if (cache && Date.now() - cache.em < 30_000) return cache.valor;
+/** Texto do auth.log do isco, por ssh (execFile, sem shell). Cache de 30 s. */
+async function lerAuthLog(): Promise<string> {
+  if (cache && Date.now() - cache.em < 30_000) return cache.texto;
   carregarEnv();
   const host = process.env.ISCO_HOST;
   const user = process.env.ISCO_SSH_USER || 'ubuntu';
   if (!host) throw new Error('ISCO_HOST em falta no .env');
   // auth.log + rodado (auth.log.1), para não perder a manhã se o logrotate correr.
   const texto = await ssh(host, user, 'sudo -n cat /var/log/auth.log.1 /var/log/auth.log 2>/dev/null');
-  // Os nossos próprios IPs não contam (ISCO_IGNORAR_IPS, separados por vírgula).
-  const ignorar = (process.env.ISCO_IGNORAR_IPS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  const r = contarLinhas(texto, ignorar);
-  const valor = { ...r, lidoEm: new Date().toISOString() };
-  cache = { valor, em: Date.now() };
-  return valor;
+  cache = { texto, em: Date.now() };
+  return texto;
+}
+
+const ipsIgnorados = () => (process.env.ISCO_IGNORAR_IPS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+
+/** Tentativas desde que o isco foi ligado; com janela, só nesse intervalo (relógio de exposição). */
+export async function contarTentativas(janela: { desde?: number; ate?: number } = {}): Promise<ContagemIsco> {
+  const r = contarLinhas(await lerAuthLog(), ipsIgnorados(), janela);
+  return { ...r, lidoEm: new Date().toISOString() };
 }
 
 const escapar = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 export async function paginaIsco(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  const c = await contarTentativas();
-  if (new URL(req.url ?? '/', 'http://x').searchParams.has('json')) {
+  const q = new URL(req.url ?? '/', 'http://x').searchParams;
+  const instante = (n: string) => (q.get(n) && !Number.isNaN(Date.parse(q.get(n)!)) ? Date.parse(q.get(n)!) : undefined);
+  const c = await contarTentativas({ desde: instante('desde'), ate: instante('ate') });
+  if (q.has('json')) {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }).end(JSON.stringify(c));
     return;
   }

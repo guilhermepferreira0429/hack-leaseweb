@@ -9,10 +9,36 @@ export type Fase = (typeof FASES)[number];
 /** Em que fase cai um evento da auditoria (pelo tipo do evento e da ação do pedido). */
 export function faseDe(evento: EventoAuditoria): Fase {
   const t = evento.tipo.toLowerCase();
+  if (evento.quem === 'migrador') return 'migrar';
+  if (evento.quem === 'atacante') return 'atacar';
   if (t.startsWith('migr') || evento.inverso?.tipo === 'migrar') return 'migrar';
   if (/(achado|ataque|atacante|reconhec|scan|nmap)/.test(t)) return 'atacar';
   if (/(a-aplicar|feito|desfeito|falhou|fechad|verific)/.test(t)) return 'fechar';
   return 'aprovar'; // pedido, aprovado, ignorado e afins
+}
+
+export interface Exposicao {
+  inicio: string;
+  fim?: string;
+  segundos?: number;
+}
+
+/**
+ * Relógio de exposição (docs/ideias-wow.md n.º 2): da infraestrutura nova no ar até a defesa confirmar o fecho.
+ * Início: migração feita; sem migrador (corte), o primeiro reconhecimento; senão o primeiro pedido da defesa.
+ * Fim: o primeiro "feito" da defesa (tem inverso criar_regra) depois do início. Só horas da auditoria, nada estimado.
+ */
+export function exposicao(eventos: EventoAuditoria[]): Exposicao | undefined {
+  const ordenados = [...eventos].sort((a, b) => Date.parse(a.hora) - Date.parse(b.hora));
+  const inicio =
+    ordenados.find((e) => e.quem === 'migrador' && e.tipo === 'feito') ??
+    ordenados.find((e) => e.tipo === 'reconhecimento') ??
+    ordenados.find((e) => e.tipo === 'pedido' && e.quem !== 'migrador');
+  if (!inicio) return undefined;
+  const t0 = Date.parse(inicio.hora);
+  const fim = ordenados.find((e) => e.tipo === 'feito' && e.inverso?.tipo === 'criar_regra' && Date.parse(e.hora) >= t0);
+  if (!fim) return { inicio: inicio.hora };
+  return { inicio: inicio.hora, fim: fim.hora, segundos: Math.round((Date.parse(fim.hora) - t0) / 1000) };
 }
 
 const escapar = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -22,7 +48,13 @@ const hora = (iso: string) => {
 };
 
 /** HTML sem frameworks, texto escapado, a ler /estado.json de 2 em 2 s. */
-export function renderizar(pedidos: Pedido[], eventos: EventoAuditoria[]): string {
+export function renderizar(pedidos: Pedido[], eventos: EventoAuditoria[], token = ''): string {
+  const exp = exposicao(eventos);
+  const relogio = exp
+    ? `<div class="relogio" data-inicio="${escapar(exp.inicio)}" data-fim="${escapar(exp.fim ?? '')}">
+<div class="seg">${exp.segundos !== undefined ? `exposto ${exp.segundos} s` : 'exposto…'}</div>
+<div class="isco">&nbsp;</div></div>`
+    : '';
   const colunas = FASES.map((f) => {
     const doFase = eventos.filter((e) => faseDe(e) === f).slice(-8).reverse();
     const itens = doFase
@@ -31,7 +63,13 @@ export function renderizar(pedidos: Pedido[], eventos: EventoAuditoria[]): strin
     return `<section class="${doFase.length ? 'ativa' : ''}"><h2>${f}</h2><ul>${itens || '<li class="vazio">—</li>'}</ul></section>`;
   }).join('<div class="seta">→</div>');
   const linhas = pedidos
-    .map((p) => `<tr><td>${escapar(p.id)}</td><td>${escapar(p.titulo)}</td><td class="e-${escapar(p.estado)}">${escapar(p.estado)}</td></tr>`)
+    .map((p) => {
+      const botao =
+        token && p.estado === 'feito' && p.acao.tipo === 'remover_regra'
+          ? `<form method="post" action="/desfazer"><input type="hidden" name="id" value="${escapar(p.id)}"><input type="hidden" name="token" value="${escapar(token)}"><button>Desfazer</button></form>`
+          : '';
+      return `<tr><td>${escapar(p.id)}</td><td>${escapar(p.titulo)}</td><td class="e-${escapar(p.estado)}">${escapar(p.estado)}</td><td>${botao}</td></tr>`;
+    })
     .join('');
   return `<!doctype html><html lang="pt"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Linha do tempo</title>
@@ -42,17 +80,25 @@ section{flex:1;min-width:180px;background:var(--card);border-radius:10px;padding
 h2{margin:0 0 6px;text-transform:uppercase;font-size:.9rem;letter-spacing:.08em}ul{list-style:none;margin:0;padding:0;font-size:.85rem}
 li{padding:3px 0;border-bottom:1px solid #222c37}small,.vazio{color:var(--mut)}.seta{align-self:center;color:var(--mut);font-size:1.4rem}
 table{width:100%;border-collapse:collapse;margin-top:16px;font-size:.9rem}td,th{padding:6px;border-bottom:1px solid #222c37;text-align:left}
+.relogio{background:var(--card);border-radius:10px;padding:12px 16px;margin:0 0 12px;display:flex;gap:24px;align-items:baseline;flex-wrap:wrap}
+.relogio .seg{font-size:2.4rem;font-weight:800;color:var(--mau)}.relogio .isco{color:var(--mut)}
+button{background:var(--mau);color:#fff;border:0;border-radius:6px;padding:4px 10px;cursor:pointer}form{margin:0}
 .e-feito{color:var(--ok)}.e-pendente,.e-aprovado{color:var(--esp)}.e-desfeito,.e-ignorado{color:var(--mut)}</style>
-<h1>Migrar → atacar → aprovar → fechar</h1><div class="fases">${colunas}</div>
-<table><thead><tr><th>Pedido</th><th>O quê</th><th>Estado</th></tr></thead><tbody>${linhas || '<tr><td colspan="3" class="vazio">Sem pedidos</td></tr>'}</tbody></table>
+<h1>Migrar → atacar → aprovar → fechar</h1>${relogio}<div class="fases">${colunas}</div>
+<table><thead><tr><th>Pedido</th><th>O quê</th><th>Estado</th><th></th></tr></thead><tbody>${linhas || '<tr><td colspan="4" class="vazio">Sem pedidos</td></tr>'}</tbody></table>
 <script>
+const r=document.querySelector('.relogio');
+if(r){const i=Date.parse(r.dataset.inicio),f=r.dataset.fim?Date.parse(r.dataset.fim):0,seg=r.querySelector('.seg');
+ if(!f)setInterval(()=>{seg.textContent='exposto '+Math.round((Date.now()-i)/1000)+' s'},500);
+ const q='/isco?json&desde='+encodeURIComponent(r.dataset.inicio)+(f?'&ate='+encodeURIComponent(r.dataset.fim):'');
+ fetch(q).then(x=>x.ok?x.json():null).then(c=>{if(c)r.querySelector('.isco').textContent='neste tempo, o isco recebeu '+c.tentativas+' tentativas de entrada'}).catch(()=>{});}
 let ultimo='';
 setInterval(async()=>{try{const r=await fetch('/estado.json',{cache:'no-store'});const t=await r.text();if(ultimo&&t!==ultimo)location.reload();ultimo=t}catch{}},2000);
 </script></html>`;
 }
 
 export async function paginaLinhaTempo(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(renderizar(estado.listarPedidos(), auditoria.ler()));
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(renderizar(estado.listarPedidos(), auditoria.ler(), process.env.PAINEL_TOKEN ?? ''));
 }
 
 export async function estadoJson(req: IncomingMessage, res: ServerResponse): Promise<void> {
