@@ -196,3 +196,49 @@ describe('linha "a pensar"', () => {
     assert.ok(!html.includes('A olhar para as portas'));
   });
 });
+
+describe('terminal (reconstruído da auditoria)', () => {
+  const inv = { tipo: 'criar_regra', securityGroupId: 'b5e1687e-3f24', regra: { protocol: 'TCP', source: '0.0.0.0/0', startPort: 5432, endPort: 5432 } } as const;
+  const regra = { id: '7c2462c8-6c2a', protocol: 'TCP', source: '0.0.0.0/0', startPort: 5432, endPort: 5432 };
+  const ev = [
+    { hora: '2026-11-20T11:41:00Z', pedidoId: 'm', tipo: 'pedido', quem: 'migrador', depois: { servicos: ['s3', 'postgres'], plano: '...' } },
+    { hora: '2026-11-20T11:41:01Z', pedidoId: 'm2', tipo: 'aprovado', quem: 'migrador', depois: { pelo: 'm' } },
+    { hora: '2026-11-20T11:41:05Z', pedidoId: 'm', tipo: 'feito', quem: 'migrador', depois: { passo: 's3', objetos: 1540, checksumsOk: true, testes: { antes: true, depois: true } } },
+    { hora: '2026-11-20T11:41:06Z', pedidoId: 'm', tipo: 'feito', quem: 'migrador', depois: { passo: 'segredos', segredos: 16, checksumsOk: true } },
+    { hora: '2026-11-20T11:41:07Z', pedidoId: '-', tipo: 'pensar', quem: 'atacante', depois: { texto: 'x' } },
+    { hora: '2026-11-20T11:54:30Z', pedidoId: '-', tipo: 'reconhecimento', quem: 'atacante', depois: { alvos: ['198.51.100.7'], portas: [{ alvo: '198.51.100.7', porta: 5432, servico: 'PostgreSQL' }] } },
+    { hora: '2026-11-20T11:54:38Z', pedidoId: 'p', tipo: 'verificado', quem: 'defesa', depois: { ip: '198.51.100.7', porta: 5432, fase: 'antes', estado: 'open' } },
+    { hora: '2026-11-20T11:54:38Z', pedidoId: 'p', tipo: 'a-aplicar', quem: 'defesa', antes: regra, inverso: inv },
+    { hora: '2026-11-20T11:54:46Z', pedidoId: 'p', tipo: 'feito', quem: 'defesa', inverso: inv, confirmacao: 'de-fora' },
+    { hora: '2026-11-20T11:54:49Z', pedidoId: 'p', tipo: 'verificado', quem: 'defesa', depois: { ip: '198.51.100.7', porta: 5432, fase: 'depois', estado: 'filtered' } },
+  ];
+
+  it('cada evento vira o comando e o resultado medido; pensar e aprovações do plano não entram', async () => {
+    const { linhasTerminal } = await import('@mwbe/painel');
+    const l = linhasTerminal(ev as never);
+    assert.deepEqual(
+      l.map((x) => x.comando ?? x.saida[0].texto),
+      [
+        'analisar exemplo-app',
+        'migrar s3 → minio',
+        'migrar secrets-manager → openbao',
+        'nmap -Pn -p 5432 198.51.100.7',
+        'nmap -Pn -p 5432 198.51.100.7',
+        'leaseweb revokeFirewallRules sg=b5e1687e regra=7c2462c8',
+        '✓ regra removida · confirmado de fora (nmap) · inverso guardado',
+        'nmap -Pn -p 5432 198.51.100.7',
+      ],
+    );
+    assert.equal(l[1].saida[0].texto, '1.540 objetos copiados · sha256 ✓');
+    assert.equal(l[2].saida[0].texto, '16 segredos (valores nunca mostrados) · sha256 ✓');
+    assert.deepEqual([l[3].saida[0].texto, l[3].saida[0].tom], ['5432/tcp open postgresql', 'mau']);
+    assert.deepEqual([l[7].saida[0].texto, l[7].saida[0].tom], ['5432/tcp filtered', 'ok']);
+  });
+
+  it('aparece no ecrã da demo, escapado', () => {
+    const html = renderizar([], ev as never);
+    assert.match(html, /TERMINAL/);
+    assert.match(html, /defesa\$<\/span> leaseweb revokeFirewallRules/);
+    assert.match(html, /5432\/tcp filtered/);
+  });
+});
