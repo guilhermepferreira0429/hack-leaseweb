@@ -112,8 +112,9 @@ from outside.
    before approving. The owner gets one message with an **Approve plan** button. On approval, five services move
    live, each with proof: S3 → MinIO, RDS Postgres →
    PostgreSQL, SQS → RabbitMQ, Secrets Manager/SSM → OpenBao, ElastiCache Redis → Valkey. DynamoDB, SNS and
-   CloudWatch Logs are in the plan for the next phase (**in development**). The same app tests run before and
-   after, and an independent script compares source and target (`npm run seed:comparar -- --destino`).
+   CloudWatch Logs are not migrated in this demo; their replacements are **in development**. The same app tests
+   run before and after, and an independent script compares source and target
+   (`npm run seed:comparar -- --destino`).
 2. **Attack.** As soon as the plan is approved, the Attacker probes the allowlisted VM in rounds while the copy
    runs. It opens short TCP connections to 13 ports, including SSH, databases, Redis, Elasticsearch and RDP,
    then tries a **short, bounded SSH password step** (at most 5 attempts per round, 800 ms apart, stopping at the

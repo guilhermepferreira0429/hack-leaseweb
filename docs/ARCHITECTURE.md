@@ -110,8 +110,8 @@ produces a plan: it does not call the Leaseweb API by itself.
 | Secrets Manager / SSM Parameter Store | OpenBao                      | Vault to vault. Values never appear in plans, logs or tests.                                                |
 | ElastiCache Redis                     | Valkey                       | Keys copied with their TTL, checked by sampling.                                                            |
 
-These five move live in the demo, with proof for each and one approval. DynamoDB, SNS and CloudWatch Logs are in
-the plan only; their replacements (ScyllaDB Alternator, NATS, Loki + Grafana) are **in development**.
+These five move live in the demo, with proof for each and one approval. DynamoDB, SNS and CloudWatch Logs are
+not migrated in this demo; their replacements (ScyllaDB Alternator, NATS, Loki + Grafana) are **in development**.
 
 ### What is flagged, not migrated
 

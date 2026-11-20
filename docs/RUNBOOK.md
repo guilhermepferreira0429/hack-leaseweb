@@ -68,14 +68,14 @@ In the group, the Chief opens the cycle:
 
 > **Chief:** Good morning. We are moving the `<app>` app from AWS to Leaseweb, safely. I will report at every step.
 
-The Migrator reads the app and posts the plan:
+The Migrator reads the app and posts an opening line:
 
 > **Migrator:** I found 5 AWS services in the app: S3, PostgreSQL, SQS, Secrets Manager, ElastiCache. I ask for one OK
 > for the whole plan and go one step at a time, with proof at each step.
 
-The message with the buttons contains the migration plan and the note that a pull request will be prepared. The
-free memory of the VM, the price with its date and the reason for each destination arrive just before it, in the
-Migrator's destination recommendation. Buttons: **Approve plan** and **Ignore**.
+The Terraform translation and the destination recommendation (free memory, prices with their date, the reason for
+each choice) arrive just before the approval request. The request itself carries the plan and the note that a pull
+request will be prepared, with the buttons **Approve plan** and **Ignore**.
 
 If you want everything self-hosted instead of the recommendation, send `/selfhosted` before approving; send
 `/recomendado` to go back. The choice is recorded in the audit log.
