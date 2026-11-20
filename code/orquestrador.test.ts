@@ -150,6 +150,11 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
       },
       async iniciarAtaque(opcoes) {
         ataques.push(opcoes);
+        // Ronda de reconhecimento: o orquestrador passa os achados à defesa antes da tentativa seguinte.
+        await opcoes.aoRonda?.({
+          nome: "reconhecimento",
+          achados: [achadoAtacante],
+        });
       },
     },
     migrador: {
@@ -224,7 +229,7 @@ describe("orquestrador", () => {
     assert.match(textos(t.falas, "atacante")[0], /PostgreSQL on port 5432/);
     assert.match(
       textos(t.falas, "defesa").at(-1)!,
-      /@atacante, I closed "PostgreSQL open to the whole internet" at \d\d:\d\d/,
+      /@atacante, I closed "PostgreSQL (?:open to the whole internet|aberto a toda a internet)" at \d\d:\d\d/,
     );
     assert.equal(
       textos(t.falas, "atacante").at(-1),
@@ -251,16 +256,12 @@ describe("orquestrador", () => {
     const passos = t.eventos
       .filter((e) => e.tipo === "pensar")
       .map((e) => (e.depois as { passo: string }).passo);
-    assert.deepEqual(passos, [
-      "abertura",
-      "plano",
-      "confirmacao",
-      "migrar",
-      "atacar",
-      "defender",
-      "validar",
-      "relatorio",
-    ]);
+    // A defesa pode reagir durante a migração (rondas do atacante), por isso a ordem exata varia.
+    assert.equal(passos[0], "abertura");
+    assert.equal(passos.at(-2), "validar");
+    assert.equal(passos.at(-1), "relatorio");
+    for (const p of ["plano", "confirmacao", "migrar", "atacar", "defender"])
+      assert.ok(passos.includes(p), `passo ${p}`);
     const pensarDefesa = t.eventos.find(
       (e) =>
         e.tipo === "pensar" &&
@@ -272,7 +273,10 @@ describe("orquestrador", () => {
       /Explaining the risk/,
     );
     const chefe = textos(t.falas, "chefe");
-    assert.match(chefe[0]!, /^Good morning\. We are moving the exemplo-app app from AWS to Leaseweb/);
+    assert.match(
+      chefe[0]!,
+      /^Good morning\. We are moving the exemplo-app app from AWS to Leaseweb/,
+    );
     assert.ok(
       chefe.some((f) =>
         /^Plan approved by the owner at \d\d:\d\d\. @migrador, go ahead\.$/.test(
@@ -289,9 +293,7 @@ describe("orquestrador", () => {
     // Sem migração nem atacante, nada foi medido: não há validação inventada.
     const so = montar({}, { migrar: false, atacar: false });
     await so.orq.correr();
-    assert.ok(
-      !textos(so.falas, "chefe").some((f) => /Final check/.test(f)),
-    );
+    assert.ok(!textos(so.falas, "chefe").some((f) => /Final check/.test(f)));
   });
 
   it("ideia wow 1: um aprovador (o jurado) pode decidir; quem não está na lista continua ignorado", async () => {
@@ -432,7 +434,10 @@ describe("orquestrador", () => {
       /Move-se hoje: 1 VM/.test(f.texto),
     );
     assert.ok(iPlano >= 0, "o plano foi dito");
-    assert.match(ok.falas[iPlano].texto, /only the plan; I have not created anything/);
+    assert.match(
+      ok.falas[iPlano].texto,
+      /only the plan; I have not created anything/,
+    );
 
     const falha = montar({}, { atacar: false });
     falha.deps.migrador.planoInfra = async () => {
@@ -483,9 +488,7 @@ describe("orquestrador", () => {
     const iDestino = ok.falas.findIndex(
       (f) => f.texto === "O PostgreSQL vai para gerido.",
     );
-    const iCopia = ok.falas.findIndex((f) =>
-      /files copied/.test(f.texto),
-    );
+    const iCopia = ok.falas.findIndex((f) => /files copied/.test(f.texto));
     assert.ok(iDestino >= 0 && iDestino < iCopia);
 
     const falha = montar({}, { atacar: false });
@@ -503,6 +506,8 @@ describe("orquestrador", () => {
     assert.ok(t.pedidosEnviados.some((p) => p.pedido.acao.tipo === "migrar"));
     assert.equal(t.ataques.length, 1);
     assert.equal(t.ataques[0]?.alvo, "203.0.113.10");
+    // A defesa reagiu à ronda do atacante (pedido + fecho) antes de o ciclo seguir.
+    assert.equal(t.corrigidos.length, 1);
   });
 
   it('um só "Aprovar plano": todos os passos por ordem, prova e auditoria por passo, testes uma vez no fim', async () => {
@@ -640,9 +645,7 @@ describe("orquestrador", () => {
     );
     assert.ok(
       t.falas.some((f) =>
-        /Queues: 5 messages moved to RabbitMQ, checksums DIFFER/.test(
-          f.texto,
-        ),
+        /Queues: 5 messages moved to RabbitMQ, checksums DIFFER/.test(f.texto),
       ),
     );
     assert.equal(t.corrigidos.length, 1, "a defesa segue");
@@ -660,9 +663,7 @@ describe("orquestrador", () => {
       "aprovado",
     );
     assert.ok(
-      testes.falas.some((f) =>
-        /Tests before ok, after failed/.test(f.texto),
-      ),
+      testes.falas.some((f) => /Tests before ok, after failed/.test(f.texto)),
     );
   });
 
@@ -793,15 +794,26 @@ describe("orquestrador", () => {
     );
   });
 
-  it('decisor: com um serviço gerido proposto, diz que é só recomendação e que fica tudo na VM', async () => {
+  it("decisor: com um serviço gerido proposto, diz que é só recomendação e que fica tudo na VM", async () => {
     const t = montar({}, { atacar: false });
-    t.deps.migrador.planoDestino = async () => 'A base de dados é crítica: proponho Scaleway DB-DEV-S, cerca de € 11,39/mês (preço visto a 20/11/2026).';
+    t.deps.migrador.planoDestino = async () =>
+      "A base de dados é crítica: proponho Scaleway DB-DEV-S, cerca de € 11,39/mês (preço visto a 20/11/2026).";
     await t.orq.correr();
-    assert.ok(t.falas.some((f) => /proponho Scaleway[\s\S]*This is only my recommendation: in this migration everything stays on the VM \(self-hosted\) and I do not buy anything\./.test(f.texto)));
+    assert.ok(
+      t.falas.some((f) =>
+        /proponho Scaleway[\s\S]*This is only my recommendation: in this migration everything stays on the VM \(self-hosted\) and I do not buy anything\./.test(
+          f.texto,
+        ),
+      ),
+    );
     const so = montar({}, { atacar: false });
-    so.deps.migrador.planoDestino = async () => 'O MinIO e o RabbitMQ ficam na VM.';
+    so.deps.migrador.planoDestino = async () =>
+      "O MinIO e o RabbitMQ ficam na VM.";
     await so.orq.correr();
-    assert.ok(!so.falas.some((f) => /only my recommendation/.test(f.texto)), 'sem gerido proposto, não há aviso');
+    assert.ok(
+      !so.falas.some((f) => /only my recommendation/.test(f.texto)),
+      "sem gerido proposto, não há aviso",
+    );
   });
 
   it("migrador de código: no mesmo plano, depois dos testes; sem PR diz porquê; um erro não trava", async () => {
@@ -993,9 +1005,7 @@ describe("orquestrador", () => {
       },
     };
     await erro.orq.correr();
-    assert.ok(
-      erro.notificacoes.some((n) => /incident report a1/.test(n)),
-    );
+    assert.ok(erro.notificacoes.some((n) => /incident report a1/.test(n)));
     assert.deepEqual(
       erro.falas.slice(-2).map((f) => f.texto),
       ["RESUMO", "CERT com relógio"],

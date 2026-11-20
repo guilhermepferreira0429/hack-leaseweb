@@ -10,7 +10,7 @@ import { bus, carregarEnv } from '@mwbe/shared';
 import type { Achado, Mensagem } from '@mwbe/shared';
 import { carregarAllowlist, garantirPermitido } from './alvos';
 import { executarExtras } from './extras';
-import { verificarPortas } from './reconhecimento';
+import { paraAchado, verificarPortas } from './reconhecimento';
 import type { PortaTestada } from './reconhecimento';
 import { varrerSegredos } from './segredos';
 import type { SegredoEncontrado } from './segredos';
@@ -210,7 +210,14 @@ export interface OpcoesAtaque {
   log?: (texto: string) => void;
   /** Corre também os extras de nível B no fim. Por omissão: ATACANTE_EXTRAS=1. */
   extras?: boolean;
+  /** Chamado depois de cada ronda, para a defesa reagir antes de o atacante tentar a seguinte. */
+  aoRonda?: (ronda: RondaAtaque) => Promise<void> | void;
 }
+
+export type RondaAtaque = {
+  nome: 'reconhecimento' | 'extras';
+  achados: Achado[];
+};
 
 export interface DependenciasAtaque {
   bus: { enviar(m: Mensagem): void };
@@ -300,6 +307,15 @@ export async function iniciarAtaque(
 
   ataqueEmCurso = true;
   try {
+    // A defesa reage entre rondas; se ela falhar, o ataque continua na mesma.
+    const avisarRonda = async (ronda: RondaAtaque): Promise<void> => {
+      try {
+        await opcoes.aoRonda?.(ronda);
+      } catch (erro) {
+        log(`defesa não reagiu à ronda ${ronda.nome}: ${erro instanceof Error ? erro.message : String(erro)}`);
+      }
+    };
+
     falar(`⚔️ Ataque iniciado contra ${alvo}`);
 
     const portas = await deps.reconhecer(alvo, allowlist);
@@ -309,6 +325,7 @@ export async function iniciarAtaque(
         ? `👁️ Reconhecimento: ${abertas.length} porta(s) aberta(s): ${abertas.join(', ')}`
         : '👁️ Reconhecimento: nenhuma porta aberta',
     );
+    await avisarRonda({ nome: 'reconhecimento', achados: portas.filter((p) => p.estado === 'aberta').map(paraAchado) });
 
     // O log da força bruta passa por semSegredo: uma mensagem futura nunca publica a palavra-passe.
     const ssh = await deps.forcaBruta(alvo, allowlist, (texto) => falar(semSegredo(texto)));
@@ -321,9 +338,11 @@ export async function iniciarAtaque(
     const comExtras = opcoes.extras ?? process.env.ATACANTE_EXTRAS === '1';
     if (comExtras) {
       const achados = await deps.extras(alvo, allowlist);
-      const segredos = await deps.segredos();
       const lista = achados.map((a) => `${a.servico ?? 'serviço'} ${a.porta}`).join(', ');
-      falar(`🧪 Extras: ${achados.length} achado(s)${lista ? ` (${lista})` : ''}; ${segredos.length} segredo(s) no código`);
+      falar(`🧪 Extras: ${achados.length} achado(s)${lista ? ` (${lista})` : ''}`);
+      await avisarRonda({ nome: 'extras', achados });
+      const segredos = await deps.segredos();
+      falar(`🧪 Segredos no código: ${segredos.length} encontrado(s)`);
     }
 
     falar('✅ Ataque terminado');
