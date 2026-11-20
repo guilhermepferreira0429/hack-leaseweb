@@ -18,7 +18,7 @@ function preparar(opcoes: { allowlist?: string; bloqueioRecon?: Promise<void> } 
     },
     forcaBruta: async (alvo, _allowlist, log) => {
       ordem.push('ssh');
-      log(`attempt 1/5 on ${alvo}, user 'deploy'`);
+      log(`tentativa 1/5 em ${alvo}, utilizador 'deploy'`);
       return { alvo, utilizador: 'deploy', tentativas: 2, sucesso: true, senha: 'deploy123' };
     },
     extras: async () => {
