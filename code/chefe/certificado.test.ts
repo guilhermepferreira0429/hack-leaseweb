@@ -73,8 +73,15 @@ describe('chefe/certificado (modelo de docs/certificado-migracao.md)', () => {
     assert.match(t, /3\. SEGURANÇA DEPOIS DA MIGRAÇÃO\n· Encontrado: 1 falha: PostgreSQL 5432\n· PostgreSQL aberto a toda a internet → fechada às 14:00, aprovado por uma pessoa, no Telegram\n· Tempo exposto: 38 segundos\n· Confirmação do atacante: já não chega lá ✓\n· Causa corrigida no código/);
     assert.match(t, /4\. COMO VOLTAR ATRÁS\n· 1 ação guardada com o inverso · desfazer: \/desfazer a1/);
     assert.match(t, /Destino dos dados: Leaseweb, Frankfurt \(DE\)\. Gerado automaticamente a partir do registo de auditoria/);
-    assert.doesNotMatch(t, /Nenhum dado saiu da UE/, 'não se afirma o que não foi medido');
+    assert.match(t, /Nenhum dado saiu da UE\. Destino dos dados: Leaseweb, Frankfurt \(DE\)\./, 'destino num país da UE');
     assert.doesNotMatch(t, /203\.0\.113\.10/, 'o certificado não precisa do IP');
+  });
+
+  it('"Nenhum dado saiu da UE" só com um destino num país da UE', () => {
+    const fora = certificado(completo, [migrar, pg, fl, sg, ch, fechar], 'Leaseweb, Singapura (SG)', new Date(em(50)));
+    assert.doesNotMatch(fora, /Nenhum dado saiu da UE/);
+    const semLocal = certificado(completo, [migrar, pg, fl, sg, ch, fechar], undefined, new Date(em(50)));
+    assert.doesNotMatch(semLocal, /Nenhum dado saiu da UE/);
   });
 
   it('o que falta sai "não medido"; não inventa o local', () => {

@@ -793,6 +793,17 @@ describe("orquestrador", () => {
     );
   });
 
+  it('decisor: com um serviço gerido proposto, diz que é só recomendação e que fica tudo na VM', async () => {
+    const t = montar({}, { atacar: false });
+    t.deps.migrador.planoDestino = async () => 'A base de dados é crítica: proponho Scaleway DB-DEV-S, cerca de € 11,39/mês (preço visto a 20/11/2026).';
+    await t.orq.correr();
+    assert.ok(t.falas.some((f) => /proponho Scaleway[\s\S]*Isto é só a minha recomendação: nesta migração fica tudo na VM \(self-hosted\) e não contrato nada\./.test(f.texto)));
+    const so = montar({}, { atacar: false });
+    so.deps.migrador.planoDestino = async () => 'O MinIO e o RabbitMQ ficam na VM.';
+    await so.orq.correr();
+    assert.ok(!so.falas.some((f) => /só a minha recomendação/.test(f.texto)), 'sem gerido proposto, não há aviso');
+  });
+
   it("migrador de código: no mesmo plano, depois dos testes; sem PR diz porquê; um erro não trava", async () => {
     const t = montar({}, { atacar: false });
     const chamadas: [string, boolean][] = [];

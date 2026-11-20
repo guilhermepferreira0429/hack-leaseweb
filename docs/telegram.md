@@ -1,13 +1,13 @@
 # Telegram: aprovar tudo pelo Telegram
 
-Ver também `agentes-telegram.md`: 4 bots (chefe, migrador, atacante, defesa). Os quatro falam no grupo "Direção" e o fluxo vê-se seguido; o atacante também aceita o `/atacar` em privado, se o dono preferir.
+Ver também `agentes-telegram.md`: 4 bots (chefe, migrador, atacante, defesa), todos no grupo "Direção": o júri vê a cadeia migrador → atacante → defesa → chefe. Com `TELEGRAM_ATACANTE_PRIVADO=sim`, o atacante passa a falar só em privado com o dono.
 
 Long polling, sem webhook: não precisa de domínio nem HTTPS público.
 
 ## Montagem (David, 09:30, cerca de 15 min)
 
 1. No Telegram, falar com `@BotFather` → `/newbot` quatro vezes (chefe, migrador, atacante, defesa) → guardar os tokens em `TELEGRAM_TOKEN_*`. Em cada um, `/setprivacy` → Disable.
-   Criar o grupo "Direção" e adicionar **os 4 bots e o dono**.
+   Criar o grupo "Direção" e adicionar **os 4 bots e o dono**. O dono manda também `/start` em privado ao bot atacante (para o modo `TELEGRAM_ATACANTE_PRIVADO=sim`).
 2. O "dono" da demo envia `/start` ao bot.
 3. `curl https://api.telegram.org/bot<TOKEN>/getUpdates` → copiar o `chat.id` do grupo para `TELEGRAM_GRUPO_ID` e o `from.id` do dono para `TELEGRAM_DONO_ID`.
 4. Teste com botões:
@@ -46,7 +46,7 @@ Nos passos (c)/toque e (f), carregar com a conta de um aprovador quando aparecer
 Se falhar:
 
 - `getUpdates: Conflict`: outro processo (o orquestrador, outro portátil) está a fazer polling ao mesmo bot. Parar o outro.
-- `chat not found`: o `TELEGRAM_GRUPO_ID` está errado, ou o bot (o smoke diz qual) não está no grupo. Adicionar os 4 bots ao grupo.
+- `chat not found`: o `TELEGRAM_GRUPO_ID` está errado, ou o bot (o smoke diz qual) não está no grupo. Os 4 bots têm de estar no grupo; com `TELEGRAM_ATACANTE_PRIVADO=sim`, o atacante precisa de conversa privada com o dono (abrir o bot e mandar `/start`).
 - (c) "ninguém carregou a tempo": o `from.id` de quem carregou não está em `TELEGRAM_APROVADORES` (aparece no log como `callback_query de <id>`).
 
 ## Comportamento
@@ -61,8 +61,9 @@ Se falhar:
 
 ## `/atacar [ip]`: a sequência do atacante
 
-Uma mensagem no grupo (ou em privado com o bot do atacante) arranca a sequência; ele relata os passos no grupo.
-Ao aprovar o plano de migração, o atacante arranca sozinho, em paralelo com a cópia. Sem `ip`, usa o primeiro alvo de `ALVOS_PERMITIDOS`.
+`/atacar` no grupo (ou em privado ao bot do atacante) arranca a sequência; o atacante relata os passos no grupo
+(ou em privado, com `TELEGRAM_ATACANTE_PRIVADO=sim`). Sem `ip`, usa o primeiro alvo de `ALVOS_PERMITIDOS`.
+Ao aprovar o plano de migração, o atacante arranca sozinho, em paralelo com a cópia.
 
 1. `⚔️ Ataque iniciado contra <alvo>`
 2. `👁️ Reconhecimento: …` — ligações TCP às 13 portas sensíveis de `PORTAS_ALVO` (SSH, bases de dados,

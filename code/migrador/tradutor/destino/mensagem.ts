@@ -21,11 +21,20 @@ export function textoPreco(d: Decisao): string {
   return 'preço a confirmar';
 }
 
+/** O nome só acrescenta se não repetir o serviço (ex.: "Secrets Manager" ou o nome por omissão "segredos"). */
+function nomeProprio(d: Decisao): string | undefined {
+  const normal = (t: string) => t.trim().toLowerCase();
+  const nome = normal(d.nome);
+  if (!nome || [d.servico, d.servicoAws, d.alternativa].some((x) => normal(x) === nome)) return undefined;
+  return d.nome.trim();
+}
+
 function sujeito(d: Decisao): string {
+  const nome = nomeProprio(d);
   const qualidades = [d.criticidade === 'alta' ? 'é crítica' : '', d.dadosPessoais ? 'tem dados pessoais' : ''].filter(Boolean);
   if (d.servico === 'postgres' || d.servico === 'mysql' || d.servico === 'documentdb' || d.servico === 'dynamodb')
-    return `A base de dados ${d.nome}${qualidades.length ? ` ${qualidades.join(' e ')}` : ''}`;
-  return `O ${d.servicoAws} (${d.nome})`;
+    return `A base de dados${nome ? ` ${nome}` : ''}${qualidades.length ? ` ${qualidades.join(' e ')}` : ''}`;
+  return nome ? `O ${d.servicoAws} (${nome})` : `O ${d.servicoAws}`;
 }
 
 export function mensagemDestino(decisoes: Decisao[], vm: CapacidadeVm): string {

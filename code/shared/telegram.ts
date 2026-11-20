@@ -1,5 +1,5 @@
-// Telegram é o palco: um bot por agente, todos no grupo "Direção".
-// O atacante também fala no grupo (o fluxo vê-se seguido); sem grupo, fala em privado com o dono.
+// Telegram é o palco: um bot por agente, todos no grupo "Direção" (o júri vê a cadeia migrador → atacante →
+// defesa → chefe). Com TELEGRAM_ATACANTE_PRIVADO=sim, o atacante fala só em privado com o dono.
 // Long polling (getUpdates), sem webhook.
 // Ver docs/telegram.md e docs/agentes-telegram.md.
 // Botões: callback_data = "aprovar:<pedidoId>" | "ignorar:<pedidoId>".
@@ -67,10 +67,15 @@ function tokenPara(agente: Agente): { token: string; proprio: boolean } | undefi
   return outro ? { token: outro, proprio: false } : undefined;
 }
 
-/** Todos falam no grupo; sem grupo, no privado do dono. */
-function destino(): string {
+/** O atacante só fala em privado com o dono se TELEGRAM_ATACANTE_PRIVADO=sim; por omissão, no grupo como os outros. */
+export function atacanteEmPrivado(): boolean {
+  return process.env.TELEGRAM_ATACANTE_PRIVADO?.trim().toLowerCase() === 'sim';
+}
+
+/** Para onde fala cada bot: o grupo (ou, com o atacante em privado, a conversa com o dono). */
+function destino(agente: Agente): string {
   const { grupoId, donoId } = cfg();
-  const d = grupoId || donoId;
+  const d = agente === 'atacante' && atacanteEmPrivado() ? donoId || grupoId : grupoId || donoId;
   if (!d) throw new Error('TELEGRAM_GRUPO_ID ou TELEGRAM_DONO_ID em falta.');
   return d;
 }
@@ -135,10 +140,10 @@ export function textoParaPrivado(texto: string): string {
 async function enviarTexto(agente: Agente, texto: string, teclado?: unknown): Promise<MensagemEnviada & { token: string }> {
   const t = tokenPara(agente);
   if (!t) throw new Error('Nenhum TELEGRAM_TOKEN_* configurado.');
-  // Só sem grupo é que o texto encenado para o grupo é limpo (o atacante fala em privado).
-  const conteudo = agente === 'atacante' && !cfg().grupoId ? textoParaPrivado(texto) : texto;
+  // Em privado o texto encenado para o grupo (menções, "Recebido.") não faz sentido tal e qual.
+  const conteudo = agente === 'atacante' && atacanteEmPrivado() ? textoParaPrivado(texto) : texto;
   const corpo = {
-    chat_id: destino(),
+    chat_id: destino(agente),
     text: (t.proprio ? conteudo : `[${NOME_AGENTE[agente]}] ${conteudo}`).slice(0, 4000),
     ...(teclado ? { reply_markup: teclado } : {}),
   };

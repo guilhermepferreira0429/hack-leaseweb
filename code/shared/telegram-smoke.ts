@@ -162,18 +162,23 @@ async function main(): Promise<void> {
       me?.ok ? `@${(me.resultado as { username?: string }).username}` : me?.erro ?? 'sem resposta',
     );
   }
-  // a) parte 2: cada bot tem de estar no grupo (sendMessage sai do bot certo).
+  // a) parte 2: os 4 bots no grupo (o atacante só em privado com TELEGRAM_ATACANTE_PRIVADO=sim).
   for (const b of comToken) {
+    const privado = b.agente === 'atacante' && telegram.atacanteEmPrivado();
     try {
-      await telegram.falar(b.agente, `[Teste de fumo] ${b.agente} presente.`);
+      await telegram.falar(
+        b.agente,
+        privado ? '[Teste de fumo] Atacante pronto: falo só contigo em privado.' : `[Teste de fumo] ${b.agente} presente.`,
+      );
     } catch (e) {
       console.log(`      ${b.agente}: ${e instanceof Error ? e.message : e}`);
     }
     const m = chamadas.findLast((c) => c.metodo === 'sendMessage' && c.bot === b.agente);
+    const esperado = privado ? donoId : grupoId;
     passo(
-      `a) bot ${b.agente} fala no grupo`,
-      Boolean(m?.ok && m && String(m.corpo.chat_id) === grupoId),
-      m?.ok ? '' : `${m?.erro ?? 'sem sendMessage'} (o bot está no grupo?)`,
+      `a) bot ${b.agente} fala ${privado ? 'em privado com o dono' : 'no grupo'}`,
+      Boolean(m?.ok && m && String(m.corpo.chat_id) === esperado),
+      m?.ok ? '' : `${m?.erro ?? 'sem sendMessage'}${privado ? ' (abre o bot e manda /start)' : ' (o bot está no grupo?)'}`,
     );
   }
 

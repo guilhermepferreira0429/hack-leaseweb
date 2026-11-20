@@ -19,7 +19,8 @@ export async function tratar(
     pedidoId: pedido.id,
     tipo: 'pedido',
     quem: 'defesa',
-    depois: { achado, titulo: pedido.titulo },
+    // texto: a explicação da IA, para o ecrã /palco a mostrar mesmo quando o painel corre noutro processo.
+    depois: { achado, titulo: pedido.titulo, texto: pedido.texto },
   });
   await pedirAprovacao('defesa', pedido);
   return pedido;
