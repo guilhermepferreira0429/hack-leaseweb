@@ -156,8 +156,8 @@ The Defender uses two signals:
 
 The VM's `auth.log` is not the trigger for closing a rule. It is evidence: the bounded SSH step writes real
 failed logins, the bait VM's `auth.log` feeds the live counter on `/isco`, and the report can use host evidence.
-Host-level rules (brute force, then `Accepted` from the same IP) are **in development**; the demo's reversible
-closed list currently contains firewall-rule and pull-request actions only.
+Host-level rules (brute force, then `Accepted` from the same IP) are **in development**; the demo's closed action
+list currently contains firewall-rule changes, migration steps and the pull-request merge.
 
 ```mermaid
 sequenceDiagram
