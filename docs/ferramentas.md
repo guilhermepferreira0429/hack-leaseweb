@@ -55,6 +55,29 @@ Como decide:
 | Criar e configurar os serviços geridos pelas APIs dos fornecedores europeus | C |
 | Comparar custos atualizados entre fornecedores | C |
 
+## Migrador de código (parte do migrador)
+
+Migrar a infraestrutura sem mudar o código deixa a app a apontar para a AWS. O migrador também muda o código, e entrega a mudança como **pull request** que o dono aprova no Telegram.
+
+| Caso | O que muda no código | Dificuldade | Nível |
+|---|---|---|---|
+| S3 → MinIO / Object Storage da Leaseweb | Só configuração: `endpoint`, credenciais e `forcePathStyle` no cliente S3. O resto do código fica igual (API compatível) | Baixa | **A** |
+| Variáveis de ambiente e `.env` | Troca URLs e nomes de serviços AWS pelos novos; segredos nunca vão para o PR | Baixa | **A** |
+| RDS Postgres → Postgres | Só a connection string | Baixa | **B** |
+| SQS → NATS | Troca o cliente: `SendMessage`/`ReceiveMessage` passam a `publish`/`subscribe`. Reescrita real, com testes antes e depois | Média | **B** |
+| DynamoDB → ScyllaDB Alternator | Só o endpoint (API compatível) | Baixa | C |
+| Lambda → Serverless Functions / contentor | Reempacotar a função | Alta | C |
+
+Como funciona:
+
+1. **Encontrar:** procura no código os clientes da AWS (`@aws-sdk/*`, `boto3`, variáveis `AWS_*`) e a configuração.
+2. **Propor:** a IA escreve a alteração; regras fixas validam que só mudam os ficheiros e linhas esperados.
+3. **Provar:** correr os testes da app com o código novo contra o destino novo. Se falharem, o PR não é proposto.
+4. **Aprovar:** o Migrador manda no Telegram "PR com 3 ficheiros alterados, testes a passar. [Aprovar] [Ver diff]".
+5. **Liga com a defesa:** se a falha encontrada pelo atacante vier da configuração (por exemplo, uma regra aberta num ficheiro de infraestrutura), a defesa fecha na API e o migrador abre o PR que corrige a causa, para não voltar no próximo deploy.
+
+Regra: o código só muda por PR. Nunca há push direto para o ramo principal.
+
 ## Atacante: só às nossas máquinas (allowlist)
 
 | Ferramenta | O que procura | Nível |

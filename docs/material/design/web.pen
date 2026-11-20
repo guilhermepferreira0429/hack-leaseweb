@@ -47,9 +47,8 @@
                   "name": "Título",
                   "fill": "$ink",
                   "content": "Migrar sem ficar exposto",
-                  "fontFamily": "$sans",
-                  "fontSize": 40,
-                  "fontWeight": "700"
+                  "fontFamily": "$serif",
+                  "fontSize": 56
                 }
               ]
             },
@@ -86,9 +85,8 @@
                       "fill": "$def",
                       "content": "38 s",
                       "lineHeight": 0.9,
-                      "fontFamily": "$mono",
-                      "fontSize": 120,
-                      "fontWeight": "700"
+                      "fontFamily": "$serif",
+                      "fontSize": 150
                     },
                     {
                       "type": "frame",
@@ -107,7 +105,7 @@
                           "type": "frame",
                           "id": "NrVQj",
                           "name": "Pill fechado",
-                          "fill": "#33D69A22",
+                          "fill": "#7DD3A822",
                           "cornerRadius": 999,
                           "gap": 8,
                           "padding": [
@@ -169,7 +167,7 @@
               "width": 560,
               "height": "fill_container",
               "fill": "$panel",
-              "cornerRadius": 16,
+              "cornerRadius": 18,
               "stroke": "$line",
               "strokeWidth": 1,
               "layout": "vertical",
@@ -278,7 +276,7 @@
                               "content": "1.204 ficheiros copiados. Checksums iguais. Testes a passar dos dois lados.",
                               "lineHeight": 1.35,
                               "fontFamily": "$sans",
-                              "fontSize": 19,
+                              "fontSize": 20,
                               "fontWeight": "normal"
                             }
                           ]
@@ -348,7 +346,7 @@
                               "content": "Base de dados nova aberta a toda a Internet. Porta 5432. Gravidade alta.",
                               "lineHeight": 1.35,
                               "fontFamily": "$sans",
-                              "fontSize": 19,
+                              "fontSize": 20,
                               "fontWeight": "normal"
                             }
                           ]
@@ -418,7 +416,7 @@
                               "content": "Proponho fechar o acesso de fora e deixar só a vossa app.",
                               "lineHeight": 1.35,
                               "fontFamily": "$sans",
-                              "fontSize": 19,
+                              "fontSize": 20,
                               "fontWeight": "normal"
                             }
                           ]
@@ -488,7 +486,7 @@
                               "content": "Aprovou: Fechar",
                               "lineHeight": 1.35,
                               "fontFamily": "$sans",
-                              "fontSize": 19,
+                              "fontSize": 20,
                               "fontWeight": "normal"
                             }
                           ]
@@ -558,7 +556,7 @@
                               "content": "Fechado e confirmado. Inverso guardado.",
                               "lineHeight": 1.35,
                               "fontFamily": "$sans",
-                              "fontSize": 19,
+                              "fontSize": 20,
                               "fontWeight": "normal"
                             }
                           ]
@@ -628,7 +626,7 @@
                               "content": "Confirmo. Já não chego lá.",
                               "lineHeight": 1.35,
                               "fontFamily": "$sans",
-                              "fontSize": 19,
+                              "fontSize": 20,
                               "fontWeight": "normal"
                             }
                           ]
@@ -698,7 +696,7 @@
                               "content": "Migração concluída e segura. 1 falha fechada em 38 s.",
                               "lineHeight": 1.35,
                               "fontFamily": "$sans",
-                              "fontSize": 19,
+                              "fontSize": 20,
                               "fontWeight": "normal"
                             }
                           ]
@@ -716,7 +714,7 @@
               "width": "fill_container",
               "height": "fill_container",
               "fill": "$panel",
-              "cornerRadius": 16,
+              "cornerRadius": 18,
               "stroke": "$line",
               "strokeWidth": 1,
               "layout": "vertical",
@@ -760,7 +758,7 @@
                   "width": "fill_container",
                   "height": "fill_container",
                   "layout": "vertical",
-                  "gap": 18,
+                  "gap": 22,
                   "justifyContent": "center",
                   "children": [
                     {
@@ -768,13 +766,13 @@
                       "id": "PpTSx",
                       "name": "AWS simulada",
                       "width": "fill_container",
-                      "fill": "#0A0E13",
-                      "cornerRadius": 12,
+                      "fill": "#0C1715",
+                      "cornerRadius": 18,
                       "stroke": "$faint",
                       "strokeWidth": 1,
                       "layout": "vertical",
                       "gap": 6,
-                      "padding": 20,
+                      "padding": 28,
                       "children": [
                         {
                           "type": "frame",
@@ -790,9 +788,8 @@
                               "name": "Nome",
                               "fill": "$ink",
                               "content": "AWS (simulada)",
-                              "fontFamily": "$sans",
-                              "fontSize": 24,
-                              "fontWeight": "700"
+                              "fontFamily": "$serif",
+                              "fontSize": 30
                             }
                           ]
                         },
@@ -805,7 +802,7 @@
                           "width": "fill_container",
                           "content": "LocalStack · S3 · SQS · Postgres",
                           "fontFamily": "$mono",
-                          "fontSize": 15,
+                          "fontSize": 16,
                           "fontWeight": "normal"
                         }
                       ]
@@ -836,7 +833,7 @@
                           "fill": "$mig",
                           "content": "migrador · 1.204 objetos · checksums ✓",
                           "fontFamily": "$mono",
-                          "fontSize": 15,
+                          "fontSize": 17,
                           "fontWeight": "normal"
                         }
                       ]
@@ -846,13 +843,13 @@
                       "id": "ELkby",
                       "name": "Leaseweb",
                       "width": "fill_container",
-                      "fill": "#0A0E13",
-                      "cornerRadius": 12,
+                      "fill": "#0C1715",
+                      "cornerRadius": 18,
                       "stroke": "$mig",
                       "strokeWidth": 1,
                       "layout": "vertical",
                       "gap": 6,
-                      "padding": 20,
+                      "padding": 28,
                       "children": [
                         {
                           "type": "frame",
@@ -868,9 +865,8 @@
                               "name": "Nome",
                               "fill": "$ink",
                               "content": "Leaseweb Public Cloud",
-                              "fontFamily": "$sans",
-                              "fontSize": 24,
-                              "fontWeight": "700"
+                              "fontFamily": "$serif",
+                              "fontSize": 30
                             }
                           ]
                         },
@@ -883,7 +879,7 @@
                           "width": "fill_container",
                           "content": "MinIO · Postgres · NATS · tudo na UE",
                           "fontFamily": "$mono",
-                          "fontSize": 15,
+                          "fontSize": 16,
                           "fontWeight": "normal"
                         }
                       ]
@@ -914,7 +910,7 @@
                           "fill": "$atk",
                           "content": "atacante · nmap às nossas máquinas",
                           "fontFamily": "$mono",
-                          "fontSize": 15,
+                          "fontSize": 17,
                           "fontWeight": "normal"
                         }
                       ]
@@ -924,13 +920,13 @@
                       "id": "c0wdl0",
                       "name": "Vítima",
                       "width": "fill_container",
-                      "fill": "#0A0E13",
-                      "cornerRadius": 12,
+                      "fill": "#7DD3A814",
+                      "cornerRadius": 18,
                       "stroke": "$def",
                       "strokeWidth": 1,
                       "layout": "vertical",
                       "gap": 6,
-                      "padding": 20,
+                      "padding": 28,
                       "children": [
                         {
                           "type": "frame",
@@ -946,9 +942,8 @@
                               "name": "Nome",
                               "fill": "$ink",
                               "content": "VM vítima",
-                              "fontFamily": "$sans",
-                              "fontSize": 24,
-                              "fontWeight": "700"
+                              "fontFamily": "$serif",
+                              "fontSize": 30
                             }
                           ]
                         },
@@ -961,7 +956,7 @@
                           "width": "fill_container",
                           "content": "security group · 0.0.0.0/0 → regra removida pela API",
                           "fontFamily": "$mono",
-                          "fontSize": 15,
+                          "fontSize": 16,
                           "fontWeight": "normal"
                         },
                         {
@@ -1033,7 +1028,7 @@
               "width": 520,
               "height": "fill_container",
               "fill": "$panel",
-              "cornerRadius": 16,
+              "cornerRadius": 18,
               "stroke": "$line",
               "strokeWidth": 1,
               "layout": "vertical",
@@ -1073,9 +1068,8 @@
                       "name": "Título",
                       "fill": "$ink",
                       "content": "Migração",
-                      "fontFamily": "$sans",
-                      "fontSize": 20,
-                      "fontWeight": "700"
+                      "fontFamily": "$serif",
+                      "fontSize": 28
                     },
                     {
                       "type": "frame",
@@ -1180,9 +1174,8 @@
                       "name": "Título",
                       "fill": "$ink",
                       "content": "Defesa",
-                      "fontFamily": "$sans",
-                      "fontSize": 20,
-                      "fontWeight": "700"
+                      "fontFamily": "$serif",
+                      "fontSize": 28
                     },
                     {
                       "type": "frame",
@@ -1314,8 +1307,9 @@
                   "id": "RCebs",
                   "name": "Btn Desfazer",
                   "width": "fill_container",
+                  "fill": "#7DD3A8",
                   "cornerRadius": 12,
-                  "stroke": "$muted",
+                  "stroke": "#7DD3A8",
                   "strokeWidth": 1,
                   "padding": 18,
                   "justifyContent": "center",
@@ -1324,7 +1318,7 @@
                       "type": "text",
                       "id": "nJJ6G",
                       "name": "Label",
-                      "fill": "$ink",
+                      "fill": "#0C1715",
                       "content": "Desfazer última ação",
                       "fontFamily": "$sans",
                       "fontSize": 18,
@@ -1355,7 +1349,7 @@
       "y": 0,
       "name": "Certificado de migração",
       "width": 900,
-      "fill": "#F6F7F5",
+      "fill": "#F5F3EE",
       "layout": "vertical",
       "gap": 36,
       "padding": 64,
@@ -1372,7 +1366,7 @@
               "type": "text",
               "id": "HfD6o",
               "name": "Id",
-              "fill": "#5E6873",
+              "fill": "#8B929C",
               "content": "CERTIFICADO DE MIGRAÇÃO · CERT-20261120-1402",
               "fontFamily": "$mono",
               "fontSize": 14,
@@ -1383,20 +1377,19 @@
               "type": "text",
               "id": "KfZ1Z",
               "name": "Título",
-              "fill": "#14181D",
+              "fill": "#15171C",
               "textGrowth": "fixed-width",
               "width": "fill_container",
               "content": "A migração terminou e ficou segura.",
               "lineHeight": 1.1,
-              "fontFamily": "$sans",
-              "fontSize": 40,
-              "fontWeight": "700"
+              "fontFamily": "$serif",
+              "fontSize": 52
             },
             {
               "type": "text",
               "id": "tV4tx",
               "name": "Data",
-              "fill": "#5E6873",
+              "fill": "#8B929C",
               "content": "20 nov 2026 · 14:02 · Leaseweb Public Cloud, região UE",
               "fontFamily": "$mono",
               "fontSize": 15,
@@ -1408,7 +1401,7 @@
           "type": "text",
           "id": "GeCyT",
           "name": "Resumo",
-          "fill": "#2A3138",
+          "fill": "#5F6168",
           "textGrowth": "fixed-width",
           "width": "fill_container",
           "content": "Os ficheiros e a base de dados passaram da AWS para a Leaseweb sem perdas. O atacante encontrou uma base de dados aberta à Internet e a defesa fechou-a em 38 segundos, com aprovação do dono. Tudo pode ser desfeito.",
@@ -1422,8 +1415,11 @@
           "id": "SRqhG",
           "name": "Onde estão os dados",
           "width": "fill_container",
+          "fill": "#FFFFFF",
+          "cornerRadius": 18,
           "layout": "vertical",
           "gap": 12,
+          "padding": 28,
           "children": [
             {
               "type": "frame",
@@ -1436,7 +1432,7 @@
                   "type": "text",
                   "id": "Wn13A",
                   "name": "N",
-                  "fill": "#5E6873",
+                  "fill": "#8B929C",
                   "content": "01",
                   "fontFamily": "$mono",
                   "fontSize": 14,
@@ -1446,11 +1442,10 @@
                   "type": "text",
                   "id": "WikpR",
                   "name": "T",
-                  "fill": "#14181D",
+                  "fill": "#15171C",
                   "content": "Onde estão os dados",
-                  "fontFamily": "$sans",
-                  "fontSize": 20,
-                  "fontWeight": "700"
+                  "fontFamily": "$serif",
+                  "fontSize": 30
                 }
               ]
             },
@@ -1458,7 +1453,7 @@
               "type": "rectangle",
               "id": "dzhZz",
               "name": "Linha",
-              "fill": "#D9DDD8",
+              "fill": "#E9F3EC",
               "width": "fill_container",
               "height": 1
             },
@@ -1474,7 +1469,7 @@
                   "type": "text",
                   "id": "OM3HV",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "S3 → MinIO",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1484,7 +1479,7 @@
                   "type": "text",
                   "id": "rMr0b",
                   "name": "V",
-                  "fill": "#14181D",
+                  "fill": "#15171C",
                   "content": "Leaseweb, Países Baixos · self-hosted",
                   "fontFamily": "$mono",
                   "fontSize": 15,
@@ -1504,7 +1499,7 @@
                   "type": "text",
                   "id": "r55bHT",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "RDS Postgres → Postgres",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1514,7 +1509,7 @@
                   "type": "text",
                   "id": "ODq8A",
                   "name": "V",
-                  "fill": "#14181D",
+                  "fill": "#15171C",
                   "content": "Leaseweb, Países Baixos · self-hosted + backups Acronis",
                   "fontFamily": "$mono",
                   "fontSize": 15,
@@ -1534,7 +1529,7 @@
                   "type": "text",
                   "id": "wNbWk",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "SQS → NATS",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1544,7 +1539,7 @@
                   "type": "text",
                   "id": "I4ZgBg",
                   "name": "V",
-                  "fill": "#14181D",
+                  "fill": "#15171C",
                   "content": "Leaseweb, Países Baixos · self-hosted",
                   "fontFamily": "$mono",
                   "fontSize": 15,
@@ -1559,8 +1554,11 @@
           "id": "PTEmR",
           "name": "Prova de que nada se perdeu",
           "width": "fill_container",
+          "fill": "#FFFFFF",
+          "cornerRadius": 18,
           "layout": "vertical",
           "gap": 12,
+          "padding": 28,
           "children": [
             {
               "type": "frame",
@@ -1573,7 +1571,7 @@
                   "type": "text",
                   "id": "om2FC",
                   "name": "N",
-                  "fill": "#5E6873",
+                  "fill": "#8B929C",
                   "content": "02",
                   "fontFamily": "$mono",
                   "fontSize": 14,
@@ -1583,11 +1581,10 @@
                   "type": "text",
                   "id": "dkMLi",
                   "name": "T",
-                  "fill": "#14181D",
+                  "fill": "#15171C",
                   "content": "Prova de que nada se perdeu",
-                  "fontFamily": "$sans",
-                  "fontSize": 20,
-                  "fontWeight": "700"
+                  "fontFamily": "$serif",
+                  "fontSize": 30
                 }
               ]
             },
@@ -1595,7 +1592,7 @@
               "type": "rectangle",
               "id": "AFHdu",
               "name": "Linha",
-              "fill": "#D9DDD8",
+              "fill": "#E9F3EC",
               "width": "fill_container",
               "height": 1
             },
@@ -1611,7 +1608,7 @@
                   "type": "text",
                   "id": "aeFtb",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "Ficheiros",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1621,7 +1618,7 @@
                   "type": "text",
                   "id": "OyNSi",
                   "name": "V",
-                  "fill": "#14895B",
+                  "fill": "#2F7D5B",
                   "content": "1.204 copiados · checksum igual ✓",
                   "fontFamily": "$mono",
                   "fontSize": 15,
@@ -1641,7 +1638,7 @@
                   "type": "text",
                   "id": "ApYnZ",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "Base de dados",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1651,7 +1648,7 @@
                   "type": "text",
                   "id": "QWeBZ",
                   "name": "V",
-                  "fill": "#14895B",
+                  "fill": "#2F7D5B",
                   "content": "5.620 linhas em 4 tabelas · checksum igual ✓",
                   "fontFamily": "$mono",
                   "fontSize": 15,
@@ -1671,7 +1668,7 @@
                   "type": "text",
                   "id": "R5e47",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "Testes da app",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1681,7 +1678,7 @@
                   "type": "text",
                   "id": "MK7nG",
                   "name": "V",
-                  "fill": "#14895B",
+                  "fill": "#2F7D5B",
                   "content": "antes ✓ · depois ✓",
                   "fontFamily": "$mono",
                   "fontSize": 15,
@@ -1696,8 +1693,11 @@
           "id": "wQ5xE",
           "name": "Segurança depois da migração",
           "width": "fill_container",
+          "fill": "#FFFFFF",
+          "cornerRadius": 18,
           "layout": "vertical",
           "gap": 12,
+          "padding": 28,
           "children": [
             {
               "type": "frame",
@@ -1710,7 +1710,7 @@
                   "type": "text",
                   "id": "QmroP",
                   "name": "N",
-                  "fill": "#5E6873",
+                  "fill": "#8B929C",
                   "content": "03",
                   "fontFamily": "$mono",
                   "fontSize": 14,
@@ -1720,11 +1720,10 @@
                   "type": "text",
                   "id": "ASV6s",
                   "name": "T",
-                  "fill": "#14181D",
+                  "fill": "#15171C",
                   "content": "Segurança depois da migração",
-                  "fontFamily": "$sans",
-                  "fontSize": 20,
-                  "fontWeight": "700"
+                  "fontFamily": "$serif",
+                  "fontSize": 30
                 }
               ]
             },
@@ -1732,7 +1731,7 @@
               "type": "rectangle",
               "id": "tJQg3",
               "name": "Linha",
-              "fill": "#D9DDD8",
+              "fill": "#E9F3EC",
               "width": "fill_container",
               "height": 1
             },
@@ -1748,7 +1747,7 @@
                   "type": "text",
                   "id": "JMs9v",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "Encontrado",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1778,7 +1777,7 @@
                   "type": "text",
                   "id": "z57EqF",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "Postgres 5432 aberta à Internet",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1788,7 +1787,7 @@
                   "type": "text",
                   "id": "elFam",
                   "name": "V",
-                  "fill": "#14895B",
+                  "fill": "#2F7D5B",
                   "content": "fechada às 14:02:41 · aprovado pelo dono",
                   "fontFamily": "$mono",
                   "fontSize": 15,
@@ -1808,7 +1807,7 @@
                   "type": "text",
                   "id": "A97jMf",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "Tempo exposto",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1818,7 +1817,7 @@
                   "type": "text",
                   "id": "ZaXlV",
                   "name": "V",
-                  "fill": "#14181D",
+                  "fill": "#15171C",
                   "content": "38 s",
                   "fontFamily": "$mono",
                   "fontSize": 15,
@@ -1838,7 +1837,7 @@
                   "type": "text",
                   "id": "ys04b",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "Confirmação do atacante",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1848,7 +1847,7 @@
                   "type": "text",
                   "id": "BPbUZ",
                   "name": "V",
-                  "fill": "#14895B",
+                  "fill": "#2F7D5B",
                   "content": "já não chega lá ✓",
                   "fontFamily": "$mono",
                   "fontSize": 15,
@@ -1863,8 +1862,11 @@
           "id": "m43IDq",
           "name": "Como voltar atrás",
           "width": "fill_container",
+          "fill": "#FFFFFF",
+          "cornerRadius": 18,
           "layout": "vertical",
           "gap": 12,
+          "padding": 28,
           "children": [
             {
               "type": "frame",
@@ -1877,7 +1879,7 @@
                   "type": "text",
                   "id": "fq9FW",
                   "name": "N",
-                  "fill": "#5E6873",
+                  "fill": "#8B929C",
                   "content": "04",
                   "fontFamily": "$mono",
                   "fontSize": 14,
@@ -1887,11 +1889,10 @@
                   "type": "text",
                   "id": "KFSzn",
                   "name": "T",
-                  "fill": "#14181D",
+                  "fill": "#15171C",
                   "content": "Como voltar atrás",
-                  "fontFamily": "$sans",
-                  "fontSize": 20,
-                  "fontWeight": "700"
+                  "fontFamily": "$serif",
+                  "fontSize": 30
                 }
               ]
             },
@@ -1899,7 +1900,7 @@
               "type": "rectangle",
               "id": "FPGqX",
               "name": "Linha",
-              "fill": "#D9DDD8",
+              "fill": "#E9F3EC",
               "width": "fill_container",
               "height": 1
             },
@@ -1915,7 +1916,7 @@
                   "type": "text",
                   "id": "q4xkvx",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "Ações com inverso guardado",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1925,7 +1926,7 @@
                   "type": "text",
                   "id": "preHB",
                   "name": "V",
-                  "fill": "#14181D",
+                  "fill": "#15171C",
                   "content": "1",
                   "fontFamily": "$mono",
                   "fontSize": 15,
@@ -1945,7 +1946,7 @@
                   "type": "text",
                   "id": "IlMin",
                   "name": "K",
-                  "fill": "#2A3138",
+                  "fill": "#5F6168",
                   "content": "Desfazer",
                   "fontFamily": "$sans",
                   "fontSize": 16,
@@ -1955,7 +1956,7 @@
                   "type": "text",
                   "id": "Upj4p",
                   "name": "V",
-                  "fill": "#14181D",
+                  "fill": "#15171C",
                   "content": "/desfazer P-0007",
                   "fontFamily": "$mono",
                   "fontSize": 15,
@@ -1977,7 +1978,7 @@
               "type": "text",
               "id": "GVQ07",
               "name": "UE",
-              "fill": "#14181D",
+              "fill": "#15171C",
               "content": "Nenhum dado saiu da UE.",
               "fontFamily": "$sans",
               "fontSize": 16,
@@ -1987,7 +1988,7 @@
               "type": "text",
               "id": "fUl2N",
               "name": "Nota",
-              "fill": "#5E6873",
+              "fill": "#8B929C",
               "textGrowth": "fixed-width",
               "width": "fill_container",
               "content": "Gerado automaticamente a partir do registo de auditoria. Valores ilustrativos neste desenho.",
@@ -2039,9 +2040,8 @@
               "fill": "$atk",
               "content": "4.317",
               "lineHeight": 0.9,
-              "fontFamily": "$mono",
-              "fontSize": 260,
-              "fontWeight": "700"
+              "fontFamily": "$serif",
+              "fontSize": 320
             },
             {
               "type": "text",
@@ -2114,9 +2114,8 @@
               "name": "Título",
               "fill": "$ink",
               "content": "Júri: aprovem vocês",
-              "fontFamily": "$sans",
-              "fontSize": 28,
-              "fontWeight": "700"
+              "fontFamily": "$serif",
+              "fontSize": 28
             },
             {
               "type": "text",
@@ -2140,59 +2139,63 @@
   "variables": {
     "bg": {
       "type": "color",
-      "value": "#0A0E13"
+      "value": "#0C1715"
     },
     "panel": {
       "type": "color",
-      "value": "#111821"
+      "value": "#12211E"
     },
     "line": {
       "type": "color",
-      "value": "#1E2833"
+      "value": "#1F3330"
     },
     "ink": {
       "type": "color",
-      "value": "#E8EEF4"
+      "value": "#F5F3EE"
     },
     "muted": {
       "type": "color",
-      "value": "#8794A3"
+      "value": "#9FB3AC"
     },
     "faint": {
       "type": "color",
-      "value": "#4B5866"
+      "value": "#5E7670"
     },
     "mig": {
       "type": "color",
-      "value": "#5B9DFF"
+      "value": "#8DB8FF"
     },
     "atk": {
       "type": "color",
-      "value": "#FF5C61"
+      "value": "#FF8A7A"
     },
     "def": {
       "type": "color",
-      "value": "#33D69A"
+      "value": "#7DD3A8"
     },
     "chf": {
       "type": "color",
-      "value": "#B9C2CD"
+      "value": "#C9D3CF"
     },
     "ok": {
       "type": "color",
-      "value": "#33D69A"
+      "value": "#7DD3A8"
     },
     "bad": {
       "type": "color",
-      "value": "#FF5C61"
+      "value": "#FF8A7A"
     },
     "sans": {
       "type": "string",
-      "value": "Inter"
+      "value": "Geist"
     },
     "mono": {
       "type": "string",
-      "value": "JetBrains Mono"
+      "value": "Geist Mono"
+    },
+    "serif": {
+      "type": "string",
+      "value": "Instrument Serif"
     }
   },
   "fileToken": "48a578f2-8299-4c23-871b-802d197967ce"
