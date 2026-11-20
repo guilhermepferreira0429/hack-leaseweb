@@ -89,7 +89,9 @@ describe('migrador: migrarFila', { skip: salto }, () => {
 
   it('move todas as mensagens para o RabbitMQ com contagem e sha256 iguais', async () => {
     const r = await migrarFilaDetalhado({ filas: [FILA] });
-    assert.deepEqual(r.filas, [{ fila: FILA, mensagens: CORPOS.length, encontradas: CORPOS.length }]);
+    assert.deepEqual(r.filas, [
+      { fila: FILA, mensagens: CORPOS.length, encontradas: CORPOS.length, preexistentes: 0, noDestino: CORPOS.length },
+    ]);
     assert.equal(r.iguais, true);
   });
 
@@ -104,7 +106,17 @@ describe('migrador: migrarFila', { skip: salto }, () => {
 
   it('repetir não duplica: o SQS está vazio, 0 mensagens movidas', async () => {
     const r = await migrarFilaDetalhado({ filas: [FILA] });
-    assert.deepEqual(r.filas, [{ fila: FILA, mensagens: 0, encontradas: 0 }]);
+    assert.deepEqual(r.filas, [{ fila: FILA, mensagens: 0, encontradas: 0, preexistentes: CORPOS.length, noDestino: CORPOS.length }]);
     assert.equal(await contarRabbit(), CORPOS.length);
+  });
+
+  it('com mensagens de antes no RabbitMQ a prova dá iguais=false (não esconde duplicados)', async () => {
+    // A seed volta a encher o SQS com as mesmas mensagens; o RabbitMQ não foi limpo.
+    await sqs.send(
+      new SendMessageBatchCommand({ QueueUrl: queueUrl, Entries: CORPOS.slice(0, 5).map((MessageBody, j) => ({ Id: String(j), MessageBody })) }),
+    );
+    const r = await migrarFilaDetalhado({ filas: [FILA] });
+    assert.deepEqual(r.filas, [{ fila: FILA, mensagens: 5, encontradas: 5, preexistentes: CORPOS.length, noDestino: CORPOS.length + 5 }]);
+    assert.equal(r.iguais, false);
   });
 });

@@ -17,6 +17,10 @@ export interface ResultadoFila {
   mensagens: number;
   /** Quantas dessas se voltaram a encontrar no RabbitMQ com o mesmo sha256. */
   encontradas: number;
+  /** Mensagens que o RabbitMQ já tinha antes desta execução (devia ser 0: senão há duplicados). */
+  preexistentes: number;
+  /** Total na fila do RabbitMQ no fim. */
+  noDestino: number;
 }
 
 const sha = (texto: string): string => createHash('sha256').update(texto).digest('hex');
@@ -38,9 +42,14 @@ function hostDe(url: string): string {
   }
 }
 
-/** Move uma fila. Devolve os sha256 dos corpos movidos. */
-async function moverFila(sqs: SQSClient, queueUrl: string, canal: amqp.ConfirmChannel, nome: string): Promise<string[]> {
-  await canal.assertQueue(nome, { durable: true });
+/** Move uma fila. Devolve os sha256 dos corpos movidos e quantas mensagens o destino já tinha. */
+async function moverFila(
+  sqs: SQSClient,
+  queueUrl: string,
+  canal: amqp.ConfirmChannel,
+  nome: string,
+): Promise<{ hashes: string[]; preexistentes: number }> {
+  const { messageCount: preexistentes } = await canal.assertQueue(nome, { durable: true });
   const hashes: string[] = [];
   // O SQS pode devolver vazio mesmo com mensagens: só se dá por terminado à 2.ª resposta vazia seguida.
   for (let vazias = 0; vazias < 2; ) {
@@ -68,7 +77,7 @@ async function moverFila(sqs: SQSClient, queueUrl: string, canal: amqp.ConfirmCh
       }),
     );
   }
-  return hashes;
+  return { hashes, preexistentes };
 }
 
 /** Lê todos os corpos da fila sem os consumir: get sem ack e, no fim, nack com requeue. */
@@ -126,10 +135,11 @@ export async function migrarFilaDetalhado(opcoes: { filas?: string[] } = {}): Pr
     for (const url of urls.sort()) {
       const nome = decodeURIComponent(url.split('/').pop() ?? '');
       if (!nome || (opcoes.filas && !opcoes.filas.includes(nome))) continue;
-      const movidas = await moverFila(sqs, url, canal, nome);
+      const { hashes: movidas, preexistentes } = await moverFila(sqs, url, canal, nome);
       // Prova: cada corpo movido aparece no RabbitMQ com o mesmo sha256 (contando repetidos).
+      const hashesDestino = await lerSemConsumir(modelo, nome);
       const noDestino = new Map<string, number>();
-      for (const h of await lerSemConsumir(modelo, nome)) noDestino.set(h, (noDestino.get(h) ?? 0) + 1);
+      for (const h of hashesDestino) noDestino.set(h, (noDestino.get(h) ?? 0) + 1);
       let encontradas = 0;
       for (const h of movidas) {
         const n = noDestino.get(h) ?? 0;
@@ -138,10 +148,13 @@ export async function migrarFilaDetalhado(opcoes: { filas?: string[] } = {}): Pr
           noDestino.set(h, n - 1);
         }
       }
-      filas.push({ fila: nome, mensagens: movidas.length, encontradas });
+      filas.push({ fila: nome, mensagens: movidas.length, encontradas, preexistentes, noDestino: hashesDestino.length });
     }
     await canal.close().catch(() => {});
-    return { filas, iguais: filas.every((f) => f.encontradas === f.mensagens) };
+    // Igual só se o destino ficou exatamente com o que se moveu nesta execução: sem perdas e sem
+    // mensagens de antes (que seriam duplicados de uma migração anterior; limpar com seed:limpar-destino).
+    const iguais = filas.every((f) => f.encontradas === f.mensagens && f.preexistentes === 0 && f.noDestino === f.mensagens);
+    return { filas, iguais };
   } finally {
     sqs.destroy();
     await modelo?.close().catch(() => {});
