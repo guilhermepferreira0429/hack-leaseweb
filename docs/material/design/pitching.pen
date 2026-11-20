@@ -1720,7 +1720,7 @@
                   "id": "DBhlt",
                   "name": "Part",
                   "fill": "$purple",
-                  "content": "GET ",
+                  "content": "    ",
                   "fontFamily": "$font-mono",
                   "fontSize": 30,
                   "fontWeight": "700"
@@ -1729,8 +1729,8 @@
                   "type": "text",
                   "id": "BOlJE",
                   "name": "Part",
-                  "fill": "$text",
-                  "content": "/securityGroups/{id}/firewallRules",
+                  "fill": "$muted",
+                  "content": "port filtered from outside in ~3 s",
                   "fontFamily": "$font-mono",
                   "fontSize": 30
                 },
@@ -1739,7 +1739,7 @@
                   "id": "E54S9",
                   "name": "Part",
                   "fill": "$muted",
-                  "content": "until the rule is gone",
+                  "content": "· rule DELETING in the API ~39 s",
                   "fontFamily": "$font-mono",
                   "fontSize": 30
                 }
@@ -1794,7 +1794,7 @@
                   "id": "A9X6gf",
                   "name": "Part",
                   "fill": "$purple",
-                  "content": "GET ",
+                  "content": "    ",
                   "fontFamily": "$font-mono",
                   "fontSize": 30,
                   "fontWeight": "700"
@@ -1803,8 +1803,8 @@
                   "type": "text",
                   "id": "SCsE2",
                   "name": "Part",
-                  "fill": "$text",
-                  "content": "/securityGroups/{id}/firewallRules",
+                  "fill": "$muted",
+                  "content": "CREATING → ACTIVE in ~7 s",
                   "fontFamily": "$font-mono",
                   "fontSize": 30
                 },
@@ -1813,7 +1813,6 @@
                   "id": "d2Kmlb",
                   "name": "Part",
                   "fill": "$muted",
-                  "content": "until ACTIVE",
                   "fontFamily": "$font-mono",
                   "fontSize": 30
                 }
@@ -1831,7 +1830,7 @@
               "id": "tKHpz",
               "name": "Note",
               "fill": "$green",
-              "content": "Every change is read back. A failure is audited and reported.",
+              "content": "Measured today. We confirm the close from outside, with nmap, not just the API.",
               "fontFamily": "$font-sans",
               "fontSize": 34,
               "fontWeight": "600"
@@ -1942,7 +1941,7 @@
                   "name": "From",
                   "fill": "$muted",
                   "textGrowth": "fixed-width",
-                  "width": 320,
+                  "width": 440,
                   "content": "S3",
                   "fontFamily": "$font-sans",
                   "fontSize": 48,
@@ -1983,7 +1982,7 @@
                   "name": "From",
                   "fill": "$muted",
                   "textGrowth": "fixed-width",
-                  "width": 320,
+                  "width": 440,
                   "content": "SQS",
                   "fontFamily": "$font-sans",
                   "fontSize": 48,
@@ -2024,7 +2023,7 @@
                   "name": "From",
                   "fill": "$muted",
                   "textGrowth": "fixed-width",
-                  "width": 320,
+                  "width": 440,
                   "content": "RDS",
                   "fontFamily": "$font-sans",
                   "fontSize": 48,
@@ -2065,7 +2064,7 @@
                   "name": "From",
                   "fill": "$muted",
                   "textGrowth": "fixed-width",
-                  "width": 320,
+                  "width": 440,
                   "content": "ElastiCache",
                   "fontFamily": "$font-sans",
                   "fontSize": 48,
@@ -2095,6 +2094,47 @@
             },
             {
               "type": "frame",
+              "id": "NHKTp",
+              "name": "RDS",
+              "gap": 32,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "nTxdM",
+                  "name": "From",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": 440,
+                  "content": "Secrets Manager",
+                  "fontFamily": "$font-sans",
+                  "fontSize": 48,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "GpWdn",
+                  "name": "Arrow",
+                  "fill": "$green",
+                  "content": "→",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 44,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "i6IYGd",
+                  "name": "To",
+                  "fill": "$text",
+                  "content": "OpenBao",
+                  "fontFamily": "$font-sans",
+                  "fontSize": 48,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
               "id": "ASWFD",
               "name": "Flagged",
               "gap": 32,
@@ -2106,7 +2146,7 @@
                   "name": "From",
                   "fill": "$muted",
                   "textGrowth": "fixed-width",
-                  "width": 320,
+                  "width": 440,
                   "content": "Lambda · IAM",
                   "fontFamily": "$font-sans",
                   "fontSize": 48,
@@ -4318,6 +4358,314 @@
               "name": "Page",
               "fill": "$muted",
               "content": "10 / 12",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "hQxZ7",
+      "x": 14280,
+      "y": 1240,
+      "name": "Anexo A8 · The migration certificate",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
+      "layout": "vertical",
+      "padding": [
+        100,
+        120,
+        64,
+        120
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "aviao",
+          "name": "Header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 16,
+          "children": [
+            {
+              "type": "text",
+              "id": "zdMWc",
+              "name": "Annex label",
+              "fill": "$purple",
+              "content": "ANNEX A8",
+              "fontFamily": "$font-mono",
+              "fontSize": 24,
+              "fontWeight": "normal",
+              "letterSpacing": 3
+            },
+            {
+              "type": "text",
+              "id": "c1NzvZ",
+              "name": "Title",
+              "fill": "$text",
+              "content": "The migration certificate",
+              "fontFamily": "$font-sans",
+              "fontSize": 72,
+              "fontWeight": "800",
+              "letterSpacing": -2
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "UXW27",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 32,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "oacZE",
+              "name": "Certificate",
+              "width": "fill_container",
+              "fill": "$bg-2",
+              "cornerRadius": 20,
+              "layout": "vertical",
+              "gap": 28,
+              "padding": [
+                36,
+                44
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "LnLc2",
+                  "name": "Top",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "sWlxm",
+                      "name": "Id",
+                      "fill": "$green",
+                      "content": "CERT-YYYYMMDD-HHMM",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 26,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "YThy3",
+                      "name": "Where",
+                      "fill": "$muted",
+                      "content": "Leaseweb Public Cloud · Frankfurt",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 26,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "bwByz",
+                  "name": "Headline",
+                  "fill": "$text",
+                  "content": "The migration finished, and it is secure.",
+                  "fontFamily": "$font-sans",
+                  "fontSize": 44,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "joesA",
+                  "name": "Row 1",
+                  "width": "fill_container",
+                  "gap": 40,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "L55dEH",
+                      "name": "1 · Where the data lives",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "BQF0U",
+                          "name": "Title",
+                          "fill": "$text",
+                          "content": "1 · Where the data lives",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 30,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "cRXeZ",
+                          "name": "Desc",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "each AWS service → its new home, provider, country, self-hosted or managed",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$font-sans",
+                          "fontSize": 22,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "sThBO",
+                      "name": "2 · Proof nothing was lost",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "JTZZE",
+                          "name": "Title",
+                          "fill": "$text",
+                          "content": "2 · Proof nothing was lost",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 30,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "d1UQP",
+                          "name": "Desc",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "files and rows copied, checksums, app tests before and after",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$font-sans",
+                          "fontSize": 22,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Z3FGw",
+                  "name": "Row 2",
+                  "width": "fill_container",
+                  "gap": 40,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "MD7bL",
+                      "name": "3 · Security after the move",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "nL7Oj",
+                          "name": "Title",
+                          "fill": "$text",
+                          "content": "3 · Security after the move",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 30,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "cEGGG",
+                          "name": "Desc",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "what was found, closed at what time, by whom, seconds exposed",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$font-sans",
+                          "fontSize": 22,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n4PLV",
+                      "name": "4 · How to undo",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "F6fkml",
+                          "name": "Title",
+                          "fill": "$text",
+                          "content": "4 · How to undo",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 30,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "ZBP3w",
+                          "name": "Desc",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "actions with a stored inverse, one tap each",
+                          "lineHeight": 1.3,
+                          "fontFamily": "$font-sans",
+                          "fontSize": 22,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "Ymlbk",
+              "name": "Note",
+              "fill": "$muted",
+              "content": "An audit-ready record, not an official certification. Every field comes from the logs.",
+              "fontFamily": "$font-mono",
+              "fontSize": 24,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "F32fi",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "children": [
+            {
+              "type": "text",
+              "id": "r9bq5K",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "QudOf",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "annex A8",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
