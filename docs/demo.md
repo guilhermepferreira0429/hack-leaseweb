@@ -4,8 +4,8 @@
 2. "Esta app corre na AWS." (LocalStack.) No grupo "Direção" do Telegram, o **Migrador** propõe o plano. → Aprovar.
 3. O painel mostra os ficheiros copiados, checksums iguais e os testes a passar dos dois lados.
 4. O Migrador avisa o **Atacante** no grupo; o Atacante encontra a base de dados aberta a toda a Internet e chama a **Defesa**. `nmap`: `open`.
-5. A **Defesa** explica em português simples e propõe **Fechar**. Carregar. O Atacante confirma que já não chega lá e o **Chefe** resume.
-6. Novo `nmap`: `filtered`. No painel: linha do tempo, auditoria com o inverso guardado e botão Desfazer.
+5. A **Defesa** explica em português simples e propõe **Fechar**. **Um jurado carrega** (entrou pelo QR code; ver `ideias-wow.md`). O Atacante confirma que já não chega lá e o **Chefe** resume.
+6. Novo `nmap`: `filtered`. O painel mostra o **relógio de exposição** ("exposto N s") e as tentativas do isco nesse tempo. No painel: linha do tempo, auditoria com o inverso guardado e botão Desfazer.
 7. Fecho: "Tudo o que viram foi feito hoje e corre na Leaseweb, com IA de fornecedores europeus. Nada saiu da UE. Migrar sem ficar exposto nem um minuto."
 
 **Números:** só o N medido no dia e os que a demo mostrar. Não inventar países nem estatísticas.
