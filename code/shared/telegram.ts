@@ -195,13 +195,16 @@ export async function editarResultado(pedidoId: string, resultado: string): Prom
   );
 }
 
-/** Envia um ficheiro (ex.: o relatório HTML) para o grupo, pelo bot do agente. multipart/form-data. */
-export async function enviarDocumento(agente: Agente, nome: string, conteudo: string, legenda?: string, tipo = 'text/html'): Promise<void> {
+/** Envia um ficheiro (ex.: o relatório PDF) para o grupo, pelo bot do agente. multipart/form-data. Texto ou binário. */
+export async function enviarDocumento(agente: Agente, nome: string, conteudo: string | Uint8Array, legenda?: string, tipo = 'text/html'): Promise<void> {
   const t = tokenPara(agente);
   if (!t) throw new Error('Nenhum TELEGRAM_TOKEN_* configurado.');
   const form = new FormData();
   form.set('chat_id', destino(agente));
-  form.set('document', new Blob([conteudo], { type: `${tipo}; charset=utf-8` }), nome);
+  // Só texto leva charset; um binário (PDF) fica com o seu tipo tal e qual.
+  const mime = typeof conteudo === 'string' ? `${tipo}; charset=utf-8` : tipo;
+  const corpo = typeof conteudo === 'string' ? conteudo : (conteudo.buffer.slice(conteudo.byteOffset, conteudo.byteOffset + conteudo.byteLength) as ArrayBuffer);
+  form.set('document', new Blob([corpo], { type: mime }), nome);
   if (legenda) form.set('caption', (t.proprio ? legenda : `[${NOME_AGENTE[agente]}] ${legenda}`).slice(0, 1000));
   const base = cfg().apiBase ?? 'https://api.telegram.org';
   await emSerie(async () => {

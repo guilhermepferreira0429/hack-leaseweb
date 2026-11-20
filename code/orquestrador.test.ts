@@ -317,7 +317,7 @@ describe("orquestrador", () => {
 
   it('relatório em ficheiro: o chefe anexa-o no fim, depois do certificado; uma falha só avisa', async () => {
     const t = montar();
-    const anexos: { agente: string; nome: string; conteudo: string }[] = [];
+    const anexos: { agente: string; nome: string; conteudo: string | Uint8Array }[] = [];
     t.deps.telegram.enviarDocumento = async (agente, nome, conteudo) => void anexos.push({ agente, nome, conteudo });
     t.deps.chefe.relatorioFicheiro = (eventos) => ({ nome: 'CERT-X.html', conteudo: `<html>${eventos.length}</html>` });
     await t.orq.correr();

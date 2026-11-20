@@ -30,7 +30,7 @@ import {
   migrarSegredos,
   verificar,
 } from "@mwbe/migrador";
-import { certificado, estadoAtual, nomeRelatorioFicheiro, relatorioHtml, resumir } from "@mwbe/chefe";
+import { certificado, estadoAtual, nomeRelatorioPdf, relatorioPdf, resumir } from "@mwbe/chefe";
 import { iniciarPainel } from "@mwbe/painel";
 import {
   decidirDestino,
@@ -195,10 +195,10 @@ async function main(): Promise<void> {
         estadoAtual,
         certificado: (eventos, pedidos) =>
           certificado(eventos, pedidos, process.env.LOCAL_DADOS || undefined),
-        // Relatório A4 (HTML) anexado no grupo no fim; o painel também o oferece em /relatorio.html.
+        // Relatório A4 (PDF, fundo branco) anexado no grupo no fim; o painel também o oferece em /relatorio.pdf.
         relatorioFicheiro: (eventos, pedidos) => {
           const opcoes = { localDados: process.env.LOCAL_DADOS || undefined };
-          return { nome: nomeRelatorioFicheiro(eventos, pedidos, opcoes), conteudo: relatorioHtml(eventos, pedidos, opcoes) };
+          return { nome: nomeRelatorioPdf(opcoes), conteudo: relatorioPdf(eventos, pedidos, opcoes), tipo: "application/pdf" };
         },
       },
     },

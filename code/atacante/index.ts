@@ -327,8 +327,10 @@ export async function iniciarAtaque(
     );
     await avisarRonda({ nome: 'reconhecimento', achados: portas.filter((p) => p.estado === 'aberta').map(paraAchado) });
 
-    // O log da força bruta passa por semSegredo: uma mensagem futura nunca publica a palavra-passe.
-    const ssh = await deps.forcaBruta(alvo, allowlist, (texto) => falar(semSegredo(texto)));
+    // Uma só linha no grupo para a força bruta; o detalhe por tentativa fica no log local (consola/painel),
+    // para o grupo não encher de "attempt/failed". semSegredo garante que a palavra-passe nunca sai.
+    falar('🔓 SSH: trying a short list of weak passwords…');
+    const ssh = await deps.forcaBruta(alvo, allowlist, (texto) => log(semSegredo(texto)));
     falar(
       ssh.sucesso
         ? `✅ SSH: got in as ${ssh.utilizador} after ${ssh.tentativas} attempt(s)`
