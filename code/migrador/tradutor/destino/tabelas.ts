@@ -58,7 +58,7 @@ export const RECURSOS: Record<ServicoDestino, Recursos> = {
     nota: 'Pesado para VMs pequenas.',
   },
   documentdb: { servicoAws: 'DocumentDB', alternativa: 'FerretDB', ramGb: 1, disco: { tipo: 'fator', fator: 1.5 }, baseDeDados: true },
-  nats: { servicoAws: 'SQS / SNS', alternativa: 'NATS', ramGb: 0.25, disco: { tipo: 'baixo' }, baseDeDados: false },
+  nats: { servicoAws: 'SNS', alternativa: 'NATS', ramGb: 0.25, disco: { tipo: 'baixo' }, baseDeDados: false },
   fila: { servicoAws: 'SQS', alternativa: 'RabbitMQ', ramGb: 0.5, disco: { tipo: 'baixo' }, baseDeDados: false },
   kafka: {
     servicoAws: 'MSK (Kafka)',
