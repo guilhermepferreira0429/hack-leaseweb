@@ -84,6 +84,7 @@ desfazer(pedidoId: string, avisar?: (texto: string) => Promise<void>): Promise<v
 analisar(dirApp: string): Promise<{ servicos: ('s3' | 'postgres' | 'fila')[]; plano: string }>
 migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }>
 migrarPostgres(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolean }>  // nível B, prova por tabela
+migrarFila(): Promise<{ mensagens: number; iguais: boolean }>  // nível B, SQS -> RabbitMQ: confirma e só depois apaga no SQS
 verificar(): Promise<{ antes: boolean; depois: boolean }>   // mesmos testes nos dois lados
 ```
 
