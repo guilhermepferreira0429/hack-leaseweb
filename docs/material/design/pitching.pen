@@ -6,245 +6,325 @@
       "id": "S01xx",
       "x": 0,
       "y": 0,
-      "width": 1280,
-      "height": 720,
       "name": "Slide 1 · Abertura",
-      "fill": "#0C1715",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
       "layout": "vertical",
-      "gap": 24,
-      "padding": 96,
+      "padding": [
+        100,
+        120,
+        64,
+        120
+      ],
       "children": [
         {
-          "type": "text",
-          "id": "t0a",
-          "name": "T",
-          "fill": "#FFFFFF",
-          "content": "Abertura",
-          "fontFamily": "Inter",
-          "fontSize": 64,
-          "fontWeight": "bold"
+          "type": "frame",
+          "id": "g427P",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "gap": 96,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "DMfd7",
+              "name": "Survey stat",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "pV6PK",
+                  "name": "Source label",
+                  "fill": "$muted",
+                  "content": "LEASEWEB DIGITAL INDEPENDENCE SURVEY · 2026",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 22,
+                  "fontWeight": "normal",
+                  "letterSpacing": 2
+                },
+                {
+                  "type": "text",
+                  "id": "t1YyW8",
+                  "name": "Hero number",
+                  "fill": "$green",
+                  "content": "11%",
+                  "lineHeight": 1,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 300,
+                  "fontWeight": "800",
+                  "letterSpacing": -12
+                },
+                {
+                  "type": "text",
+                  "id": "Y3zca7",
+                  "name": "Stat caption",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "could leave their cloud provider\nin three weeks.",
+                  "lineHeight": 1.15,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 48,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "id": "hN66s",
+              "name": "Divider",
+              "fill": "$line",
+              "width": 2,
+              "height": 520
+            },
+            {
+              "type": "frame",
+              "id": "B3hRrX",
+              "name": "Bait counter",
+              "width": 560,
+              "layout": "vertical",
+              "gap": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "pnEIP",
+                  "name": "Live tag",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "rGydR",
+                      "name": "Live dot",
+                      "fill": "$purple",
+                      "width": 16,
+                      "height": 16
+                    },
+                    {
+                      "type": "text",
+                      "id": "wqjCh",
+                      "name": "Live label",
+                      "fill": "$purple",
+                      "content": "LIVE · BAIT VM ON LEASEWEB",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 22,
+                      "fontWeight": "normal",
+                      "letterSpacing": 2
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "weWS6",
+                  "name": "Bait N",
+                  "fill": "$purple",
+                  "content": "N",
+                  "lineHeight": 1,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 200,
+                  "fontWeight": "800",
+                  "letterSpacing": -6
+                },
+                {
+                  "type": "text",
+                  "id": "ru1mA",
+                  "name": "Bait caption",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "login attempts since 08:00",
+                  "lineHeight": 1.15,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 40,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
         },
         {
-          "type": "text",
-          "id": "t0b",
-          "name": "T",
-          "fill": "#7DD3A8",
-          "content": "N tentativas desde as 8h",
-          "fontFamily": "Inter",
-          "fontSize": 32,
-          "fontWeight": "normal"
+          "type": "frame",
+          "id": "crfoH",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "q8zISC",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "L2eEK",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "01 / 07",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
         }
       ]
     },
     {
       "type": "frame",
       "id": "S02xx",
-      "x": 1400,
+      "x": 2040,
       "y": 0,
-      "width": 1280,
-      "height": 720,
       "name": "Slide 2 · A tese",
-      "fill": "#0C1715",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
       "layout": "vertical",
-      "gap": 24,
-      "padding": 96,
-      "children": [
-        {
-          "type": "text",
-          "id": "t1a",
-          "name": "T",
-          "fill": "#FFFFFF",
-          "content": "A tese",
-          "fontFamily": "Inter",
-          "fontSize": 64,
-          "fontWeight": "bold"
-        },
-        {
-          "type": "text",
-          "id": "t1b",
-          "name": "T",
-          "fill": "#7DD3A8",
-          "content": "Migrar é o momento mais perigoso",
-          "fontFamily": "Inter",
-          "fontSize": 32,
-          "fontWeight": "normal"
-        }
+      "padding": [
+        100,
+        120,
+        64,
+        120
       ]
     },
     {
       "type": "frame",
       "id": "S03xx",
-      "x": 2800,
+      "x": 4080,
       "y": 0,
-      "width": 1280,
-      "height": 720,
       "name": "Slide 3 · Demo ao vivo",
-      "fill": "#0C1715",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
       "layout": "vertical",
-      "gap": 24,
-      "padding": 96,
-      "children": [
-        {
-          "type": "text",
-          "id": "t2a",
-          "name": "T",
-          "fill": "#FFFFFF",
-          "content": "Demo ao vivo",
-          "fontFamily": "Inter",
-          "fontSize": 64,
-          "fontWeight": "bold"
-        },
-        {
-          "type": "text",
-          "id": "t2b",
-          "name": "T",
-          "fill": "#7DD3A8",
-          "content": "Migrar, atacar, aprovar, fechar",
-          "fontFamily": "Inter",
-          "fontSize": 32,
-          "fontWeight": "normal"
-        }
+      "padding": [
+        100,
+        120,
+        64,
+        120
       ]
     },
     {
       "type": "frame",
       "id": "S04xx",
-      "x": 4200,
+      "x": 6120,
       "y": 0,
-      "width": 1280,
-      "height": 720,
       "name": "Slide 4 · Como funciona",
-      "fill": "#0C1715",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
       "layout": "vertical",
-      "gap": 24,
-      "padding": 96,
-      "children": [
-        {
-          "type": "text",
-          "id": "t3a",
-          "name": "T",
-          "fill": "#FFFFFF",
-          "content": "Como funciona",
-          "fontFamily": "Inter",
-          "fontSize": 64,
-          "fontWeight": "bold"
-        },
-        {
-          "type": "text",
-          "id": "t3b",
-          "name": "T",
-          "fill": "#7DD3A8",
-          "content": "Três agentes, um fluxo",
-          "fontFamily": "Inter",
-          "fontSize": 32,
-          "fontWeight": "normal"
-        }
+      "padding": [
+        100,
+        120,
+        64,
+        120
       ]
     },
     {
       "type": "frame",
       "id": "S05xx",
-      "x": 5600,
+      "x": 8160,
       "y": 0,
-      "width": 1280,
-      "height": 720,
       "name": "Slide 5 · Salvaguardas",
-      "fill": "#0C1715",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
       "layout": "vertical",
-      "gap": 24,
-      "padding": 96,
-      "children": [
-        {
-          "type": "text",
-          "id": "t4a",
-          "name": "T",
-          "fill": "#FFFFFF",
-          "content": "Salvaguardas",
-          "fontFamily": "Inter",
-          "fontSize": 64,
-          "fontWeight": "bold"
-        },
-        {
-          "type": "text",
-          "id": "t4b",
-          "name": "T",
-          "fill": "#7DD3A8",
-          "content": "A IA só escreve. O humano aprova. Tudo se desfaz.",
-          "fontFamily": "Inter",
-          "fontSize": 32,
-          "fontWeight": "normal"
-        }
+      "padding": [
+        100,
+        120,
+        64,
+        120
       ]
     },
     {
       "type": "frame",
       "id": "S06xx",
-      "x": 7000,
+      "x": 10200,
       "y": 0,
-      "width": 1280,
-      "height": 720,
       "name": "Slide 6 · Encaixe com a Leaseweb",
-      "fill": "#0C1715",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
       "layout": "vertical",
-      "gap": 24,
-      "padding": 96,
-      "children": [
-        {
-          "type": "text",
-          "id": "t5a",
-          "name": "T",
-          "fill": "#FFFFFF",
-          "content": "Encaixe com a Leaseweb",
-          "fontFamily": "Inter",
-          "fontSize": 64,
-          "fontWeight": "bold"
-        },
-        {
-          "type": "text",
-          "id": "t5b",
-          "name": "T",
-          "fill": "#7DD3A8",
-          "content": "Trazemos clientes para a vossa cloud, já seguros",
-          "fontFamily": "Inter",
-          "fontSize": 32,
-          "fontWeight": "normal"
-        }
+      "padding": [
+        100,
+        120,
+        64,
+        120
       ]
     },
     {
       "type": "frame",
       "id": "S07xx",
-      "x": 8400,
+      "x": 12240,
       "y": 0,
-      "width": 1280,
-      "height": 720,
       "name": "Slide 7 · Equipa",
-      "fill": "#0C1715",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
       "layout": "vertical",
-      "gap": 24,
-      "padding": 96,
-      "children": [
-        {
-          "type": "text",
-          "id": "t6a",
-          "name": "T",
-          "fill": "#FFFFFF",
-          "content": "Equipa",
-          "fontFamily": "Inter",
-          "fontSize": 64,
-          "fontWeight": "bold"
-        },
-        {
-          "type": "text",
-          "id": "t6b",
-          "name": "T",
-          "fill": "#7DD3A8",
-          "content": "Guilherme · David · Enio Carlos",
-          "fontFamily": "Inter",
-          "fontSize": 32,
-          "fontWeight": "normal"
-        }
+      "padding": [
+        100,
+        120,
+        64,
+        120
       ]
     }
-  ]
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#0A1128"
+    },
+    "bg-2": {
+      "type": "color",
+      "value": "#121C40"
+    },
+    "line": {
+      "type": "color",
+      "value": "#26325E"
+    },
+    "green": {
+      "type": "color",
+      "value": "#2EE59D"
+    },
+    "purple": {
+      "type": "color",
+      "value": "#B9A6FF"
+    },
+    "text": {
+      "type": "color",
+      "value": "#F4F6FB"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#8C96B8"
+    },
+    "font-sans": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "font-mono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    }
+  },
+  "fileToken": "3ba2085a-b25b-4b8f-be3b-a3c776356989"
 }
