@@ -264,6 +264,18 @@ describe("orquestrador", () => {
     assert.ok(!textos(so.falas, 'chefe').some((f) => /Validação final/.test(f)));
   });
 
+  it('ideia wow 1: um aprovador (o jurado) pode decidir; quem não está na lista continua ignorado', async () => {
+    const JURI = '777';
+    const t = montar({ quem: JURI }, { aprovadores: [JURI] });
+    await t.orq.correr();
+    assert.equal(t.corrigidos.length, 1, 'o jurado fechou a porta');
+    assert.ok(textos(t.falas, 'chefe').some((f) => /^Plano aprovado por uma pessoa autorizada às/.test(f)));
+
+    const estranho = montar({ quem: '999' }, { aprovadores: [JURI], migrar: false, esperaDecisaoMs: 50 });
+    await estranho.orq.correr();
+    assert.equal(estranho.corrigidos.length, 0);
+  });
+
   it("não fecha nada se o dono ignorar", async () => {
     const t = montar({
       decisao: (p) => (p.acao.tipo === "remover_regra" ? "ignorar" : "aprovar"),

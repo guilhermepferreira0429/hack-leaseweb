@@ -128,6 +128,8 @@ export interface Opcoes {
   alvos: string[];
   /** Se definido, só aceita decisões e comandos deste utilizador (defesa em profundidade; o telegram.ts já filtra). */
   donoId?: string;
+  /** Outros que também podem decidir (TELEGRAM_APROVADORES, ex.: o jurado da ideia wow 1). */
+  aprovadores?: string[];
   /** Quanto se espera pelas decisões do dono antes de seguir (por omissão ESPERA_DECISAO_MS = 10 min). */
   esperaDecisaoMs?: number;
   /** Modo noite: ao fim deste tempo sem resposta, chama defesa.modoNoite. Sem valor, não há modo noite. */
@@ -272,8 +274,8 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     decisao: Decisao,
     quem: string,
   ): Promise<void> {
-    if (opcoes.donoId && quem !== opcoes.donoId) {
-      log(`decisão de ${quem} ignorada (não é o dono)`);
+    if (opcoes.donoId && quem !== opcoes.donoId && !(opcoes.aprovadores ?? []).includes(quem)) {
+      log(`decisão de ${quem} ignorada (não é o dono nem um aprovador)`);
       return;
     }
     const pedido = deps.estado.obterPedido(pedidoId);
