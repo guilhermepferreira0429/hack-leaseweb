@@ -27,3 +27,51 @@ describe('linha do tempo', () => {
     assert.ok(!html.includes('<script>x'));
   });
 });
+
+describe('relógio de exposição', () => {
+  it('da migração feita ao primeiro fecho da defesa', async () => {
+    const { exposicao } = await import('@mwbe/painel');
+    const inv = { tipo: 'criar_regra', securityGroupId: 's', regra: { protocol: 'TCP', source: '0.0.0.0/0', startPort: 5432, endPort: 5432 } } as const;
+    const ev = [
+      { hora: '2026-11-20T10:00:00Z', pedidoId: 'm', tipo: 'feito', quem: 'migrador' },
+      { hora: '2026-11-20T10:00:10Z', pedidoId: '-', tipo: 'reconhecimento', quem: 'atacante' },
+      { hora: '2026-11-20T10:00:38Z', pedidoId: 'p', tipo: 'feito', inverso: inv },
+    ];
+    assert.deepEqual(exposicao(ev), { inicio: '2026-11-20T10:00:00Z', fim: '2026-11-20T10:00:38Z', segundos: 38 });
+    assert.deepEqual(exposicao(ev.slice(0, 2)), { inicio: '2026-11-20T10:00:00Z' });
+    assert.equal(exposicao([]), undefined);
+  });
+  it('isco conta só dentro da janela', () => {
+    const r = contarLinhas(LOG, [], { desde: Date.parse('2026-11-20T09:40:00Z'), ate: Date.parse('2026-11-20T09:44:30Z') });
+    assert.equal(r.tentativas, 2);
+  });
+});
+
+describe('POST /desfazer', () => {
+  it('recusa sem token, com token errado e com outra origem; aceita o certo', async () => {
+    const { iniciarPainel } = await import('@mwbe/painel');
+    const feitos: string[] = [];
+    process.env.PAINEL_TOKEN = 'segredo';
+    const srv = iniciarPainel(0, { host: '127.0.0.1', desfazer: async (id) => void feitos.push(id) });
+    await new Promise((ok) => srv.once('listening', ok));
+    const porta = (srv.address() as { port: number }).port;
+    const post = (corpo: string, origin?: string) =>
+      fetch(`http://127.0.0.1:${porta}/desfazer`, {
+        method: 'POST',
+        redirect: 'manual',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...(origin ? { Origin: origin } : {}) },
+        body: corpo,
+      });
+    try {
+      assert.equal((await post('id=p1&token=errado')).status, 403);
+      assert.equal((await post('id=p1&token=segredo', 'http://mau.example')).status, 403);
+      assert.equal((await fetch(`http://127.0.0.1:${porta}/desfazer?id=p1&token=segredo`)).status, 404);
+      assert.equal((await post('id=p1&token=segredo', `http://127.0.0.1:${porta}`)).status, 303);
+      assert.deepEqual(feitos, ['p1']);
+      process.env.PAINEL_TOKEN = '';
+      assert.equal((await post('id=p1&token=')).status, 403);
+    } finally {
+      srv.close();
+    }
+  });
+});

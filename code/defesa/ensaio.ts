@@ -38,12 +38,12 @@ async function main(): Promise<void> {
     estado: 'aprovado',
   };
   log('a fechar (revoke + esperar que desapareça)...');
-  await corrigir(pedido);
+  await corrigir(pedido, async (t) => log(`aviso ao dono: ${t}`));
   log('fechada e confirmada pela API');
   await nmap(ip, regra.startPort);
 
   log('a desfazer (authorize + esperar ACTIVE)...');
-  await desfazer(pedido.id);
+  await desfazer(pedido.id, async (t) => log(`aviso ao dono: ${t}`));
   log('reposta e confirmada pela API');
   await nmap(ip, regra.startPort);
   log(`ciclo completo. Auditoria: ${pedido.id}`);
