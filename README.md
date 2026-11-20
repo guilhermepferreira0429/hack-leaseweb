@@ -19,7 +19,7 @@ The move itself is where things get exposed. Misconfiguration is the leading cau
 **45%**, nearly double credential theft at 22% — **SANS 2026 Cloud Security Survey**
 ([Infosecurity](https://www.infosecurity-magazine.com/news/cloud-security-maturity-lags-sans/)). And exposed
 services are found in minutes: in **Unit 42's 2021** study of 320 honeypots, 80% were compromised within 24 hours,
-and one actor reached 96% of 80 exposed Postgres instances within 30 seconds
+and one actor reached 96% of 80 exposed Postgres honeypots within 30 seconds
 ([Unit 42](https://unit42.paloaltonetworks.com/exposed-services-public-clouds/); the study is from 2021).
 
 A rushed migration is a machine that is new, half-configured, reachable from the whole internet, and nobody is
@@ -378,5 +378,6 @@ public and licensed under Apache 2.0.
 
 [Apache License 2.0](LICENSE). See [`NOTICE`](NOTICE) for the copyright and hackathon attribution.
 
-The numbers in the opening section come from the sources cited there. Every number about the migration and the
-incident is measured during the run and written to `auditoria.jsonl`; the bait-VM counter is read from `auth.log`.
+The numbers in the opening section come from the sources cited there. The migration and incident figures in this
+README (counts, checksums, exposure time) are measured during the run and written to `auditoria.jsonl`; the
+bait-VM counter is read from `auth.log`.

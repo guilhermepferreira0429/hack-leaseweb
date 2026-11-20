@@ -61,8 +61,9 @@ The same module also handles the awkward parts of having four bots in one group:
 - **Every callback is tied to a request.** `callback_data` is `aprovar:<id>`, `ignorar:<id>` or
   `desfazer:<id>`, so a stale button cannot trigger a different action.
 
-Requests live in memory (`code/shared/estado.ts`); the audit log is the permanent record. A restart loses the
-in-memory list, which is why the certificate is built from `auditoria.jsonl` and not from memory.
+Requests live in memory (`code/shared/estado.ts`); the audit log is the permanent record. The certificate reads
+the audit log and the current request list, so a restart mid-cycle loses the pending requests but not the events
+already written.
 
 ## The cycle
 
