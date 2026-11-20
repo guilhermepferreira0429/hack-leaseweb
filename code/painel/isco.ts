@@ -1,7 +1,9 @@
 // GET /isco: quantas tentativas de entrada a VM isco recebeu desde que foi ligada, e de quantos IPs.
-// Lê /var/log/auth.log por SSH (ISCO_HOST, ISCO_SSH_USER, só chave). Ver docs/demo.md.
+// Lê /var/log/auth.log por SSH (ISCO_HOST, ISCO_SSH_USER, só chave), ou da própria máquina com ISCO_HOST=local
+// (quando o painel corre no isco, como a VM da organização). Ver docs/demo.md.
 // Só números medidos; nada inventado.
 import { execFile } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { carregarEnv } from '@mwbe/shared';
 
@@ -11,6 +13,9 @@ export interface ContagemIsco {
   desde: string;
   lidoEm: string;
 }
+
+// Login com sucesso: é alguém da equipa (só entra quem tem a chave ou a password). O IP dele não conta.
+const ACEITE = /sshd(?:-session)?\[\d+\]: Accepted \S+ for \S+ from (\d{1,3}(?:\.\d{1,3}){3}|[0-9a-f:]+)/i;
 
 // Uma tentativa = uma sessão sshd (pid) com pelo menos uma falha de autenticação de um IP externo.
 const FALHA =
@@ -25,9 +30,15 @@ export function contarLinhas(
   const sessoes = new Set<string>();
   const ips = new Set<string>();
   let desde = '';
-  for (const linha of texto.split('\n')) {
+  const linhas = texto.split('\n');
+  const daEquipa = new Set(ignorarIps);
+  for (const linha of linhas) {
+    const a = ACEITE.exec(linha);
+    if (a) daEquipa.add(a[1]);
+  }
+  for (const linha of linhas) {
     const m = FALHA.exec(linha);
-    if (!m || ignorarIps.includes(m[2])) continue;
+    if (!m || daEquipa.has(m[2])) continue;
     if (janela.desde !== undefined || janela.ate !== undefined) {
       const t = Date.parse(linha.split(' ')[0]);
       if (Number.isNaN(t) || (janela.desde !== undefined && t < janela.desde) || (janela.ate !== undefined && t > janela.ate)) continue;
@@ -52,7 +63,28 @@ function ssh(host: string, user: string, comando: string): Promise<string> {
   );
 }
 
-/** Texto do auth.log do isco, por ssh (execFile, sem shell). Cache de 30 s. */
+const FICHEIROS = ['/var/log/auth.log.1', '/var/log/auth.log'];
+
+function sudoCat(ficheiro: string): Promise<string> {
+  return new Promise((ok) =>
+    execFile('sudo', ['-n', 'cat', ficheiro], { timeout: 10_000, maxBuffer: 64 * 1024 * 1024 }, (erro, stdout) => ok(erro ? '' : stdout)),
+  );
+}
+
+/** Lê na própria máquina: diretamente se o utilizador estiver no grupo adm, senão com sudo -n. Ficheiro em falta = vazio. */
+async function lerLocal(): Promise<string> {
+  const partes: string[] = [];
+  for (const f of FICHEIROS) {
+    try {
+      partes.push(await readFile(f, 'utf8'));
+    } catch (erro) {
+      if ((erro as NodeJS.ErrnoException).code !== 'ENOENT') partes.push(await sudoCat(f));
+    }
+  }
+  return partes.join('\n');
+}
+
+/** Texto do auth.log do isco, por ssh (execFile, sem shell) ou local. Cache de 30 s. */
 async function lerAuthLog(): Promise<string> {
   if (cache && Date.now() - cache.em < 30_000) return cache.texto;
   carregarEnv();
@@ -60,7 +92,8 @@ async function lerAuthLog(): Promise<string> {
   const user = process.env.ISCO_SSH_USER || 'ubuntu';
   if (!host) throw new Error('ISCO_HOST em falta no .env');
   // auth.log + rodado (auth.log.1), para não perder a manhã se o logrotate correr.
-  const texto = await ssh(host, user, 'sudo -n cat /var/log/auth.log.1 /var/log/auth.log 2>/dev/null');
+  // "; true": se o auth.log.1 ainda não existir, o cat sai com erro mas o auth.log vem na mesma.
+  const texto = host === 'local' ? await lerLocal() : await ssh(host, user, 'sudo -n cat /var/log/auth.log.1 /var/log/auth.log 2>/dev/null; true');
   cache = { texto, em: Date.now() };
   return texto;
 }

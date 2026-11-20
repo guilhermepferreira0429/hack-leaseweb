@@ -15,6 +15,15 @@ describe('isco', () => {
   });
 });
 
+describe('isco: logins da equipa', () => {
+  it('um IP que entrou com sucesso é da equipa e não conta, mesmo com falhas antes', () => {
+    const log = `2026-11-20T09:00:00+00:00 h sshd-session[1]: Connection closed by authenticating user ubuntu 198.51.100.24 port 1 [preauth]
+2026-11-20T09:00:05+00:00 h sshd-session[2]: Accepted publickey for ubuntu from 198.51.100.24 port 2 ssh2
+2026-11-20T09:01:00+00:00 h sshd-session[3]: Invalid user admin from 45.1.2.3 port 1`;
+    assert.deepEqual(contarLinhas(log), { tentativas: 1, ipsDistintos: 1, desde: '2026-11-20T09:01:00+00:00' });
+  });
+});
+
 describe('linha do tempo', () => {
   it('fases pelo tipo do evento', () => {
     assert.equal(faseDe({ hora: '', pedidoId: 'p', tipo: 'feito' }), 'fechar');
