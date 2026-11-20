@@ -121,12 +121,25 @@ interface MensagemEnviada {
   chat: { id: number };
 }
 
+/** Em privado não há outros agentes: tira o "Recebido." e as menções (@defesa, @infrahack_defesa_bot). */
+export function textoParaPrivado(texto: string): string {
+  const limpo = texto
+    .replace(/^Recebido\.\s*/i, '')
+    .replace(/\s*@\w*(defesa|migrador|chefe|atacante)\w*/gi, '')
+    .replace(/\s+([.,;!?])/g, '$1')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+  return limpo || texto;
+}
+
 async function enviarTexto(agente: Agente, texto: string, teclado?: unknown): Promise<MensagemEnviada & { token: string }> {
   const t = tokenPara(agente);
   if (!t) throw new Error('Nenhum TELEGRAM_TOKEN_* configurado.');
+  // O atacante fala em privado: o texto encenado para o grupo não faz sentido tal e qual.
+  const conteudo = agente === 'atacante' ? textoParaPrivado(texto) : texto;
   const corpo = {
     chat_id: destino(agente),
-    text: (t.proprio ? texto : `[${NOME_AGENTE[agente]}] ${texto}`).slice(0, 4000),
+    text: (t.proprio ? conteudo : `[${NOME_AGENTE[agente]}] ${conteudo}`).slice(0, 4000),
     ...(teclado ? { reply_markup: teclado } : {}),
   };
   const m = await emSerie(() => chamar<MensagemEnviada>(t.token, 'sendMessage', corpo));
