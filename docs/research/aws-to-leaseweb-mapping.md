@@ -25,13 +25,25 @@ This answers the challenge question "Can we replace some of the hyperscale servi
 | S3 | MinIO (S3 API) on a Leaseweb instance, or Leaseweb Object Storage | Same S3 API, so the app only changes endpoint + keys; objects copied with the S3 API (egress is charged on the AWS side) |
 | SQS | RabbitMQ on a Leaseweb instance | Queue recreated; producers/consumers switch client; in-flight messages drained before cut-over |
 | RDS (PostgreSQL) | PostgreSQL on a Leaseweb instance | `pg_dump`/`pg_restore` (or logical replication for less downtime) |
+| Secrets Manager / SSM Parameter Store | OpenBao on a Leaseweb instance | Copied vault to vault; values never appear in plans, logs or tests |
+| ElastiCache (Redis) | Valkey on a Leaseweb instance | Keys copied with their TTL; checked by sampling |
+
+These five migrate live in the demo, with proof for each (counts and checksums) and a single "Aprovar plano" approval.
+
+**Next phase (in the plan only, not migrated today):**
+
+| AWS | Open alternative | Note |
+|---|---|---|
+| DynamoDB | ScyllaDB (Alternator, DynamoDB-compatible API) | The app changes only the endpoint |
+| SNS | NATS | Topics and subscriptions recreated |
+| CloudWatch Logs | Loki + Grafana | Logs shipped to the new stack |
 
 ## Flags and does not migrate (the agent says why)
 
 | AWS | Why | What the agent says |
 |---|---|---|
 | IAM users/roles/keys | No equivalent | "I will not copy any credentials. Create new ones on the target." |
-| Lambda, SQS, DynamoDB… | Proprietary services | "This is the lock-in. Needs redesign, not migration." |
+| Lambda (and other AWS-only services: API Gateway, Cognito, Step Functions…) | Proprietary services | "This is the lock-in. Needs redesign, not migration." |
 | Custom AMIs | Image format | "Rebuild from a base image + cloud-init." |
 
 This is the honest part of the pitch: Leaseweb's own 2026 survey says the hard part is applications built around one
