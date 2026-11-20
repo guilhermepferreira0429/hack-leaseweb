@@ -2,13 +2,16 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 
-export type ServicoAws = 's3' | 'postgres' | 'fila';
+/** Os mesmos nomes no tradutor/decisor (code/migrador/tradutor/destino). */
+export type ServicoAws = 's3' | 'postgres' | 'fila' | 'segredos' | 'cache';
 
-/** Alternativa aberta proposta para cada serviço (migrarS3, migrarPostgres, migrarFila). */
+/** Alternativa aberta proposta para cada serviço (migrarS3, migrarPostgres, migrarFila, migrarSegredos, migrarCache). */
 export const ALTERNATIVA: Record<ServicoAws, string> = {
   s3: 'MinIO',
   postgres: 'PostgreSQL',
   fila: 'RabbitMQ',
+  segredos: 'OpenBao',
+  cache: 'Valkey',
 };
 
 /** Nome do serviço AWS como o dono o conhece. */
@@ -16,6 +19,17 @@ export const NOME_AWS: Record<ServicoAws, string> = {
   s3: 'S3 (ficheiros)',
   postgres: 'RDS PostgreSQL (base de dados)',
   fila: 'SQS (fila de mensagens)',
+  segredos: 'Secrets Manager e SSM (senhas e configuração)',
+  cache: 'ElastiCache Redis (cache)',
+};
+
+/** Nome curto para o plano ("S3 → MinIO"). */
+const CURTO: Record<ServicoAws, string> = {
+  s3: 'S3',
+  postgres: 'RDS',
+  fila: 'SQS',
+  segredos: 'Secrets Manager/SSM',
+  cache: 'ElastiCache',
 };
 
 /** Tabela de tradução: o que denuncia cada serviço no código ou na configuração. */
@@ -23,11 +37,14 @@ const SINAIS: Record<ServicoAws, RegExp> = {
   s3: /@aws-sdk\/client-s3|aws-sdk\/clients\/s3|\bS3Client\b/,
   postgres: /from\s+['"]pg['"]|require\(\s*['"]pg['"]\s*\)|"pg"\s*:|postgres(?:ql)?:\/\//,
   fila: /@aws-sdk\/client-sqs|aws-sdk\/clients\/sqs|\bSQSClient\b/,
+  segredos: /@aws-sdk\/client-(?:secrets-manager|ssm)|aws-sdk\/clients\/(?:secretsmanager|ssm)|\b(?:SecretsManagerClient|SSMClient)\b/,
+  cache: /from\s+['"](?:redis|ioredis|@valkey\/[\w-]+)['"]|require\(\s*['"](?:redis|ioredis)['"]\s*\)|"(?:redis|ioredis)"\s*:|rediss?:\/\//,
 };
 
-const ORDEM: ServicoAws[] = ['s3', 'postgres', 'fila'];
+const ORDEM: ServicoAws[] = ['s3', 'postgres', 'fila', 'segredos', 'cache'];
 const EXTENSOES = new Set(['.ts', '.js', '.mjs', '.cjs', '.json', '.yml', '.yaml', '.env']);
-const IGNORAR = new Set(['node_modules', '.git', 'dist', 'build', 'coverage']);
+// seed/ são ferramentas que enchem a "AWS" de dados falsos, não fazem parte da app.
+const IGNORAR = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', 'seed']);
 
 async function* ficheiros(dir: string): AsyncGenerator<string> {
   for (const entrada of await readdir(dir, { withFileTypes: true })) {
@@ -42,11 +59,16 @@ function escreverPlano(servicos: ServicoAws[]): string {
   if (servicos.length === 0) return 'Não encontrei serviços da AWS nesta app. Não há nada para migrar.';
   const lista = servicos.map((s) => NOME_AWS[s]);
   const encontrados = lista.length === 1 ? lista[0] : `${lista.slice(0, -1).join(', ')} e ${lista.at(-1)}`;
-  const passos = servicos.map((s) => `${NOME_AWS[s].split(' ')[0]} → ${ALTERNATIVA[s]}`);
+  const passos = servicos.map((s) => `${CURTO[s]} → ${ALTERNATIVA[s]}`);
   const comoAprovar = passos.length > 1 ? 'um passo de cada vez e com o teu OK em cada um' : 'com o teu OK';
-  const fica = servicos.includes('fila')
-    ? 'Na AWS os ficheiros e os dados ficam como estão; as mensagens da fila passam para o RabbitMQ.'
-    : 'Nada é apagado na AWS.';
+  const fica = [
+    servicos.includes('fila')
+      ? 'Na AWS os ficheiros e os dados ficam como estão; as mensagens da fila passam para o RabbitMQ.'
+      : 'Nada é apagado na AWS.',
+    servicos.includes('segredos') ? 'As senhas nunca aparecem em texto: só se comparam as impressões digitais.' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
   return [
     `Encontrei ${servicos.length === 1 ? 'um serviço' : `${servicos.length} serviços`} da AWS na app: ${encontrados}.`,
     `Proponho passar para a Leaseweb, na UE, ${comoAprovar}: ${passos.join(', ')}.`,

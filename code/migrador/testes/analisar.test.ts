@@ -27,7 +27,8 @@ describe('migrador: analisar', () => {
 
   it('encontra S3, Postgres e SQS na exemplo-app e propõe o MinIO', async () => {
     const { servicos, plano } = await analisar(EXEMPLO_APP);
-    assert.deepEqual(servicos, ['s3', 'postgres', 'fila']);
+    // A app vai ganhando serviços (segredos, cache); estes três estão sempre e vêm primeiro.
+    assert.deepEqual(servicos.slice(0, 3), ['s3', 'postgres', 'fila']);
     assert.match(plano, /MinIO/);
     assert.match(plano, /sha256/);
     assert.match(plano, /SQS → RabbitMQ/);
@@ -52,6 +53,21 @@ describe('migrador: analisar', () => {
     const { servicos, plano } = await analisar(dir);
     assert.deepEqual(servicos, ['postgres']);
     assert.doesNotMatch(plano, /MinIO/);
+  });
+
+  it('segredos e cache, pela ordem fixa; seed/ não conta como app', async () => {
+    const dir = await pasta({
+      'src/config.ts': "import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';",
+      'src/cache.ts': "import { createClient } from 'redis';",
+      'src/ficheiros.ts': "import { S3Client } from '@aws-sdk/client-s3';",
+      'seed/semear.ts': "import { SQSClient } from '@aws-sdk/client-sqs';",
+    });
+    const { servicos, plano } = await analisar(dir);
+    assert.deepEqual(servicos, ['s3', 'segredos', 'cache']);
+    assert.match(plano, /Secrets Manager\/SSM → OpenBao/);
+    assert.match(plano, /ElastiCache → Valkey/);
+    assert.match(plano, /senhas nunca aparecem em texto/);
+    assert.ok(plano.split('\n').length <= 4);
   });
 
   it('pasta vazia e pasta inexistente', async () => {
