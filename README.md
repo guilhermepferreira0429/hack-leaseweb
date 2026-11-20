@@ -57,16 +57,17 @@ flowchart TB
     TG["Telegram group Direção"]
     Owner["Owner on a phone"]
 
+    subgraph Brain["Brain VM: agents, dashboard and migrated services"]
+        Bus["Internal agent bus"]
+        Chief["Chief"]
+        Mig["Migrator"]
+        Atk["Attacker"]
+        Def["Defender"]
+        Panel["Dashboard and audit log"]
+        Store["MinIO, PostgreSQL, RabbitMQ, OpenBao, Valkey"]
+    end
+
     subgraph Cloud["Leaseweb Public Cloud, EU region"]
-        subgraph Brain["Brain VM: one Node process"]
-            Bus["Internal agent bus"]
-            Chief["Chief"]
-            Mig["Migrator"]
-            Atk["Attacker"]
-            Def["Defender"]
-            Panel["Dashboard and audit log"]
-            Store["MinIO, PostgreSQL, RabbitMQ, OpenBao, Valkey"]
-        end
         Victim["Victim VM with port 5432 exposed"]
         API["Leaseweb Public Cloud API"]
     end
@@ -99,7 +100,8 @@ Leaseweb VM, the victim, carries the security group with `5432/tcp` open to the 
 that port, so the firewall can be tested from outside. A host cannot test its own security group, which is why
 the demo uses two machines. The Defender fixes the victim's security group through the API. A third VM, the
 bait (the "isco"), is never attacked by the agent; it only counts real login attempts from the internet, shown
-on `/isco`.
+on `/isco`. In a real deployment the owner's server is one VM; the lab splits it so the defence can be proven
+from outside.
 
 ## How it works
 
@@ -219,7 +221,7 @@ _The engineering view at `/`. **In development** — screenshot to be captured._
   OpenBao and never to logs, plans or tests. The attacker redacts passwords from its own output.
 - **No secrets in the repo.** Every key lives in `.env`, which is git-ignored; only `env/.env.example` is
   committed, and it contains no values.
-- **Data stays in the EU.** The migrated data lands in a Leaseweb EU region, and the LLM providers are EU-hosted.
+- **Data stays in the EU.** The destination cloud is a Leaseweb EU region, and the LLM providers are EU-hosted.
   Telegram carries status messages, not the migrated records.
 - **Use it only on machines you own.** This repository contains a working attacker. It refuses anything outside
   the allowlist by design; do not remove that guard. Every test during the hackathon ran against our own VMs,

@@ -85,7 +85,7 @@ Options that change the cycle for rehearsals and cuts: `--sem-migrador`, `--sem-
 
 The translation is **deterministic**. It is a table in `code/migrador/tradutor/tabelas.ts`, not a model. The LLM
 may explain a finding or answer the owner; it never chooses a destination or invents a price. The translator
-produces a plan: it does not call the Leaseweb API by itself, and the demo only provisions what the plan needs.
+produces a plan: it does not call the Leaseweb API by itself.
 
 ### What moves automatically
 
@@ -169,7 +169,7 @@ sequenceDiagram
     participant LLM as EU LLM
     participant Log as auditoria.jsonl
 
-    Note over Owner,Atk: Owner approves the plan; the attack starts in parallel with the copy
+    Note over Owner,Atk: Owner approves the plan, and the attack starts in parallel with the copy
     Atk->>VM: TCP probes on the port list
     VM-->>Atk: 5432 open
     Atk->>Def: Finding on 5432, high severity
