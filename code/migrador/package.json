@@ -8,7 +8,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.700.0",
     "@mwbe/shared": "*",
-    "@aws-sdk/client-s3": "^3.700.0"
+    "amqplib": "^2.4.0"
   }
 }
