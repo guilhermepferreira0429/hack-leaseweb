@@ -5,7 +5,7 @@
 //
 // Passos (PASS/FAIL cada um):
 //   a) long polling arranca (getMe e getUpdates respondem ok)
-//   b) envia um pedido com botões Aprovar / Ignorar
+//   b) envia um pedido com os botões do tipo de ação (Aprovar plano / Ignorar na migração)
 //   c) um toque de um ID fora da lista é recusado (simulado) e o toque real do aprovador chega por callback_query
 //   d) editMessageReplyMarkup tira os botões da mensagem carregada
 //   e) envia um relatório de exemplo (montarRelatorio) ao grupo "Direção" com botão Desfazer
@@ -144,7 +144,7 @@ async function main(): Promise<void> {
   const pedido: Pedido = {
     id: pedidoId,
     titulo: '[Teste de fumo] Pedido de aprovação',
-    texto: 'Mensagem de teste. Carrega Aprovar ou Ignorar: nada é executado.',
+    texto: 'Mensagem de teste. Carrega em Aprovar plano ou em Ignorar: nada é executado.',
     acao: { tipo: 'migrar', passo: 's3' },
     estado: 'pendente',
   };
@@ -155,11 +155,11 @@ async function main(): Promise<void> {
   } catch (e) {
     console.log(`      ${e instanceof Error ? e.message : e}`);
   }
-  passo('b) pedido com Aprovar / Ignorar enviado', Boolean(enviada?.ok && enviada && temBotao(enviada, `ignorar:${pedidoId}`)));
+  passo('b) pedido com os botões do tipo de ação enviado', Boolean(enviada?.ok && enviada && temBotao(enviada, `ignorar:${pedidoId}`)));
   const mensagemId = (enviada?.resultado as { message_id?: number } | undefined)?.message_id;
 
   // a) parte 2: um getUpdates real respondeu (sem 409 de outro processo a fazer polling ao mesmo bot).
-  console.log(`\n>>> Carrega Aprovar ou Ignorar no Telegram (${ESPERA_TOQUE_MS / 1000} s), com a conta de um aprovador.\n`);
+  console.log(`\n>>> Carrega em Aprovar plano ou em Ignorar no Telegram (${ESPERA_TOQUE_MS / 1000} s), com a conta de um aprovador.\n`);
   const tocou = enviada ? await ate(() => toques.some((t) => t.pedidoId === pedidoId), ESPERA_TOQUE_MS) : false;
   const conflito = chamadas.find((c) => c.metodo === 'getUpdates' && !c.ok);
   if (conflito) console.log(`      getUpdates: ${conflito.erro} (outro processo a usar este bot? webhook ativo?)`);

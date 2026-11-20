@@ -8,6 +8,7 @@
 // Só os IDs de TELEGRAM_APROVADORES (por defeito o TELEGRAM_DONO_ID) podem carregar; os outros recebem
 // "Sem permissão" e nada acontece. Os tokens nunca vão para logs.
 import type { Agente } from './bus';
+import { botoesPara } from './mensagens';
 import type { Decisao, Pedido } from './tipos';
 
 /** Variável de ambiente com o token de cada bot. */
@@ -137,16 +138,25 @@ export async function falar(agente: Agente, texto: string): Promise<void> {
 /** Onde ficou a mensagem de cada pedido, para a editar com o resultado. */
 const mensagensDosPedidos = new Map<string, { token: string; chatId: number; messageId: number; texto: string }>();
 
+/** Textos dos botões acordados em shared/mensagens.ts; um tipo de ação sem texto cai no genérico. */
+function rotulosDoPedido(acao: Pedido['acao'] | undefined): { aprovar: string; ignorar: string } {
+  const recurso = { aprovar: 'Aprovar', ignorar: 'Ignorar' };
+  if (!acao) return recurso;
+  const r: { aprovar: string; ignorar: string } | undefined = botoesPara(acao);
+  return r ?? recurso;
+}
+
 /** Mensagem com título, texto e botões Aprovar / Ignorar, enviada pelo bot do agente. */
 export async function pedirAprovacao(agente: Agente, pedido: Pedido): Promise<void> {
   // `risco` (opcional) só existe no Pedido do ramo da defesa; em main ainda não está em shared/tipos.ts.
   const risco = (pedido as Pedido & { risco?: string }).risco;
   const texto = [pedido.titulo, '', pedido.texto, '', `${risco ? `Risco: ${risco} · ` : ''}Pedido ${pedido.id}`].join('\n');
+  const rotulos = rotulosDoPedido(pedido.acao);
   const teclado = {
     inline_keyboard: [
       [
-        { text: 'Aprovar', callback_data: codificarBotao('aprovar', pedido.id) },
-        { text: 'Ignorar', callback_data: codificarBotao('ignorar', pedido.id) },
+        { text: rotulos.aprovar, callback_data: codificarBotao('aprovar', pedido.id) },
+        { text: rotulos.ignorar, callback_data: codificarBotao('ignorar', pedido.id) },
       ],
     ],
   };
