@@ -46,6 +46,7 @@ export async function desfazer(pedidoId: string, avisar: Avisar = (t) => telegra
     hora: new Date().toISOString(),
     pedidoId,
     tipo: 'desfeito',
+    quem: 'defesa',
     depois: temporarias.length ? { reposta: criada, temporariasTiradas: tiradas } : criada,
   });
   if (estado.obterPedido(pedidoId)) estado.mudarEstado(pedidoId, 'desfeito');
