@@ -77,10 +77,14 @@ function tentarSenha(
 ): Promise<Client | undefined> {
   return new Promise((concluir, falhar) => {
     const cliente = new Client();
+    // Depois da primeira falha a ligação é fechada; este listener evita um 'error' tardio sem tratamento.
+    cliente.on('error', () => {});
     let terminado = false;
     const fim = (resultado: Client | undefined, erro?: unknown) => {
       if (terminado) return;
       terminado = true;
+      // Numa tentativa falhada a ligação não serve para nada: fecha-se já, sem esperar pelo servidor.
+      if (!resultado) cliente.end();
       if (erro) falhar(erro);
       else concluir(resultado);
     };
