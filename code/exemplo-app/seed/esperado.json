@@ -5,7 +5,9 @@
   "algoritmos": {
     "bucket": "sha256 das linhas \"<chave>\\t<sha256 do objeto>\\n\" por ordem de chave, só chaves que passam no filtro",
     "tabela": "sha256 de string_agg(t::text, E'\\n' ORDER BY t.id) em UTF-8, com TIME ZONE 'UTC' e DateStyle 'ISO, YMD'",
-    "fila": "sha256 dos corpos das mensagens ordenados e unidos por \"\\n\""
+    "fila": "sha256 dos corpos das mensagens ordenados e unidos por \"\\n\"",
+    "segredos": "sha256 das linhas \"<nome>\\t<valor>\\n\" (Secrets Manager) ou \"<nome>\\t<tipo>\\t<valor>\\n\" (SSM), por ordem de nome",
+    "cache": "sha256 das linhas \"<chave>\\t<tipo>\\t<valor canónico>\\t<ttl|sem-ttl>\\n\" por ordem de chave, só os prefixos da seed (seed/cache.ts)"
   },
   "buckets": {
     "faturas": {
@@ -44,5 +46,29 @@
       "mensagens": 50,
       "checksum": "eac5c28f24a34888558e8556100dd527794dc54ea014a5ae4f9bfa99c6c33a4d"
     }
+  },
+  "segredos": {
+    "secretsmanager": {
+      "itens": 4,
+      "checksum": "5c502e606cfabe2e6e4983d6ddafab9ff8eaf5aa83f2b4dd27c92827c67ba545"
+    },
+    "ssm": {
+      "itens": 12,
+      "checksum": "be6f126ced707f518b78a0b93beec983d075cdf9a26a960982afd921fb5ede65"
+    }
+  },
+  "cache": {
+    "chaves": 594,
+    "comTtl": 470,
+    "checksum": "28f6e07c0dd1aee4fb077f72a7304b76e6c07d218a106de9c03ed0063ee90e36",
+    "prefixos": [
+      "sessao:",
+      "carrinho:",
+      "cache:produto:",
+      "stock:reservado:",
+      "ranking:",
+      "emails:",
+      "clientes:"
+    ]
   }
 }

@@ -10,10 +10,15 @@ import { GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { GetQueueAttributesCommand, GetQueueUrlCommand, ReceiveMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import * as amqp from 'amqplib';
+import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import pg from 'pg';
 import { carregarEnvLocal, clienteS3, lerAmbiente } from '../adaptadores';
 import {
   BUCKET_FATURAS,
+  gerarCache,
+  gerarSegredos,
+  ligarRedis,
+  MARCA_FALSO,
   ESQUEMA,
   FILA_ENCOMENDAS,
   gerarDados,
@@ -193,5 +198,42 @@ describe('seed: ler da infraestrutura', { skip: salto }, () => {
       [m.encomenda],
     );
     assert.deepEqual(rows[0], { estado: 'nova', total: m.totalCentimos });
+  });
+
+  it('lê o segredo encomendas/prod/api-pagamentos do Secrets Manager e a apiKey é falsa', async (t) => {
+    const sm = new SecretsManagerClient({
+      endpoint: process.env.LOCALSTACK_ENDPOINT?.trim() || 'http://127.0.0.1:4566',
+      region: amb!.fila.regiao,
+      credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+      maxAttempts: 2,
+    });
+    try {
+      const r = await sm.send(new GetSecretValueCommand({ SecretId: 'encomendas/prod/api-pagamentos' })).catch((erro: Error) => erro);
+      if (r instanceof Error) {
+        if (!ESTRITA) return t.skip(`sem Secrets Manager com a seed (${r.name}): npm run infra:up e npm run seed`);
+        throw r;
+      }
+      const segredo = JSON.parse(r.SecretString ?? '{}') as { apiKey?: string };
+      assert.ok(segredo.apiKey?.startsWith(MARCA_FALSO), 'a apiKey é um valor de demonstração');
+      const gerado = gerarSegredos().segredos.find((x) => x.nome === 'encomendas/prod/api-pagamentos')!;
+      assert.equal(r.SecretString, gerado.valor);
+    } finally {
+      sm.destroy();
+    }
+  });
+
+  it('lê um carrinho do redis-origem (ElastiCache) igual ao gerado, com TTL', async (t) => {
+    const url = process.env.REDIS_ORIGEM_URL?.trim();
+    if (!url || url.includes('<senha>')) return t.skip('sem REDIS_ORIGEM_URL no .env');
+    const esperado = gerarCache(dados).find((c) => c.chave.startsWith('carrinho:'))!;
+    const cliente = await ligarRedis(url);
+    try {
+      const lido = await cliente.hGetAll(esperado.chave);
+      if (Object.keys(lido).length === 0 && !ESTRITA) return t.skip('redis-origem sem a seed (npm run seed)');
+      assert.deepEqual({ ...lido }, esperado.valor); // o node-redis devolve um objeto sem protótipo
+      assert.ok((await cliente.pTTL(esperado.chave)) > 0, 'o carrinho tem TTL');
+    } finally {
+      await cliente.close().catch(() => {});
+    }
   });
 });

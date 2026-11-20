@@ -2,5 +2,7 @@
 // O que a seed gravou na origem está em ./esperado.json.
 export * from './checksums';
 export * from './dados';
+export * from './cache';
+export * from './segredos';
 export { euros, gerarFaturaPdf, gerarFotoPng } from './ficheiros';
 export type { ContextoFatura } from './ficheiros';

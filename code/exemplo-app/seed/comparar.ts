@@ -1,5 +1,5 @@
-// npm run seed:comparar              -> confere a origem (LocalStack + DATABASE_URL) com esperado.json
-// npm run seed:comparar -- --destino -> confere o destino (MinIO + DATABASE_URL_DESTINO) com esperado.json
+// npm run seed:comparar              -> confere a origem (LocalStack, DATABASE_URL, REDIS_ORIGEM_URL) com esperado.json
+// npm run seed:comparar -- --destino -> confere o destino (MinIO, DATABASE_URL_DESTINO, RabbitMQ, OpenBao, Valkey)
 // Prova independente do migrador: recalcula os checksums do zero e compara-os com os que a seed gravou.
 // Só lê. Sai com código 1 se alguma coisa não bater.
 import { readFileSync } from 'node:fs';
@@ -10,6 +10,10 @@ import pg from 'pg';
 import { carregarEnvLocal, clienteS3 } from '../adaptadores';
 import { checksumBucket, checksumTabela } from './checksums';
 import type { ResumoBucket, ResumoTabela } from './checksums';
+import { checksumRedis, ligarRedis } from './cache';
+import type { ResumoCache } from './cache';
+import { lerSegredosAws, lerSegredosOpenBao } from './segredos';
+import type { LigacaoOpenBao, ResumoSegredos } from './segredos';
 
 const CAMINHO_ESPERADO = fileURLToPath(new URL('./esperado.json', import.meta.url));
 
@@ -18,10 +22,12 @@ interface Esperado {
   buckets: Record<string, ResumoBucket & { filtro: string }>;
   tabelas: Record<string, ResumoTabela>;
   filas: Record<string, { mensagens: number; checksum: string }>;
+  segredos?: { secretsmanager: ResumoSegredos; ssm: ResumoSegredos };
+  cache?: ResumoCache & { prefixos: string[] };
 }
 
 export interface LinhaComparacao {
-  tipo: 's3' | 'pg' | 'sqs' | 'amqp';
+  tipo: 's3' | 'pg' | 'sqs' | 'amqp' | 'sm' | 'ssm' | 'bao' | 'redis';
   nome: string;
   esperado: string;
   encontrado: string;
@@ -35,9 +41,20 @@ export interface Lado {
   /** A origem tem SQS; o destino tem RabbitMQ. Das filas só se compara a contagem (ler os corpos consumia-as). */
   sqsEndpoint?: string;
   rabbitmqUrl?: string;
+  /** Origem: Secrets Manager + SSM no LocalStack. Destino: OpenBao. */
+  segredosAws?: { endpoint: string; regiao: string };
+  openbao?: LigacaoOpenBao;
+  /** redis-origem (ElastiCache) ou Valkey. */
+  redisUrl?: string;
+  redisNome: string;
 }
 
 const v = (nome: string): string | undefined => process.env[nome]?.trim() || undefined;
+/** Variáveis com o marcador do .env.example contam como não definidas. */
+const vReal = (nome: string): string | undefined => {
+  const x = v(nome);
+  return x && !x.includes('<senha>') ? x : undefined;
+};
 
 export function lerLado(destino: boolean): Lado {
   const regiao = v('AWS_REGION') ?? 'us-east-1';
@@ -49,6 +66,9 @@ export function lerLado(destino: boolean): Lado {
       s3: { endpoint: localstack, accessKey: 'test', secretKey: 'test', regiao },
       databaseUrl: v('DATABASE_URL'),
       sqsEndpoint: localstack,
+      segredosAws: { endpoint: localstack, regiao },
+      redisUrl: vReal('REDIS_ORIGEM_URL'),
+      redisNome: 'redis-origem',
     };
   }
   const accessKey = v('MINIO_ACCESS_KEY');
@@ -61,6 +81,9 @@ export function lerLado(destino: boolean): Lado {
     s3: { endpoint, accessKey, secretKey, regiao },
     databaseUrl: v('DATABASE_URL_DESTINO'),
     rabbitmqUrl: rabbitmqUrl && !rabbitmqUrl.includes('<senha>') ? rabbitmqUrl : undefined,
+    openbao: vReal('OPENBAO_TOKEN') ? { endereco: v('OPENBAO_ADDR') ?? 'http://127.0.0.1:8200', token: vReal('OPENBAO_TOKEN')! } : undefined,
+    redisUrl: vReal('VALKEY_URL'),
+    redisNome: 'valkey',
   };
 }
 
@@ -143,6 +166,46 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
       sqs.destroy();
     }
   }
+  if (esperado.segredos) {
+    const e = esperado.segredos;
+    const fmt = (r: ResumoSegredos, o: string): string => `${r.itens} ${o} ${curto(r.checksum)}`;
+    try {
+      if (lado.segredosAws) {
+        const r = await lerSegredosAws(lado.segredosAws);
+        linhas.push({ tipo: 'sm', nome: 'encomendas/prod/*', esperado: fmt(e.secretsmanager, 'segredos'), encontrado: fmt(r.segredos, 'segredos'), ok: r.segredos.checksum === e.secretsmanager.checksum });
+        linhas.push({ tipo: 'ssm', nome: '/encomendas/prod/*', esperado: fmt(e.ssm, 'parâm.'), encontrado: fmt(r.parametros, 'parâm.'), ok: r.parametros.checksum === e.ssm.checksum });
+      } else if (lado.openbao) {
+        const r = await lerSegredosOpenBao(lado.openbao);
+        linhas.push({ tipo: 'bao', nome: 'aws/secretsmanager/*', esperado: fmt(e.secretsmanager, 'segredos'), encontrado: fmt(r.segredos, 'segredos'), ok: r.segredos.checksum === e.secretsmanager.checksum });
+        linhas.push({ tipo: 'bao', nome: 'aws/ssm/*', esperado: fmt(e.ssm, 'parâm.'), encontrado: fmt(r.parametros, 'parâm.'), ok: r.parametros.checksum === e.ssm.checksum });
+      } else {
+        linhas.push({ tipo: 'bao', nome: 'segredos', esperado: fmt(e.secretsmanager, 'segredos'), encontrado: 'sem OPENBAO_TOKEN no .env', ok: null });
+      }
+    } catch (erro) {
+      linhas.push({ tipo: lado.openbao ? 'bao' : 'sm', nome: 'segredos', esperado: fmt(e.secretsmanager, 'segredos'), encontrado: (erro as Error).message, ok: false });
+    }
+  }
+
+  if (esperado.cache) {
+    const e = esperado.cache;
+    const fmt = (r: ResumoCache): string => `${r.chaves} chaves (${r.comTtl} TTL) ${curto(r.checksum)}`;
+    if (!lado.redisUrl) {
+      linhas.push({ tipo: 'redis', nome: lado.redisNome, esperado: fmt(e), encontrado: `sem ${lado.redisNome === 'valkey' ? 'VALKEY_URL' : 'REDIS_ORIGEM_URL'} no .env`, ok: null });
+    } else {
+      try {
+        const cliente = await ligarRedis(lado.redisUrl);
+        try {
+          const r = await checksumRedis(cliente, e.prefixos);
+          linhas.push({ tipo: 'redis', nome: lado.redisNome, esperado: fmt(e), encontrado: fmt(r), ok: r.checksum === e.checksum });
+        } finally {
+          await cliente.close().catch(() => {});
+        }
+      } catch (erro) {
+        // Nunca se mostra o URL (tem a senha).
+        linhas.push({ tipo: 'redis', nome: lado.redisNome, esperado: fmt(e), encontrado: `não responde (${(erro as Error).name})`, ok: false });
+      }
+    }
+  }
   return linhas;
 }
 
@@ -153,7 +216,7 @@ async function main(): Promise<void> {
   const linhas = await comparar(lado);
   for (const l of linhas) {
     const marca = l.ok === null ? '--' : l.ok ? 'OK' : 'XX';
-    console.log(`  ${marca}  ${l.tipo.padEnd(4)}  ${l.nome.padEnd(22)}  esperado ${l.esperado.padEnd(28)}  encontrado ${l.encontrado}`);
+    console.log(`  ${marca}  ${l.tipo.padEnd(5)}  ${l.nome.padEnd(22)}  esperado ${l.esperado.padEnd(28)}  encontrado ${l.encontrado}`);
   }
   const falhas = linhas.filter((l) => l.ok === false).length;
   const comparados = linhas.filter((l) => l.ok !== null).length;

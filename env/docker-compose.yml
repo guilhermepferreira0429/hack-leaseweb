@@ -1,9 +1,13 @@
 # Serviços da demo no cérebro (docs/arquitetura.md): "AWS" simulada e destino aberto.
-#   LocalStack (S3, SQS)   -> a origem
+#   LocalStack (S3, SQS, Secrets Manager, SSM) -> a origem
+#   Redis-origem           -> faz de ElastiCache (origem)
 #   Postgres               -> base de dados da exemplo-app (faz de RDS)
 #   MinIO                  -> destino do S3 na Leaseweb
 #   Postgres-destino       -> destino do RDS na Leaseweb
 #   RabbitMQ               -> destino da fila SQS na Leaseweb
+#   Valkey                 -> destino do ElastiCache na Leaseweb
+#   OpenBao                -> destino do Secrets Manager e do SSM na Leaseweb (configuração: sessão do migrador)
+# Dono deste ficheiro e do env/.env.example: sessão da seed (code/exemplo-app/seed). Pedir-lhe as entradas.
 # npm run infra:up   (lê o .env da raiz)
 # Tudo ligado só a 127.0.0.1: a única porta aberta de propósito na demo é a da VM vítima.
 services:
@@ -13,7 +17,7 @@ services:
     ports:
       - "127.0.0.1:4566:4566"
     environment:
-      SERVICES: s3,sqs
+      SERVICES: s3,sqs,secretsmanager,ssm
 
   postgres:
     image: postgres:16
@@ -58,6 +62,30 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?definir no .env}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?definir no .env}
+
+  # Faz de ElastiCache Redis (a "AWS"): o LocalStack gratuito não tem ElastiCache. Com AUTH, como na AWS.
+  redis-origem:
+    image: redis:7.4.7
+    ports:
+      - "127.0.0.1:6380:6379"
+    command: ["redis-server", "--requirepass", "${REDIS_ORIGEM_PASSWORD:?definir no .env}"]
+
+  # Destino do ElastiCache na Leaseweb. Nunca sem senha: o atacante testa precisamente isso.
+  valkey:
+    image: valkey/valkey:8.1.4
+    ports:
+      - "127.0.0.1:6381:6379"
+    command: ["valkey-server", "--requirepass", "${VALKEY_PASSWORD:?definir no .env}"]
+
+  # Destino dos segredos (Secrets Manager + SSM) na Leaseweb. Modo dev: em memória, perde-se ao reiniciar (chega para a demo).
+  openbao:
+    image: openbao/openbao:2.7.3
+    command: server -dev
+    ports:
+      - "127.0.0.1:8200:8200"
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: ${OPENBAO_TOKEN:?definir no .env}
+      BAO_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
 
 volumes:
   minio:
