@@ -26,6 +26,7 @@
     "dev:exemplo": "tsx code/exemplo-app/cli.ts",
     "seed": "tsx code/exemplo-app/seed/semear.ts",
     "seed:comparar": "tsx code/exemplo-app/seed/comparar.ts",
+    "seed:extra": "tsx code/exemplo-app/seed/extra.ts",
     "seed:limpar-destino": "tsx code/exemplo-app/seed/limpar-destino.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "tsx --test \"code/**/*.test.ts\"",
