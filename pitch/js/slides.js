@@ -159,7 +159,7 @@
           </div>
           <div class="camadas">
             <div class="camada"><span class="rotulo">YOUR SERVER · SELF-HOSTED</span><span>MinIO · PostgreSQL · RabbitMQ · OpenBao · Valkey</span></div>
-            <div class="camada"><span class="rotulo verde">PROVIDER API · LEASEWEB TODAY</span><span class="mono"><b class="verde">revoke</b>FirewallRules closes in ~3 s · <b class="lilas">authorize</b>FirewallRules puts it back</span></div>
+            <div class="camada"><span class="rotulo verde">PROVIDER · LEASEWEB API</span><span class="mono"><b class="verde">revoke</b>FirewallRules closes in ~3 s · <b class="lilas">authorize</b>FirewallRules puts it back</span></div>
           </div>
         </div>`,
     },
