@@ -46,10 +46,12 @@
         const pecas = ['European', 'Secure', 'Compliant', 'In control'];
         return `
         <div class="soberania${p >= 4 ? ' junta' : ''}">
-          <div class="pecas">
-            ${pecas.map((t, i) => `<div class="peca canto-${i}${p >= i ? ' on' : ''}">${t}</div>`).join('<span class="mais">+</span>')}
+          <div class="pilha">
+            <div class="pecas">
+              ${pecas.map((t, i) => `<div class="peca canto-${i}${p >= i ? ' on' : ''}">${t}</div>`).join('<span class="mais">+</span>')}
+            </div>
+            <div class="resultado"><span class="soberano">Sovereign.</span></div>
           </div>
-          <div class="resultado"><span class="igual">=</span><span class="soberano">Sovereign.</span></div>
           <div class="verbos">migrate · secure · fix · prove</div>
         </div>`;
       },

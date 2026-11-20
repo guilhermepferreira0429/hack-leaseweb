@@ -16,7 +16,7 @@ createServer(async (req, res) => {
   if (!ficheiro.startsWith(raiz)) return void res.writeHead(403).end();
   try {
     const dados = await readFile(ficheiro);
-    res.writeHead(200, { 'Content-Type': (tipos[extname(ficheiro)] ?? 'application/octet-stream') + '; charset=utf-8' }).end(dados);
+    res.writeHead(200, { 'Content-Type': (tipos[extname(ficheiro)] ?? 'application/octet-stream') + '; charset=utf-8', 'Cache-Control': 'no-store' }).end(dados);
   } catch {
     res.writeHead(404).end('não existe');
   }
