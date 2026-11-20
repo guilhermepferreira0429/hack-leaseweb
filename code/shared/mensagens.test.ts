@@ -67,7 +67,7 @@ describe('shared/mensagens', () => {
   });
 
   it('sem valores medidos, cada variável sai como "not measured" (nada inventado)', () => {
-    assert.equal(msgPlanoAprovado({}), `Plan approved by ${NAO_MEDIDO} at ${NAO_MEDIDO}. @migrador, go ahead.`);
+    assert.equal(msgPlanoAprovado({}), `Plan approved by ${NAO_MEDIDO} at ${NAO_MEDIDO}. @migrator, go ahead.`);
     assert.equal(msgValidacao({}), `Final check: tests ${NAO_MEDIDO}, nothing exposed ${NAO_MEDIDO}, data identical ${NAO_MEDIDO}.`);
     assert.match(msgMigracao({ nObjetos: 0, okS3: false }), /Files: 0 copied · checksum ✗\n· Database: not measured rows/);
   });
@@ -76,15 +76,15 @@ describe('shared/mensagens', () => {
     assert.equal(msgAbertura({ app: 'orders' }), 'Good morning. We are moving the orders app from AWS to Leaseweb, safely. I will report at every step.');
     assert.equal(
       msgMigracao({ nObjetos: 120, okS3: true, nLinhas: 5000, okBd: true, okAntes: true, okDepois: true }),
-      'Migration complete.\n· Files: 120 copied · checksum ✓\n· Database: 5000 rows · checksum ✓\n· App tests: before ✓ · after ✓\nThe new infrastructure is live. @atacante, your turn.',
+      'Migration complete.\n· Files: 120 copied · checksum ✓\n· Database: 5000 rows · checksum ✓\n· App tests: before ✓ · after ✓\nThe new infrastructure is live. @attacker, your turn.',
     );
     assert.equal(
       msgAtaque({ porta: 5432, gravidade: 'high' }),
-      'I found the new database open to the whole Internet (port 5432).\nSeverity: high. Anyone can try to get in.\n@defesa',
+      'I found the new database open to the whole Internet (port 5432).\nSeverity: high. Anyone can try to get in.\n@defender',
     );
     assert.equal(
       msgFechado({ horaFecho: '14:05', segundos: 42, pedidoId: 'p-1' }),
-      'Closed at 14:05 and confirmed. Time exposed: 42 s.\nUndo saved: /undo p-1\n@atacante, please confirm.',
+      'Closed at 14:05 and confirmed. Time exposed: 42 s.\nUndo saved: /undo p-1\n@attacker, please confirm.',
     );
     assert.equal(msgValidacao({ testes: true, nadaExposto: true, dadosIguais: true }), 'Final check: tests ✓, nothing exposed ✓, data identical ✓.');
     assert.equal(msgAtacanteConfirma(), 'Confirmed. I can no longer reach it.');

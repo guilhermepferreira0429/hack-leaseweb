@@ -44,9 +44,9 @@ describe('shared/voz', () => {
   });
 
   it('personas: cada uma passa a vez com a menção certa', () => {
-    assert.match(PERSONAS.migrador, /hand over to @atacante/);
-    assert.match(PERSONAS.atacante, /hand over to @defesa/);
-    assert.match(PERSONAS.defesa, /ask @atacante to confirm/);
+    assert.match(PERSONAS.migrador, /hand over to @attacker/);
+    assert.match(PERSONAS.atacante, /hand over to @defender/);
+    assert.match(PERSONAS.defesa, /ask @attacker to confirm/);
     assert.match(PERSONAS.atacante, /never describe how to exploit a weakness/);
   });
 
@@ -54,7 +54,7 @@ describe('shared/voz', () => {
     const [sistema] = mensagensDaVoz('chefe', 'x', 'y');
     assert.match(sistema!.content, /Answer in English/);
     assert.match(sistema!.content, /Speak in the first person/);
-    assert.match(sistema!.content, /end with their mention: @atacante, @defesa, @migrador, @chefe/);
+    assert.match(sistema!.content, /end with their mention: @attacker, @defender, @migrator, @chief/);
     assert.match(sistema!.content, /the database port \(5432\)/);
     assert.match(sistema!.content, /No emojis, except ✓ and ✗/);
     assert.doesNotMatch(sistema!.content, /português|És o|És a/);
