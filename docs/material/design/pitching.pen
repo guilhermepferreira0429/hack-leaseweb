@@ -184,7 +184,7 @@
       "id": "S02xx",
       "x": 2040,
       "y": 0,
-      "name": "Slide 2 · A tese",
+      "name": "Slide · O problema (49%)",
       "clip": true,
       "width": 1920,
       "height": 1080,
@@ -199,57 +199,107 @@
       "children": [
         {
           "type": "frame",
-          "id": "rwKdA",
+          "id": "qLQyZ",
           "name": "Body",
           "width": "fill_container",
           "height": "fill_container",
-          "layout": "vertical",
-          "gap": 40,
-          "justifyContent": "center",
+          "gap": 96,
+          "alignItems": "center",
           "children": [
             {
-              "type": "text",
-              "id": "n43cT",
-              "name": "Setup",
-              "fill": "$muted",
-              "content": "Leaving takes months.",
-              "fontFamily": "$font-sans",
-              "fontSize": 48,
-              "fontWeight": "500"
-            },
-            {
-              "type": "text",
-              "id": "z0akIK",
-              "name": "Statement",
-              "fill": "$text",
-              "content": "Migration is when\nyou get breached.",
-              "lineHeight": 1.02,
-              "fontFamily": "$font-sans",
-              "fontSize": 136,
-              "fontWeight": "800",
-              "letterSpacing": -4
-            },
-            {
               "type": "frame",
-              "id": "gNWMM",
-              "name": "Answer",
-              "gap": 20,
-              "alignItems": "center",
+              "id": "G6aZo",
+              "name": "Main stat",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 8,
               "children": [
                 {
-                  "type": "rectangle",
-                  "id": "JPcC9",
-                  "name": "Accent bar",
-                  "fill": "$green",
-                  "width": 64,
-                  "height": 6
+                  "type": "text",
+                  "id": "p6AnpK",
+                  "name": "Label",
+                  "fill": "$muted",
+                  "content": "SANS CLOUD SECURITY SURVEY · 2026",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 22,
+                  "fontWeight": "normal",
+                  "letterSpacing": 2
                 },
                 {
                   "type": "text",
-                  "id": "A359V9",
-                  "name": "Answer text",
+                  "id": "ycXj7",
+                  "name": "Number",
+                  "fill": "$purple",
+                  "content": "49%",
+                  "lineHeight": 1,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 300,
+                  "fontWeight": "800",
+                  "letterSpacing": -12
+                },
+                {
+                  "type": "text",
+                  "id": "hvPbF",
+                  "name": "Caption",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "need more than a day to close\na critical gap they already know.",
+                  "lineHeight": 1.15,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 48,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "id": "hI5Am",
+              "name": "Divider",
+              "fill": "$line",
+              "width": 2,
+              "height": 520
+            },
+            {
+              "type": "frame",
+              "id": "YJLCZ",
+              "name": "Side stat",
+              "width": 560,
+              "layout": "vertical",
+              "gap": 16,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "YW9Am",
+                  "name": "Label",
                   "fill": "$green",
-                  "content": "We move you to Leaseweb, and defend you while you move.",
+                  "content": "OUR DEMO · MEASURED LIVE",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 22,
+                  "fontWeight": "normal",
+                  "letterSpacing": 2
+                },
+                {
+                  "type": "text",
+                  "id": "UDyOf",
+                  "name": "Number",
+                  "fill": "$green",
+                  "content": "T s",
+                  "lineHeight": 1,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 200,
+                  "fontWeight": "800",
+                  "letterSpacing": -6
+                },
+                {
+                  "type": "text",
+                  "id": "J8LvQ",
+                  "name": "Caption",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "exposed, then closed\nand verified",
+                  "lineHeight": 1.15,
                   "fontFamily": "$font-sans",
                   "fontSize": 40,
                   "fontWeight": "600"
@@ -260,7 +310,7 @@
         },
         {
           "type": "frame",
-          "id": "tA2ky",
+          "id": "oPzLw",
           "name": "Footer",
           "width": "fill_container",
           "justifyContent": "space_between",
@@ -268,7 +318,7 @@
           "children": [
             {
               "type": "text",
-              "id": "qH2PB",
+              "id": "j7NUv",
               "name": "Project",
               "fill": "$muted",
               "content": "hack-leaseweb",
@@ -278,10 +328,10 @@
             },
             {
               "type": "text",
-              "id": "T3rMTG",
+              "id": "sOKm4",
               "name": "Page",
               "fill": "$muted",
-              "content": "02 / 07",
+              "content": "00 / 11",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
@@ -3591,6 +3641,439 @@
             {
               "type": "text",
               "id": "P1IcUb",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "00 / 11",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "v5W3DJ",
+      "x": 6120,
+      "y": 2480,
+      "name": "Slide · Tração de hoje",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
+      "layout": "vertical",
+      "padding": [
+        100,
+        120,
+        64,
+        120
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "bRDbj",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 88,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "sIyZG",
+              "name": "Title",
+              "fill": "$text",
+              "content": "Built today. Measured today.",
+              "fontFamily": "$font-sans",
+              "fontSize": 88,
+              "fontWeight": "800",
+              "letterSpacing": -2
+            },
+            {
+              "type": "frame",
+              "id": "lVHb1",
+              "name": "Scoreboard",
+              "width": "fill_container",
+              "gap": 48,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "XERPc",
+                  "name": "KPI AWS to Leaseweb",
+                  "width": "fill_container",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "left": 4
+                  },
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 16,
+                  "padding": [
+                    0,
+                    0,
+                    0,
+                    32
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "KBWuD",
+                      "name": "Number",
+                      "fill": "$text",
+                      "content": "X min",
+                      "lineHeight": 1,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 112,
+                      "fontWeight": "800",
+                      "letterSpacing": -4
+                    },
+                    {
+                      "type": "text",
+                      "id": "L3slpG",
+                      "name": "Label",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "AWS to Leaseweb",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 30,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Po67U",
+                  "name": "KPI exposed, not a day",
+                  "width": "fill_container",
+                  "stroke": "$green",
+                  "strokeWidth": {
+                    "left": 4
+                  },
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 16,
+                  "padding": [
+                    0,
+                    0,
+                    0,
+                    32
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Vafvq",
+                      "name": "Number",
+                      "fill": "$green",
+                      "content": "T s",
+                      "lineHeight": 1,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 112,
+                      "fontWeight": "800",
+                      "letterSpacing": -4
+                    },
+                    {
+                      "type": "text",
+                      "id": "HuZi7",
+                      "name": "Label",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "exposed, not a day",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 30,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "cktNj",
+                  "name": "KPI attacks on the bait",
+                  "width": "fill_container",
+                  "stroke": "$purple",
+                  "strokeWidth": {
+                    "left": 4
+                  },
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 16,
+                  "padding": [
+                    0,
+                    0,
+                    0,
+                    32
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "QbD2j",
+                      "name": "Number",
+                      "fill": "$purple",
+                      "content": "N",
+                      "lineHeight": 1,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 112,
+                      "fontWeight": "800",
+                      "letterSpacing": -4
+                    },
+                    {
+                      "type": "text",
+                      "id": "nI6NA",
+                      "name": "Label",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "attacks on the bait",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 30,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "SjNzW",
+                  "name": "KPI automated tests",
+                  "width": "fill_container",
+                  "stroke": "$line",
+                  "strokeWidth": {
+                    "left": 4
+                  },
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 16,
+                  "padding": [
+                    0,
+                    0,
+                    0,
+                    32
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ntFzR",
+                      "name": "Number",
+                      "fill": "$text",
+                      "content": "179",
+                      "lineHeight": 1,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 112,
+                      "fontWeight": "800",
+                      "letterSpacing": -4
+                    },
+                    {
+                      "type": "text",
+                      "id": "i0ulw",
+                      "name": "Label",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "automated tests",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 30,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "jOnHj",
+              "name": "Note",
+              "fill": "$muted",
+              "content": "X, T and N come from the live run. Every action is on the record.",
+              "fontFamily": "$font-mono",
+              "fontSize": 24,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "YiHw0",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "Z9sqxl",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "O8Gtb",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "00 / 11",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "v5FN9x",
+      "x": 8160,
+      "y": 2480,
+      "name": "Slide · O mercado (73%)",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
+      "layout": "vertical",
+      "padding": [
+        100,
+        120,
+        64,
+        120
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "p0XYZ",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "gap": 96,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "UfZtD",
+              "name": "Main stat",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "gcRz9",
+                  "name": "Label",
+                  "fill": "$muted",
+                  "content": "LEASEWEB DIGITAL INDEPENDENCE SURVEY · 2026",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 22,
+                  "fontWeight": "normal",
+                  "letterSpacing": 2
+                },
+                {
+                  "type": "text",
+                  "id": "Z4Kuuj",
+                  "name": "Number",
+                  "fill": "$green",
+                  "content": "73%",
+                  "lineHeight": 1,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 300,
+                  "fontWeight": "800",
+                  "letterSpacing": -12
+                },
+                {
+                  "type": "text",
+                  "id": "sUx95",
+                  "name": "Caption",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "would pay at least 11% more\nfor infrastructure independence.",
+                  "lineHeight": 1.15,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 48,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "id": "GdE6g",
+              "name": "Divider",
+              "fill": "$line",
+              "width": 2,
+              "height": 520
+            },
+            {
+              "type": "frame",
+              "id": "ZysZn",
+              "name": "Side stat",
+              "width": 560,
+              "layout": "vertical",
+              "gap": 16,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "e5As3",
+                  "name": "Label",
+                  "fill": "$purple",
+                  "content": "IN THE NETHERLANDS",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 22,
+                  "fontWeight": "normal",
+                  "letterSpacing": 2
+                },
+                {
+                  "type": "text",
+                  "id": "uCU8P",
+                  "name": "Number",
+                  "fill": "$purple",
+                  "content": "81%",
+                  "lineHeight": 1,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 200,
+                  "fontWeight": "800",
+                  "letterSpacing": -6
+                },
+                {
+                  "type": "text",
+                  "id": "fs3XI",
+                  "name": "Caption",
+                  "fill": "$text",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "would pay at least 11% more",
+                  "lineHeight": 1.15,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 40,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "ShEsg",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "N39iZ",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "a6vOw",
               "name": "Page",
               "fill": "$muted",
               "content": "00 / 11",
