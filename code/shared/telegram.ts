@@ -3,7 +3,8 @@
 // Long polling (getUpdates), sem webhook.
 // Ver docs/telegram.md e docs/agentes-telegram.md.
 // Botões: callback_data = "aprovar:<pedidoId>" | "ignorar:<pedidoId>".
-// Só aceita botões e ordens de TELEGRAM_DONO_ID. Comandos: /estado, /desfazer <pedidoId>, /atacar.
+// Só aceita botões e ordens de TELEGRAM_DONO_ID. Comandos: /status, /undo <pedidoId>, /attack [ip],
+// /recomendado e /selfhosted (os antigos /estado, /desfazer e /atacar continuam a funcionar).
 // Os bots não recebem mensagens de outros bots: a conversa entre agentes passa por shared/bus.ts.
 //
 // Aprovação: sendMessage com reply_markup.inline_keyboard; a resposta chega como callback_query.
