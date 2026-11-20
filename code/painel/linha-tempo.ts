@@ -1,10 +1,11 @@
-// GET / (o ecrã da demo, docs/painel-web.md) e GET /estado.json.
-// 4 zonas: relógio de exposição (topo), linha do tempo dos agentes (esquerda), infraestrutura (centro), provas (direita).
+// GET / (o ecrã da demo, docs/painel-web.md e docs/material/design/web.pen) e GET /estado.json.
+// Topo: marca + relógio de exposição. Corpo: linha do tempo dos agentes | infraestrutura | provas.
 // Só dados de estado.json e auditoria.jsonl; o que não se mediu mostra "—". HTML sem frameworks, texto escapado.
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { EventoAuditoria, Pedido, Regra } from '@mwbe/shared';
 import { auditoria, estado } from '@mwbe/shared';
 import { relogioExposicao } from '@mwbe/chefe';
+import { cabecalho, escapar, horaLisboa, numero } from './estilo';
 
 export const FASES = ['migrar', 'atacar', 'aprovar', 'fechar'] as const;
 export type Fase = (typeof FASES)[number];
@@ -27,7 +28,7 @@ export function agenteDe(e: EventoAuditoria): Agente {
   if (e.quem === 'migrador' || e.quem === 'atacante' || e.quem === 'defesa' || e.quem === 'chefe') return e.quem;
   if (e.quem === 'modo-noite') return 'defesa';
   if ((e.tipo === 'aprovado' || e.tipo === 'ignorado') && e.quem) return 'dono';
-  if (e.inverso || /(a-aplicar|desfeito|falhou)/.test(e.tipo)) return 'defesa';
+  if (e.inverso || /(a-aplicar|desfeito|falhou|verificado)/.test(e.tipo)) return 'defesa';
   return 'chefe'; // orquestrador, erros e o resto
 }
 
@@ -44,27 +45,33 @@ export function fraseDe(e: EventoAuditoria): string {
       return 'Infraestrutura nova no ar. O relógio de exposição começa a contar.';
     case 'migracao-plano-infra':
       return 'Traduziu a configuração da AWS para a Leaseweb (só plano).';
+    case 'migracao-plano-destino':
+      return 'Escolheu o destino de cada serviço na Leaseweb.';
     case 'pedido':
-      if (e.quem === 'migrador') return `Propõe migrar: ${((d.servicos as string[]) ?? []).join(', ') || 'serviços da app'}.`;
-      return `Pede para fechar: ${String(d.titulo ?? e.pedidoId)}.`;
+      if (e.quem === 'migrador') return 'Pede aprovação para migrar.';
+      return `Proponho fechar: ${String(d.titulo ?? e.pedidoId)}.`;
     case 'aprovado':
-      return e.quem === 'modo-noite' ? 'Sem resposta do dono: modo noite.' : 'Aprovado.';
+      return e.quem === 'modo-noite' ? 'Sem resposta do dono: modo noite.' : 'Aprovou.';
     case 'ignorado':
-      return 'Ignorado.';
+      return 'Ignorou.';
     case 'sem-resposta':
       return 'Sem resposta do dono.';
     case 'reconhecimento': {
       const portas = (d.portas as { alvo: string; porta: number; servico: string | null }[]) ?? [];
-      if (!portas.length) return 'Reconhecimento: nada aberto.';
-      return `Encontrou: ${portas.slice(0, 3).map((p) => `${p.servico ?? 'porta'} ${p.porta}`).join(', ')}${portas.length > 3 ? '…' : ''}.`;
+      if (!portas.length) return 'Não encontrei portas abertas nas nossas máquinas.';
+      return `Aberto a toda a Internet: ${portas.slice(0, 3).map((p) => `${p.servico ?? 'porta'} ${p.porta}`).join(', ')}${portas.length > 3 ? '…' : ''}.`;
     }
     case 'a-aplicar':
       return `A fechar ${regraTxt(e.antes as Regra)}.`;
     case 'modo-noite-permitir':
-      return `Modo noite: porta só para ${String(obj(e.depois).source ?? '?')}.`;
+      return `Modo noite: porta só para ${String(d.source ?? '?')}.`;
+    case 'verificado':
+      return `nmap ${d.fase === 'depois' ? 'depois' : 'antes'}: ${d.porta} ${d.estado}.`;
     case 'feito':
-      if (e.quem === 'migrador') return `${d.objetos ?? '?'} ficheiros copiados, checksums ${d.checksumsOk ? 'iguais' : 'DIFERENTES'}.`;
-      return 'Fechado e confirmado pela API da Leaseweb.';
+      if (e.quem === 'migrador' && d.tabelas !== undefined)
+        return `Base de dados: ${numero(d.linhas)} linhas em ${d.tabelas} tabelas. Checksums ${d.checksumsOk ? 'iguais' : 'DIFERENTES'}.`;
+      if (e.quem === 'migrador') return `${numero(d.objetos)} ficheiros copiados. Checksums ${d.checksumsOk ? 'iguais' : 'DIFERENTES'}.`;
+      return 'Fechado e confirmado. Inverso guardado.';
     case 'desfeito':
       return 'Desfeito: a regra voltou.';
     case 'falhou':
@@ -78,8 +85,15 @@ export function fraseDe(e: EventoAuditoria): string {
 
 /** Só o ciclo atual: desde o último 'infra-no-ar' (o ficheiro acumula os ensaios do dia). Sem ele, os últimos 40. */
 export function cicloAtual(eventos: EventoAuditoria[]): EventoAuditoria[] {
+  // O ciclo começa no primeiro 'pedido' do migrador antes do último 'infra-no-ar' (para a migração aparecer).
   const i = eventos.findLastIndex((e) => e.tipo === 'infra-no-ar');
-  return i >= 0 ? eventos.slice(i) : eventos.slice(-40);
+  if (i < 0) return eventos.slice(-40);
+  let inicio = i;
+  for (let j = i - 1; j >= 0 && j >= i - 30; j--) {
+    if (eventos[j].tipo === 'infra-no-ar') break;
+    if (eventos[j].quem === 'migrador') inicio = j;
+  }
+  return eventos.slice(inicio);
 }
 
 export interface Porta {
@@ -108,103 +122,138 @@ export function portasDoCiclo(eventos: EventoAuditoria[]): Porta[] {
   return [...portas.values()];
 }
 
-const escapar = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const hora = (iso: string) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? escapar(iso) : d.toLocaleTimeString('pt-PT', { timeZone: 'Europe/Lisbon' });
-};
-const NOME: Record<Agente, string> = { migrador: 'Migrador', atacante: 'Atacante', defesa: 'Defesa', chefe: 'Chefe', dono: 'Dono' };
+/** Quem aprovou, em texto curto para as provas. */
+export function aprovadoPor(eventos: EventoAuditoria[], pedidoId: string): string {
+  const e = eventos.findLast((x) => x.pedidoId === pedidoId && x.tipo === 'aprovado');
+  if (!e) return '—';
+  if (e.quem === 'modo-noite') return 'modo noite (sem resposta)';
+  if (e.quem === 'consola') return 'dono · consola';
+  return 'dono · Telegram';
+}
 
-/** HTML sem frameworks, texto escapado; recarrega quando /estado.json muda (de 2 em 2 s). */
+/** Os números das provas e da infraestrutura, tirados do ciclo atual. */
+export function provas(eventos: EventoAuditoria[]) {
+  const migr = eventos.filter((e) => e.quem === 'migrador' && e.tipo === 'feito').map((e) => obj(e.depois));
+  const s3 = migr.findLast((d) => d.objetos !== undefined);
+  const pg = migr.findLast((d) => d.tabelas !== undefined);
+  const testes = obj((pg ?? s3)?.testes);
+  const recon = eventos.findLast((e) => e.tipo === 'reconhecimento');
+  const verif = (fase: string) =>
+    eventos.findLast((e) => e.tipo === 'verificado' && obj(e.depois).fase === fase)?.depois as { porta: number; estado: string } | undefined;
+  const ultimoFecho = eventos.findLast((e) => e.tipo === 'feito' && e.inverso?.tipo === 'criar_regra');
+  const desfeito = ultimoFecho && eventos.some((e) => e.tipo === 'desfeito' && e.pedidoId === ultimoFecho.pedidoId && e.hora >= ultimoFecho.hora);
+  return {
+    objetos: s3?.objetos as number | undefined,
+    checksums: s3 || pg ? Boolean((s3?.checksumsOk ?? true) && (pg?.checksumsOk ?? true)) : undefined,
+    testesAntes: testes.antes as boolean | undefined,
+    testesDepois: testes.depois as boolean | undefined,
+    linhas: pg?.linhas as number | undefined,
+    tabelas: pg?.tabelas as number | undefined,
+    atacou: Boolean(recon),
+    nmapAntes: verif('antes'),
+    nmapDepois: verif('depois'),
+    ultimoFecho: ultimoFecho && !desfeito ? ultimoFecho : undefined,
+  };
+}
+
+const NOME: Record<Agente, string> = { migrador: 'MIGRADOR', atacante: 'ATACANTE', defesa: 'DEFESA', chefe: 'CHEFE', dono: 'DONO' };
+
+const CSS = `body{padding:48px;min-height:100vh;display:flex;flex-direction:column;gap:28px}
+.topo{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap}
+.marca h1{margin:8px 0 0;font:400 56px/1 var(--serif)}
+.relogio{display:flex;flex-direction:column;gap:6px;align-items:flex-end}.valor{display:flex;gap:16px;align-items:center}
+.seg{font:400 150px/0.9 var(--serif);color:var(--atk)}.fechada .seg{color:var(--def)}.espera .seg{font-size:48px;color:var(--faint)}
+.estado{display:flex;flex-direction:column;gap:6px}.pill{display:inline-flex;gap:8px;align-items:center;padding:6px 14px;border-radius:999px;font:16px var(--mono);color:var(--atk);background:#FF8A7A22}
+.pill:before{content:'';width:10px;height:10px;border-radius:50%;background:currentColor}.fechada .pill{color:var(--def);background:#7DD3A822}
+.isco{font-size:18px;color:var(--muted)}
+.corpo{flex:1;display:grid;grid-template-columns:560px 1fr 520px;gap:24px;min-height:0}
+section{background:var(--panel);border-radius:18px;padding:28px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.cab{display:flex;justify-content:space-between;font:15px var(--mono);letter-spacing:2px;color:var(--muted)}.cab span:last-child{color:var(--faint);letter-spacing:0}
+.eventos{display:flex;flex-direction:column;gap:18px;overflow:hidden}
+.ev{display:flex;gap:14px}.ev:before{content:'';flex:none;width:4px;border-radius:2px;background:var(--c)}
+.meta{display:flex;gap:10px;font:14px var(--mono)}.meta b{color:var(--c);letter-spacing:1px}.meta span{color:var(--faint)}.frase{font-size:20px;margin-top:4px}
+.ag-migrador{--c:var(--mig)}.ag-atacante{--c:var(--atk)}.ag-defesa{--c:var(--def)}.ag-dono{--c:var(--ink)}.ag-chefe{--c:var(--chf)}
+.fluxo{display:flex;flex-direction:column;gap:22px;flex:1}.cartao{background:var(--bg);border-radius:18px;padding:28px;display:flex;flex-direction:column;gap:6px}
+.cartao h3{margin:0;font:400 30px var(--serif)}.cartao .sub{font:16px var(--mono);color:var(--muted)}.vitima{background:#7DD3A814}
+.seta{display:flex;gap:12px;align-items:center;font:17px var(--mono);color:var(--faint)}.seta b{font:28px var(--sans)}.seta.mig{color:var(--mig)}.seta.atk{color:var(--atk)}
+.portas{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}.porta{padding:6px 12px;border-radius:8px;font:16px var(--mono)}
+.p-aberta,.p-reaberta{color:var(--atk);background:#FF5C6122}.p-a-fechar{color:#F5B942;background:#F5B94222}.p-fechada{color:var(--def);background:#33D69A22}
+.prova h3{margin:0 0 10px;font:400 28px var(--serif)}.kv{display:flex;justify-content:space-between;gap:12px;font-size:17px;padding:4px 0}
+.kv span:first-child{color:var(--muted)}.kv span:last-child{font-family:var(--mono)}.ok{color:var(--ok)}.bad{color:var(--bad)}
+.espaco{flex:1}.btn{width:100%;padding:18px;border:0;border-radius:12px;background:var(--def);color:var(--bg);font:600 18px var(--sans);cursor:pointer}
+.nota{font:13px var(--mono);color:var(--faint)}
+@media (max-width:1500px){body{padding:24px}.corpo{grid-template-columns:1fr 1fr}.corpo section:first-child{grid-column:1/-1}.seg{font-size:96px}}
+@media (max-width:900px){body{padding:16px}.corpo{grid-template-columns:1fr}.seg{font-size:72px}.marca h1{font-size:36px}.relogio{align-items:flex-start}}`;
+
+/** O ecrã da demo. `token` liga o botão Desfazer (PAINEL_TOKEN). */
 export function renderizar(pedidos: Pedido[], todos: EventoAuditoria[], token = ''): string {
   const eventos = cicloAtual(todos);
+  const p = provas(eventos);
 
-  // 1. Relógio de exposição (ideia wow 2): a conta é do chefe (último 'infra-no-ar' -> primeiro fecho confirmado).
+  // Relógio de exposição (ideia wow 2): a conta é do chefe (último 'infra-no-ar' -> primeiro fecho confirmado).
   const exp = relogioExposicao(todos);
   const relogio = exp
-    ? `<header class="relogio ${exp.aindaExposta ? 'exposta' : 'fechada'}" data-inicio="${escapar(exp.inicio)}" data-fim="${escapar(exp.fim ?? '')}">
-<div class="seg">exposto ${exp.segundos} s</div><div class="isco">&nbsp;</div></header>`
-    : `<header class="relogio"><div class="seg neutro">à espera da infraestrutura nova</div><div class="isco">&nbsp;</div></header>`;
+    ? `<div class="relogio ${exp.aindaExposta ? 'exposta' : 'fechada'}" data-inicio="${escapar(exp.inicio)}" data-fim="${escapar(exp.fim ?? '')}">
+<div class="kicker">Tempo exposto</div><div class="valor"><div class="seg">${exp.segundos} s</div>
+<div class="estado"><div class="pill">${exp.aindaExposta ? 'EXPOSTO' : `FECHADO ${horaLisboa(exp.fim!)}`}</div><div class="isco">&nbsp;</div></div></div></div>`
+    : `<div class="relogio espera"><div class="kicker">Tempo exposto</div><div class="seg">à espera da infraestrutura nova</div><div class="isco">&nbsp;</div></div>`;
 
-  // 2. Linha do tempo dos agentes.
   const linhas = eventos
-    .slice(-14)
-    .reverse()
+    .slice(-9)
     .map((e) => {
       const ag = agenteDe(e);
-      return `<li class="ag-${ag}"><span class="h">${hora(e.hora)}</span><span class="quem">${NOME[ag]}</span><span>${escapar(fraseDe(e))}</span></li>`;
+      return `<div class="ev ag-${ag}"><div><div class="meta"><b>${NOME[ag]}</b><span>${horaLisboa(e.hora)}</span></div><div class="frase">${escapar(fraseDe(e))}</div></div></div>`;
     })
     .join('');
 
-  // 3. Infraestrutura.
-  const migracao = eventos.findLast((e) => e.quem === 'migrador' && e.tipo === 'feito');
   const portas = portasDoCiclo(eventos);
-  const caixasPortas = portas.length
-    ? portas
-        .map((p) => `<div class="porta p-${p.estado.replace(' ', '-')}">${escapar(p.servico ?? 'porta')} ${p.porta}<small>${escapar(p.alvo)} · ${p.estado}</small></div>`)
-        .join('')
-    : '<div class="porta vazio">—</div>';
-  const infra = `<div class="infra">
-<div class="caixa">AWS<small>(simulada)</small></div><div class="seta ${migracao ? 'acesa' : ''}">→</div>
-<div class="caixa">Leaseweb<small>${migracao ? 'dados migrados' : '—'}</small></div><div class="seta ${portas.length ? 'acesa' : ''}">→</div>
-<div class="caixa vitima">vítima${caixasPortas}</div></div>`;
+  const pills = portas.length
+    ? portas.map((x) => `<span class="porta p-${x.estado.replace(' ', '-')}">${x.porta} · ${x.estado.toUpperCase()}</span>`).join('')
+    : '<span class="porta" style="color:var(--faint)">sem portas a fechar</span>';
+  const migrou = p.objetos !== undefined || p.linhas !== undefined;
+  const infra = `<div class="fluxo">
+<div class="cartao"><h3>AWS (simulada)</h3><div class="sub">LocalStack · S3 · SQS · Postgres</div></div>
+<div class="seta ${migrou ? 'mig' : ''}"><b>↓</b>migrador · ${migrou ? `${numero(p.objetos)} objetos · checksums ${p.checksums ? '✓' : '✗'}` : 'à espera de aprovação'}</div>
+<div class="cartao"><h3>Leaseweb Public Cloud</h3><div class="sub">MinIO · Postgres · RabbitMQ · tudo na UE</div></div>
+<div class="seta ${p.atacou ? 'atk' : ''}"><b>↓</b>atacante · nmap às nossas máquinas</div>
+<div class="cartao vitima"><h3>VM vítima</h3><div class="sub">security group · 0.0.0.0/0 → regra removida pela API</div><div class="portas">${pills}</div></div></div>`;
 
-  // 4. Provas.
-  const d = obj(migracao?.depois);
-  const testes = obj(d.testes);
-  const ok = (v: unknown) => (v === true ? '<b class="ok">✓</b>' : v === false ? '<b class="mau">✗</b>' : '—');
-  const recon = eventos.findLast((e) => e.tipo === 'reconhecimento');
-  const vistas = (obj(recon?.depois).portas as { porta: number }[] | undefined) ?? [];
-  const provasDefesa = pedidos
-    .filter((p) => p.acao.tipo === 'remover_regra' && portas.some((x) => x.pedidoId === p.id))
-    .map((p) => {
-      const regra = p.acao.tipo === 'remover_regra' ? p.acao.regra : undefined;
-      const viu = regra && vistas.some((v) => v.porta >= regra.startPort && v.porta <= regra.endPort);
-      const botao =
-        token && p.estado === 'feito'
-          ? `<form method="post" action="/desfazer"><input type="hidden" name="id" value="${escapar(p.id)}"><input type="hidden" name="token" value="${escapar(token)}"><button>Desfazer</button></form>`
-          : '';
-      return `<div class="prova"><b>${escapar(p.titulo)}</b>
-<div>antes: ${viu ? '<b class="mau">open</b> (visto pelo atacante)' : '—'} · depois: ${p.estado === 'feito' ? '<b class="ok">regra removida e confirmada</b>' : escapar(p.estado)}</div>
-<div class="mut">inverso guardado: criar ${escapar(regraTxt(regra))} · pedido ${escapar(p.id)}</div>${botao}</div>`;
-    })
-    .join('');
-  const provas = `<div class="prova"><b>Migração</b><div>ficheiros ${escapar(d.objetos ?? '—')} · checksums ${ok(d.checksumsOk)} · testes antes ${ok(testes.antes)} depois ${ok(testes.depois)}</div></div>
-${provasDefesa || '<div class="prova mut">Defesa: ainda sem pedidos neste ciclo.</div>'}`;
+  const sim = (v: boolean | undefined) => (v === true ? '<span class="ok">✓</span>' : v === false ? '<span class="bad">✗</span>' : '—');
+  const nmap = (v: { porta: number; estado: string } | undefined) =>
+    v ? `<span class="${v.estado === 'open' ? 'bad' : 'ok'}">${v.porta} ${escapar(v.estado)}</span>` : '—';
+  const fecho = p.ultimoFecho;
+  const pedidoFecho = fecho && pedidos.find((x) => x.id === fecho.pedidoId);
+  const botao =
+    token && fecho && (!pedidoFecho || pedidoFecho.estado === 'feito')
+      ? `<form method="post" action="/desfazer"><input type="hidden" name="id" value="${escapar(fecho.pedidoId)}"><input type="hidden" name="token" value="${escapar(token)}"><button class="btn">Desfazer última ação</button></form>`
+      : '';
+  const provasHtml = `<div class="prova"><h3>Migração</h3>
+<div class="kv"><span>Objetos copiados</span><span>${numero(p.objetos)}</span></div>
+${p.linhas !== undefined ? `<div class="kv"><span>Linhas da base de dados</span><span>${numero(p.linhas)} em ${p.tabelas} tabelas</span></div>` : ''}
+<div class="kv"><span>Checksums</span><span>${p.checksums === undefined ? '—' : p.checksums ? '<span class="ok">iguais ✓</span>' : '<span class="bad">diferentes ✗</span>'}</span></div>
+<div class="kv"><span>Testes antes / depois</span><span>${sim(p.testesAntes)} / ${sim(p.testesDepois)}</span></div></div>
+<div class="prova"><h3>Defesa</h3>
+<div class="kv"><span>nmap antes</span><span>${nmap(p.nmapAntes)}</span></div>
+<div class="kv"><span>nmap depois</span><span>${nmap(p.nmapDepois)}</span></div>
+<div class="kv"><span>Aprovado por</span><span>${escapar(fecho ? aprovadoPor(eventos, fecho.pedidoId) : '—')}</span></div>
+<div class="kv"><span>Inverso guardado</span><span>${fecho ? '<span class="ok">criar_regra ✓</span>' : '—'}</span></div></div>
+<div class="espaco"></div>${botao}<div class="nota">Tudo vem de auditoria.jsonl e estado.json</div>`;
 
-  return `<!doctype html><html lang="pt"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Migrar sem ficar exposto</title>
-<style>:root{--bg:#0C1715;--card:#15171C;--fg:#FFFFFF;--mut:#8B929C;--ok:#3ECF8E;--mau:#FF5A4F;--mig:#4C9AFF;--ata:#FF5A4F;--def:#3ECF8E;--che:#8B929C;--dono:#F5B942}
-*{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg);color:var(--fg);font:20px/1.35 Inter,system-ui,sans-serif}
-.relogio{background:var(--card);border-radius:14px;padding:20px 28px;display:flex;gap:32px;align-items:baseline;flex-wrap:wrap;margin-bottom:20px}
-.seg{font-size:clamp(2.4rem,7vw,5rem);font-weight:800;line-height:1}.exposta .seg{color:var(--mau)}.fechada .seg{color:var(--ok)}.neutro{font-size:1.6rem!important;color:var(--mut)}
-.isco{color:var(--mut);font-size:1.3rem}
-main{display:grid;grid-template-columns:1.2fr 1fr 1.1fr;gap:20px}@media (max-width:1100px){main{grid-template-columns:1fr}}
-section{background:var(--card);border-radius:14px;padding:20px}h2{margin:0 0 12px;font-size:1rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
-ul{list-style:none;margin:0;padding:0}li{display:grid;grid-template-columns:5.5em 6.5em 1fr;gap:8px;padding:7px 0 7px 10px;border-left:4px solid var(--che);margin-bottom:6px}
-li .h{color:var(--mut);font-variant-numeric:tabular-nums}li .quem{font-weight:700}
-.ag-migrador{border-color:var(--mig)}.ag-migrador .quem{color:var(--mig)}.ag-atacante{border-color:var(--ata)}.ag-atacante .quem{color:var(--ata)}
-.ag-defesa{border-color:var(--def)}.ag-defesa .quem{color:var(--def)}.ag-dono{border-color:var(--dono)}.ag-dono .quem{color:var(--dono)}.ag-chefe .quem{color:var(--che)}
-.infra{display:flex;flex-direction:column;align-items:stretch;gap:6px}.caixa{border:2px solid #2a313b;border-radius:12px;padding:14px;text-align:center;font-weight:700;font-size:1.3rem}
-.caixa small{display:block;font-weight:400;color:var(--mut);font-size:.9rem}.seta{text-align:center;color:#2a313b;font-size:1.8rem;line-height:1}.seta.acesa{color:var(--mig)}
-.porta{margin-top:10px;border-radius:10px;padding:10px;font-size:1.4rem}.porta small{display:block;font-size:.85rem;opacity:.85}
-.p-aberta,.p-reaberta{background:#3a1715;color:var(--mau)}.p-a-fechar{background:#3a2e12;color:var(--dono)}.p-fechada{background:#0f3324;color:var(--ok)}
-.prova{border-bottom:1px solid #222831;padding:10px 0}.prova:last-child{border:0}.mut,.vazio{color:var(--mut)}.ok{color:var(--ok)}.mau{color:var(--mau)}
-button{margin-top:8px;background:var(--mau);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-size:1rem;cursor:pointer}form{margin:0}
-@media (max-width:600px){body{padding:16px;font-size:16px}li{grid-template-columns:4.5em 5.5em 1fr}}</style>
-${relogio}
-<main><section><h2>Linha do tempo</h2><ul>${linhas || '<li class="vazio">Ainda sem eventos.</li>'}</ul></section>
-<section><h2>Infraestrutura</h2>${infra}</section>
-<section><h2>Provas</h2>${provas}</section></main>
+  return `${cabecalho('Migrar sem ficar exposto', CSS)}
+<div class="topo"><div class="marca"><div class="kicker">InfraHack · Leaseweb · ao vivo</div><h1>Migrar sem ficar exposto</h1></div>${relogio}</div>
+<div class="corpo">
+<section><div class="cab"><span>AGENTES · GRUPO DIREÇÃO</span><span>Telegram</span></div><div class="eventos">${linhas || '<div class="frase" style="color:var(--faint)">Ainda sem eventos.</div>'}</div></section>
+<section><div class="cab"><span>INFRAESTRUTURA</span><span>região UE</span></div>${infra}</section>
+<section><div class="cab"><span>PROVAS</span></div>${provasHtml}</section></div>
 <script>
 const r=document.querySelector('.relogio[data-inicio]');
 if(r){const i=Date.parse(r.dataset.inicio),f=r.dataset.fim?Date.parse(r.dataset.fim):0,seg=r.querySelector('.seg');
- if(!f)setInterval(()=>{seg.textContent='exposto '+Math.round((Date.now()-i)/1000)+' s'},500);
+ if(!f)setInterval(()=>{seg.textContent=Math.round((Date.now()-i)/1000)+' s'},500);
  const q='/isco?json&desde='+encodeURIComponent(r.dataset.inicio)+(f?'&ate='+encodeURIComponent(r.dataset.fim):'');
- fetch(q).then(x=>x.ok?x.json():null).then(c=>{if(c)r.querySelector('.isco').textContent='neste tempo, o isco recebeu '+c.tentativas+' tentativas de entrada'}).catch(()=>{});}
+ fetch(q).then(x=>x.ok?x.json():null).then(c=>{if(c)r.querySelector('.isco').textContent='neste tempo o isco recebeu '+c.tentativas+' tentativas'}).catch(()=>{});}
 let ultimo='';
 setInterval(async()=>{try{const x=await fetch('/estado.json',{cache:'no-store'});const t=await x.text();if(ultimo&&t!==ultimo)location.reload();ultimo=t}catch{}},2000);
-</script></html>`;
+</script></body></html>`;
 }
 
 export async function paginaLinhaTempo(req: IncomingMessage, res: ServerResponse): Promise<void> {

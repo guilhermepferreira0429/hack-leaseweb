@@ -4,9 +4,41 @@
 //   2. leaseweb.removerRegra (lê, remove, volta a ler)
 //   3. auditoria.registar com antes, depois e inverso { tipo: 'criar_regra', securityGroupId, regra sem id }
 //   4. estado 'feito' e telegram.notificar("Fechado e confirmado às HH:MM")
+//   nmap antes e depois (verificarDeFora), se o IP da vítima for conhecido e estiver em ALVOS_PERMITIDOS
 // migrar: delega no migrador (passo s3).
-import type { Inverso, Pedido } from '@mwbe/shared';
-import { TIPOS_ACAO, auditoria, estado, leaseweb, securityGroupsGeridos, telegram } from '@mwbe/shared';
+import { isIP } from 'node:net';
+import type { Inverso, Pedido, Regra } from '@mwbe/shared';
+import { TIPOS_ACAO, auditoria, carregarConfig, estado, leaseweb, securityGroupsGeridos, telegram } from '@mwbe/shared';
+import { PORTAS_SENSIVEIS } from './detetar';
+import { type EstadoPorta, estadoPorta } from './verificar-porta';
+
+/** Ajustável nos testes (nmap falso, esperas curtas). */
+export const verificacao = { estadoPorta, tentativasDepois: 4, intervaloMs: 3_000 };
+
+/**
+ * nmap vista de fora, antes e depois de fechar (docs/demo.md: "open" -> "filtered"). Só a IPs do grupo
+ * que também estão em ALVOS_PERMITIDOS; sem isso não faz nada. Nunca lança: é prova, não é o fecho.
+ * Depois de fechar tenta algumas vezes, porque a firewall da Leaseweb pode demorar uns segundos a aplicar.
+ */
+export async function verificarDeFora(pedidoId: string, sg: string, regra: Regra, fase: 'antes' | 'depois'): Promise<void> {
+  try {
+    const permitidos = new Set(carregarConfig([]).alvosPermitidos);
+    const ips = ((await leaseweb.ipsPorSecurityGroup())[sg] ?? []).filter((ip) => isIP(ip) !== 0 && permitidos.has(ip));
+    const porta = Object.keys(PORTAS_SENSIVEIS).map(Number).find((p) => p >= regra.startPort && p <= regra.endPort) ?? regra.startPort;
+    for (const ip of ips) {
+      let resultado: EstadoPorta = 'desconhecido';
+      const tentativas = fase === 'depois' ? verificacao.tentativasDepois : 1;
+      for (let i = 0; i < tentativas; i++) {
+        if (i > 0) await new Promise((ok) => setTimeout(ok, verificacao.intervaloMs));
+        resultado = await verificacao.estadoPorta(ip, porta);
+        if (fase === 'antes' || resultado !== 'open') break;
+      }
+      auditoria.registar({ hora: new Date().toISOString(), pedidoId, tipo: 'verificado', quem: 'defesa', depois: { ip, porta, fase, estado: resultado } });
+    }
+  } catch (erro) {
+    console.warn('[defesa] verificação com nmap falhou:', erro instanceof Error ? erro.message : erro);
+  }
+}
 
 /** Calcula o inverso ANTES de aplicar. */
 export function inversoDe(pedido: Pedido): Inverso | undefined {
@@ -49,6 +81,7 @@ export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.
     throw new Error(`Security group ${acao.securityGroupId} não está em LSW_SG_GERIDOS: a defesa não lhe mexe`);
   }
 
+  await verificarDeFora(pedido.id, acao.securityGroupId, acao.regra, 'antes');
   const inverso = inversoDe(pedido);
   // O inverso fica no disco ANTES de se mexer na infraestrutura: se algo cair a meio, o Desfazer sabe o que repor.
   auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'a-aplicar', quem: 'defesa', antes: acao.regra, inverso });
@@ -67,4 +100,5 @@ export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.
   auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'feito', quem: 'defesa', antes, depois, inverso });
   if (estado.obterPedido(pedido.id)) estado.mudarEstado(pedido.id, 'feito');
   await avisarSemFalhar(avisar, `Fechado e confirmado às ${horaCurta()}: ${pedido.titulo}. Para voltar atrás: /desfazer ${pedido.id}`);
+  await verificarDeFora(pedido.id, acao.securityGroupId, acao.regra, 'depois');
 }
