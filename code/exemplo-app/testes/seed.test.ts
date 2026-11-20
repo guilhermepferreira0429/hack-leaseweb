@@ -10,9 +10,11 @@ import { GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { GetQueueAttributesCommand, GetQueueUrlCommand, ReceiveMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import * as amqp from 'amqplib';
-import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import pg from 'pg';
 import { carregarEnvLocal, clienteS3, lerAmbiente } from '../adaptadores';
+import { lerCache } from '../cache';
+import { criarSegredos, SEGREDO_PAGAMENTOS } from '../segredos';
+import type { Segredos } from '../segredos';
 import {
   BUCKET_FATURAS,
   gerarCache,
@@ -200,37 +202,45 @@ describe('seed: ler da infraestrutura', { skip: salto }, () => {
     assert.deepEqual(rows[0], { estado: 'nova', total: m.totalCentimos });
   });
 
-  it('lê o segredo encomendas/prod/api-pagamentos do Secrets Manager e a apiKey é falsa', async (t) => {
-    const sm = new SecretsManagerClient({
-      endpoint: process.env.LOCALSTACK_ENDPOINT?.trim() || 'http://127.0.0.1:4566',
-      region: amb!.fila.regiao,
-      credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
-      maxAttempts: 2,
-    });
+  // Segredos e cache: o lado escolhe-se como na app (SEGREDOS_TIPO=aws|openbao, CACHE_TIPO=redis|valkey),
+  // que o verificar() do migrador põe no "antes" e no "depois". Nunca se mostram valores dos segredos.
+  it('lê o segredo encomendas/prod/api-pagamentos (Secrets Manager ou OpenBao) e é o que a seed gerou', async (t) => {
+    let segredos: Segredos;
     try {
-      const r = await sm.send(new GetSecretValueCommand({ SecretId: 'encomendas/prod/api-pagamentos' })).catch((erro: Error) => erro);
-      if (r instanceof Error) {
-        if (!ESTRITA) return t.skip(`sem Secrets Manager com a seed (${r.name}): npm run infra:up e npm run seed`);
-        throw r;
+      segredos = criarSegredos();
+    } catch (erro) {
+      if (!ESTRITA) return t.skip(`segredos não configurados: ${(erro as Error).message}`);
+      throw erro;
+    }
+    try {
+      const valor = await segredos.ler(SEGREDO_PAGAMENTOS).catch((erro: Error) => erro);
+      if (valor instanceof Error) {
+        if (!ESTRITA) return t.skip(`sem o segredo em ${segredos.descricao} (npm run seed): ${valor.message}`);
+        throw valor;
       }
-      const segredo = JSON.parse(r.SecretString ?? '{}') as { apiKey?: string };
+      const segredo = JSON.parse(valor) as { apiKey?: string };
       assert.ok(segredo.apiKey?.startsWith(MARCA_FALSO), 'a apiKey é um valor de demonstração');
-      const gerado = gerarSegredos().segredos.find((x) => x.nome === 'encomendas/prod/api-pagamentos')!;
-      assert.equal(r.SecretString, gerado.valor);
+      const gerado = gerarSegredos().segredos.find((x) => x.nome === SEGREDO_PAGAMENTOS)!;
+      assert.ok(valor === gerado.valor, `o segredo em ${segredos.descricao} é igual ao gerado`);
     } finally {
-      sm.destroy();
+      await segredos.fechar();
     }
   });
 
-  it('lê um carrinho do redis-origem (ElastiCache) igual ao gerado, com TTL', async (t) => {
-    const url = process.env.REDIS_ORIGEM_URL?.trim();
-    if (!url || url.includes('<senha>')) return t.skip('sem REDIS_ORIGEM_URL no .env');
+  it('lê um carrinho da cache (ElastiCache ou Valkey) igual ao gerado, com TTL', async (t) => {
+    let alvo: { tipo: string; url: string };
+    try {
+      alvo = lerCache();
+    } catch (erro) {
+      if (!ESTRITA) return t.skip(`cache não configurada: ${(erro as Error).message}`);
+      throw erro;
+    }
     const esperado = gerarCache(dados).find((c) => c.chave.startsWith('carrinho:'))!;
-    const cliente = await ligarRedis(url);
+    const cliente = await ligarRedis(alvo.url);
     try {
       const lido = await cliente.hGetAll(esperado.chave);
-      if (Object.keys(lido).length === 0 && !ESTRITA) return t.skip('redis-origem sem a seed (npm run seed)');
-      assert.deepEqual({ ...lido }, esperado.valor); // o node-redis devolve um objeto sem protótipo
+      if (Object.keys(lido).length === 0 && !ESTRITA) return t.skip(`${alvo.tipo} sem a seed (npm run seed)`);
+      assert.deepEqual({ ...lido }, esperado.valor, `carrinho no ${alvo.tipo}`); // o node-redis devolve um objeto sem protótipo
       assert.ok((await cliente.pTTL(esperado.chave)) > 0, 'o carrinho tem TTL');
     } finally {
       await cliente.close().catch(() => {});
