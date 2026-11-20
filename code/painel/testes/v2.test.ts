@@ -102,6 +102,9 @@ describe('painel v2: ecrã', () => {
     const html = renderizarV2(pedidos, ciclo, { token: 'tk', local: 'Leaseweb Amsterdam, NL', agora: new Date(t(40)) });
     for (const s of ['AGENT CHAIN', 'DEFENSE · THINKING NOW', 'SERVICES', 'LIVE LOGS', 'VICTIM VM', 'Download report (PDF)', 'href="/relatorio.pdf"', 'Undo last action'])
       assert.ok(html.includes(s), s);
+    // Toggle Simples/Técnico: os dois botões e o glossário inlined para o browser.
+    for (const s of ['class="modo"', 'data-m="simples"', 'data-m="tecnico"', 'painel-modo', '"MinIO":"object storage"'])
+      assert.ok(html.includes(s), s);
     assert.match(html, /class="p p-closed">CLOSED</);
     assert.match(html, /AWS \(sim\) → Leaseweb Amsterdam, NL/);
     assert.match(html, /handoff → DEFENSE/);

@@ -6,13 +6,19 @@
 // Nada inventado: o que não está na auditoria não aparece (sem barras de progresso falsas nem contagens antecipadas).
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { EventoAuditoria, Pedido, Regra } from '@mwbe/shared';
-import { auditoria, carregarEnv, estado } from '@mwbe/shared';
+import { auditoria, carregarEnv, estado, GLOSSARIO } from '@mwbe/shared';
 import { nomeRelatorioPdf, relatorioPdf, relogioExposicao } from '@mwbe/chefe';
 import { cabecalho, escapar } from './estilo';
 import { agenteDe, cicloAtual, portasDoCiclo, provas } from './linha-tempo';
 import { fraseIngles } from './palco';
 
 type Obj = Record<string, unknown>;
+
+// Padrão do glossário (termos do mais longo para o mais curto, já escapados) para o toggle Simples/Técnico no browser.
+const PADRAO_GLOSSARIO = Object.keys(GLOSSARIO)
+  .sort((a, b) => b.length - a.length)
+  .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  .join('|');
 const obj = (v: unknown): Obj => (v && typeof v === 'object' ? (v as Obj) : {});
 const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v.toLocaleString('en-US') : '—');
 const hora = (iso: string | Date) => {
@@ -290,7 +296,10 @@ section{background:var(--panel);border-radius:18px;padding:22px;display:flex;fle
 .pr{border:1px solid var(--code);background:#C4A7FF14;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
 .pr b{font:400 24px var(--serif)}.pr a{color:var(--code);font:14px var(--mono);overflow-wrap:anywhere}
 .rodape{display:flex;justify-content:space-between;align-items:center;gap:16px;font:15px var(--mono);color:var(--faint)}
-.rodape .bts{display:flex;gap:12px}.bt{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;font:600 17px var(--sans);text-decoration:none;cursor:pointer;border:0}
+.rodape .bts{display:flex;gap:12px;align-items:center}.bt{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;font:600 17px var(--sans);text-decoration:none;cursor:pointer;border:0}
+.modo{display:inline-flex;border:1px solid var(--faint);border-radius:10px;overflow:hidden;margin-right:4px}
+.modo button{padding:8px 13px;font:600 15px var(--sans);background:transparent;color:var(--faint);border:0;cursor:pointer}
+.modo button.on{background:var(--ink);color:var(--bg)}
 .bt.desc{background:var(--ink);color:var(--bg)}.bt.desf{background:transparent;color:var(--def);border:1px solid var(--def)}
 @media (max-width:1700px){body{height:auto;overflow:auto;padding:24px}.corpo{grid-template-columns:1fr 1fr}.corpo section:first-child{grid-column:1/-1}.seg{font-size:72px}}`;
 
@@ -399,7 +408,7 @@ export function renderizarV2(pedidos: Pedido[], todos: EventoAuditoria[], opcoes
   return `${cabecalho('Migrate without being exposed', CSS).replace('<html lang="pt">', '<html lang="en">')}
 <div class="topo"><div class="marca"><div class="kicker">InfraHack · Leaseweb · live</div><h1>Migrate without being exposed</h1></div>${htmlRelogio(todos, agora)}</div>
 <div class="corpo">${htmlCadeia(eventos)}${htmlServicos(eventos, opcoes.local || 'Leaseweb', agora)}${htmlLogs(eventos)}</div>
-<div class="rodape"><span>Everything comes from auditoria.jsonl and estado.json</span><div class="bts"><a class="bt desc" href="/relatorio.pdf" download>⤓ Download report (PDF)</a>${desfazer}</div></div>
+<div class="rodape"><span>Everything comes from auditoria.jsonl and estado.json</span><div class="bts"><div class="modo" id="modo" title="Plain words for a non-technical owner, or the real tool names"><button data-m="simples">Simple</button><button data-m="tecnico">Technical</button></div><a class="bt desc" href="/relatorio.pdf" download>⤓ Download report (PDF)</a>${desfazer}</div></div>
 <script>
 const r=document.querySelector('.relogio[data-inicio]');
 if(r){const i=Date.parse(r.dataset.inicio),f=r.dataset.fim?Date.parse(r.dataset.fim):0,seg=r.querySelector('.seg');
@@ -408,6 +417,18 @@ if(r){const i=Date.parse(r.dataset.inicio),f=r.dataset.fim?Date.parse(r.dataset.
  fetch(q).then(x=>x.ok?x.json():null).then(c=>{if(c)r.querySelector('.isco').textContent='meanwhile the honeypot got '+c.tentativas+' attempts'}).catch(()=>{});}
 let ultimo='';
 setInterval(async()=>{try{const x=await fetch('/estado.json',{cache:'no-store'});const t=await x.text();if(ultimo&&t!==ultimo)location.reload();ultimo=t}catch{}},2000);
+// Toggle Simples/Técnico: no modo simples troca-se o jargão por palavras do dia a dia só no texto da coluna (.corpo).
+const GLOSS=${JSON.stringify(GLOSSARIO)};
+const REGLOSS=new RegExp('('+${JSON.stringify(PADRAO_GLOSSARIO)}+')','g');
+function aplicarModo(m){
+ document.querySelectorAll('#modo button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+ if(m!=='simples')return;
+ const corpo=document.querySelector('.corpo');if(!corpo)return;
+ const w=document.createTreeWalker(corpo,NodeFilter.SHOW_TEXT);let n;
+ while(n=w.nextNode()){const v=n.nodeValue.replace(REGLOSS,t=>GLOSS[t]||t);if(v!==n.nodeValue)n.nodeValue=v;}
+}
+aplicarModo(localStorage.getItem('painel-modo')||'simples');
+document.querySelectorAll('#modo button').forEach(b=>b.addEventListener('click',()=>{localStorage.setItem('painel-modo',b.dataset.m);location.reload();}));
 </script></body></html>`;
 }
 
