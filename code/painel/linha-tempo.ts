@@ -182,6 +182,8 @@ section{background:var(--panel);border-radius:18px;padding:28px;display:flex;fle
 .kv span:first-child{color:var(--muted)}.kv span:last-child{font-family:var(--mono)}.ok{color:var(--ok)}.bad{color:var(--bad)}
 .espaco{flex:1}.btn{width:100%;padding:18px;border:0;border-radius:12px;background:var(--def);color:var(--bg);font:600 18px var(--sans);cursor:pointer}
 .nota{font:13px var(--mono);color:var(--faint)}
+.agora{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:10px;padding:12px 14px;font-size:18px;color:var(--muted);font-style:italic}
+.agora span{display:block;font:14px var(--mono);font-style:normal;color:var(--c);letter-spacing:1px;margin-bottom:4px}
 @media (max-width:1500px){body{padding:24px}.corpo{grid-template-columns:1fr 1fr}.corpo section:first-child{grid-column:1/-1}.seg{font-size:96px}}
 @media (max-width:900px){body{padding:16px}.corpo{grid-template-columns:1fr}.seg{font-size:72px}.marca h1{font-size:36px}.relogio{align-items:flex-start}}`;
 
@@ -198,7 +200,14 @@ export function renderizar(pedidos: Pedido[], todos: EventoAuditoria[], token = 
 <div class="estado"><div class="pill">${exp.aindaExposta ? 'EXPOSTO' : `FECHADO ${horaLisboa(exp.fim!)}`}</div><div class="isco">&nbsp;</div></div></div></div>`
     : `<div class="relogio espera"><div class="kicker">Tempo exposto</div><div class="seg">à espera da infraestrutura nova</div><div class="isco">&nbsp;</div></div>`;
 
+  // Linha "a pensar" (docs/agentes/vozes.md): o texto fixo do último evento 'pensar' do ciclo, por baixo do agente ativo.
+  // Não é raciocínio do modelo: é a frase do passo da demo. Os eventos 'pensar' não entram na lista.
+  const pensar = eventos.findLast((e) => e.tipo === 'pensar');
+  const agora = pensar
+    ? `<div class="agora ag-${agenteDe(pensar)}"><span>${NOME[agenteDe(pensar)]} · a pensar</span>${escapar(String(obj(pensar.depois).texto ?? ''))}</div>`
+    : '';
   const linhas = eventos
+    .filter((e) => e.tipo !== 'pensar')
     .slice(-9)
     .map((e) => {
       const ag = agenteDe(e);
@@ -242,7 +251,7 @@ ${p.linhas !== undefined ? `<div class="kv"><span>Linhas da base de dados</span>
   return `${cabecalho('Migrar sem ficar exposto', CSS)}
 <div class="topo"><div class="marca"><div class="kicker">InfraHack · Leaseweb · ao vivo</div><h1>Migrar sem ficar exposto</h1></div>${relogio}</div>
 <div class="corpo">
-<section><div class="cab"><span>AGENTES · GRUPO DIREÇÃO</span><span>Telegram</span></div><div class="eventos">${linhas || '<div class="frase" style="color:var(--faint)">Ainda sem eventos.</div>'}</div></section>
+<section><div class="cab"><span>AGENTES · GRUPO DIREÇÃO</span><span>Telegram</span></div>${agora}<div class="eventos">${linhas || '<div class="frase" style="color:var(--faint)">Ainda sem eventos.</div>'}</div></section>
 <section><div class="cab"><span>INFRAESTRUTURA</span><span>região UE</span></div>${infra}</section>
 <section><div class="cab"><span>PROVAS</span></div>${provasHtml}</section></div>
 <script>

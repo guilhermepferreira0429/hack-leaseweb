@@ -365,3 +365,29 @@ describe('rede instável (fetch failed visto a 20/11)', () => {
     assert.equal(n, 2);
   });
 });
+
+describe('botão Desfazer do relatório (Telegram)', () => {
+  it('liga aoDesfazer ao desfazer, um de cada vez por pedido, e avisa se falhar', async () => {
+    const { ligarDesfazer } = await import('@mwbe/defesa');
+    let cb: ((id: string, quem: string) => void) | undefined;
+    const avisos: string[] = [];
+    const feitos: string[] = [];
+    let soltar: () => void = () => {};
+    ligarDesfazer(
+      { aoDesfazer: (f) => void (cb = f), notificar: async (t) => void avisos.push(t) },
+      async (id) => {
+        feitos.push(id);
+        if (id === 'mau') throw new Error('Nada para desfazer');
+        await new Promise<void>((ok) => (soltar = ok));
+      },
+    );
+    cb!('p1', '123');
+    cb!('p1', '123'); // segundo clique enquanto o primeiro corre: ignorado
+    soltar();
+    await new Promise((ok) => setTimeout(ok, 5));
+    cb!('mau', '123');
+    await new Promise((ok) => setTimeout(ok, 5));
+    assert.deepEqual(feitos, ['p1', 'mau']);
+    assert.match(avisos[0], /Não consegui desfazer mau/);
+  });
+});
