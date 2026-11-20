@@ -593,7 +593,7 @@ ${resumo}`,
       modoDestino = "recomendado";
       auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "migrador", depois: { modo: modoDestino, porOmissao: true } });
       // A recomendação mostra o raciocínio e os preços; nada se contrata. Hoje migra-se tudo para a VM.
-      const geridos = /proponho|propose|recommend/i.test(texto);
+      const geridos = /proponho|propose|recommend|managed/i.test(texto);
       // Com botões (Telegram): a primeira pergunta é a escolha do destino, com o Why? ao lado. Sem eles: por comando.
       if (geridos && deps.telegram.enviarComEscolhas) {
         try {
