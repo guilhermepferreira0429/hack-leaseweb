@@ -62,6 +62,15 @@ const SERVICOS: { passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache'; aws:
   { passo: 'cache', aws: 'ElastiCache Redis', destino: 'Valkey', frase: (p) => `Cache: ${p.chaves ?? NAO_MEDIDO} chaves copiadas` },
 ];
 
+/** Países da UE (ISO 3166-1 alfa-2). */
+const UE = new Set(['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK']);
+
+/** O local termina num código de país da UE entre parênteses, ex.: "Leaseweb, Amesterdão (NL)". */
+export function naUE(local: string | undefined): boolean {
+  const m = local?.trim().match(/\(([A-Z]{2})\)$/);
+  return Boolean(m && UE.has(m[1]!));
+}
+
 /** CERT-AAAAMMDD-HHMM, na hora de Lisboa. */
 export function idCertificado(agora: Date = new Date()): string {
   const p = new Intl.DateTimeFormat('en-CA', {
@@ -166,6 +175,8 @@ export function certificado(eventos: EventoAuditoria[], pedidos: Pedido[], local
   }
   l.push('');
 
-  l.push(`Destino dos dados: ${onde}. Gerado automaticamente a partir do registo de auditoria (${eventos.length} ${eventos.length === 1 ? 'evento' : 'eventos'}).`);
+  // "Nenhum dado saiu da UE" só quando o destino dito por nós (LOCAL_DADOS) é um país da UE, ex.: "(NL)".
+  const ue = naUE(localDados) && feitos.length > 0 ? 'Nenhum dado saiu da UE. ' : '';
+  l.push(`${ue}Destino dos dados: ${onde}. Gerado automaticamente a partir do registo de auditoria (${eventos.length} ${eventos.length === 1 ? 'evento' : 'eventos'}).`);
   return l.join('\n');
 }

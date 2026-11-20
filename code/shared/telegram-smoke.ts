@@ -162,9 +162,9 @@ async function main(): Promise<void> {
       me?.ok ? `@${(me.resultado as { username?: string }).username}` : me?.erro ?? 'sem resposta',
     );
   }
-  // a) parte 2: chefe, migrador e defesa no grupo; o atacante só em privado com o dono.
+  // a) parte 2: os 4 bots no grupo (o atacante só em privado com TELEGRAM_ATACANTE_PRIVADO=sim).
   for (const b of comToken) {
-    const privado = b.agente === 'atacante';
+    const privado = b.agente === 'atacante' && telegram.atacanteEmPrivado();
     try {
       await telegram.falar(
         b.agente,
