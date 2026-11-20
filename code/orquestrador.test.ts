@@ -245,6 +245,25 @@ describe("orquestrador", () => {
     assert.ok(t.eventos.some((e) => e.tipo === "aprovado" && e.quem === DONO));
   });
 
+  it('mensagens fixas: linha "a pensar" por passo, plano aprovado e validação só com o que foi medido', async () => {
+    const t = montar();
+    await t.orq.correr();
+    const passos = t.eventos.filter((e) => e.tipo === 'pensar').map((e) => (e.depois as { passo: string }).passo);
+    assert.deepEqual(passos, ['abertura', 'plano', 'confirmacao', 'migrar', 'atacar', 'defender', 'validar', 'relatorio']);
+    const pensarDefesa = t.eventos.find((e) => e.tipo === 'pensar' && (e.depois as { passo: string }).passo === 'defender')!;
+    assert.equal(pensarDefesa.quem, 'defesa');
+    assert.match((pensarDefesa.depois as { texto: string }).texto, /A explicar o risco/);
+    const chefe = textos(t.falas, 'chefe');
+    assert.match(chefe[0]!, /^Bom dia\. Vamos tirar a app exemplo-app da AWS/);
+    assert.ok(chefe.some((f) => /^Plano aprovado por o dono às \d\d:\d\d\. @migrador, avança\.$/.test(f)));
+    assert.ok(chefe.includes('Validação final: testes ✓, nada exposto ✓, dados iguais ✓.'));
+
+    // Sem migração nem atacante, nada foi medido: não há validação inventada.
+    const so = montar({}, { migrar: false, atacar: false });
+    await so.orq.correr();
+    assert.ok(!textos(so.falas, 'chefe').some((f) => /Validação final/.test(f)));
+  });
+
   it("não fecha nada se o dono ignorar", async () => {
     const t = montar({
       decisao: (p) => (p.acao.tipo === "remover_regra" ? "ignorar" : "aprovar"),
