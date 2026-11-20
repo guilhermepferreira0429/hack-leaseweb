@@ -5,13 +5,15 @@
 //   npm run dev -- --consola            o terminal faz de Telegram (ensaio e plano B); aprova-se com "s"
 //   npm run dev -- --uma-vez            sai no fim do ciclo (para ensaios), em vez de ficar à escuta
 //   npm run dev -- --sem-fila           salta o passo SQS -> RabbitMQ (se o contentor rabbitmq não estiver no ar)
+//   npm run dev -- --sem-segredos       salta o passo Secrets Manager/SSM -> OpenBao
+//   npm run dev -- --sem-cache          salta o passo ElastiCache Redis -> Valkey
 // A lógica está em orquestrador.ts; aqui só se ligam os módulos reais.
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { auditoria, bus, estado, responderComoAgente, telegram } from '@mwbe/shared';
+import { auditoria, bus, estado, relatorio, responderComoAgente, telegram } from '@mwbe/shared';
 import * as defesa from '@mwbe/defesa';
 import { carregarAllowlist, reconhecer } from '@mwbe/atacante';
-import { analisar, migrarFila, migrarPostgres, migrarS3, verificar } from '@mwbe/migrador';
+import { analisar, migrarCache, migrarFila, migrarPostgres, migrarS3, migrarSegredos, verificar } from '@mwbe/migrador';
 import { certificado, estadoAtual, resumir } from '@mwbe/chefe';
 import { iniciarPainel } from '@mwbe/painel';
 import { decidirDestino, mensagemDestino, resumoPlano, traduzir } from './migrador/tradutor/index';
@@ -78,6 +80,8 @@ async function main(): Promise<void> {
         migrarS3,
         migrarPostgres,
         migrarFila: args.has('--sem-fila') ? undefined : migrarFila,
+        migrarSegredos: args.has('--sem-segredos') ? undefined : migrarSegredos,
+        migrarCache: args.has('--sem-cache') ? undefined : migrarCache,
         verificar,
         planoInfra,
         planoDestino,
@@ -85,6 +89,8 @@ async function main(): Promise<void> {
         migrarCodigo: (planoId, testesOk) =>
           migrarCodigo(`${RAIZ}code/exemplo-app`, { raizRepo: RAIZ, id: planoId, testesOk, real: process.env.MIGRADOR_PR === 'real' }),
       },
+      // Relatório do incidente (David) no grupo "Direção", com um Desfazer por passo. Na --consola não há grupo.
+      relatorio: consola ? undefined : { publicar: (achadoId) => relatorio.publicarRelatorio(achadoId) },
       voz: { responder: (agente, pergunta, estadoTexto) => responderComoAgente(agente, pergunta, estadoTexto) },
       chefe: { resumir, estadoAtual, certificado: (eventos, pedidos) => certificado(eventos, pedidos, process.env.LOCAL_DADOS || undefined) },
     },
