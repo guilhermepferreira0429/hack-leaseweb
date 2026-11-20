@@ -4,7 +4,7 @@ import { extname, join } from 'node:path';
 
 export type ServicoAws = 's3' | 'postgres' | 'fila';
 
-/** Alternativa aberta proposta para cada serviço. Só o S3 é migrado hoje; o resto é slide. */
+/** Alternativa aberta proposta para cada serviço (migrarS3, migrarPostgres, migrarFila). */
 export const ALTERNATIVA: Record<ServicoAws, string> = {
   s3: 'MinIO',
   postgres: 'PostgreSQL',
@@ -42,16 +42,17 @@ function escreverPlano(servicos: ServicoAws[]): string {
   if (servicos.length === 0) return 'Não encontrei serviços da AWS nesta app. Não há nada para migrar.';
   const lista = servicos.map((s) => NOME_AWS[s]);
   const encontrados = lista.length === 1 ? lista[0] : `${lista.slice(0, -1).join(', ')} e ${lista.at(-1)}`;
-  const linhas = [`Encontrei ${servicos.length === 1 ? 'um serviço' : `${servicos.length} serviços`} da AWS na app: ${encontrados}.`];
-  if (servicos.includes('s3')) {
-    linhas.push(
-      'Proponho passar já os ficheiros do S3 para o MinIO na Leaseweb, na UE. Copio cada ficheiro e confirmo que a impressão digital (sha256) é igual dos dois lados.',
-      'No fim corro os mesmos testes da app contra a AWS e contra a Leaseweb. Nada é apagado na AWS.',
-    );
-  }
-  const resto = servicos.filter((s) => s !== 's3').map((s) => `${NOME_AWS[s].split(' ')[0]} → ${ALTERNATIVA[s]}`);
-  if (resto.length > 0) linhas.push(`Fica para a fase seguinte: ${resto.join(', ')}.`);
-  return linhas.join('\n');
+  const passos = servicos.map((s) => `${NOME_AWS[s].split(' ')[0]} → ${ALTERNATIVA[s]}`);
+  const comoAprovar = passos.length > 1 ? 'um passo de cada vez e com o teu OK em cada um' : 'com o teu OK';
+  const fica = servicos.includes('fila')
+    ? 'Na AWS os ficheiros e os dados ficam como estão; as mensagens da fila passam para o RabbitMQ.'
+    : 'Nada é apagado na AWS.';
+  return [
+    `Encontrei ${servicos.length === 1 ? 'um serviço' : `${servicos.length} serviços`} da AWS na app: ${encontrados}.`,
+    `Proponho passar para a Leaseweb, na UE, ${comoAprovar}: ${passos.join(', ')}.`,
+    `Cada cópia tem prova: contagem e impressão digital (sha256) iguais dos dois lados. ${fica}`,
+    'No fim corro os mesmos testes da app contra a AWS e contra a Leaseweb.',
+  ].join('\n');
 }
 
 /** Procura imports do SDK AWS (@aws-sdk/client-s3, client-sqs) e do pg na pasta da app. */

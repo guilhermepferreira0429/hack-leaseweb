@@ -35,11 +35,13 @@ describe('migrador: analisar', () => {
     assert.ok(linhas.length >= 2 && linhas.length <= 4, `plano com ${linhas.length} linhas`);
   });
 
-  it('só S3: não fala de fase seguinte', async () => {
+  it('só S3: propõe só o MinIO e garante que nada é apagado', async () => {
     const dir = await pasta({ 'src/a.ts': "import { S3Client } from '@aws-sdk/client-s3';" });
     const { servicos, plano } = await analisar(dir);
     assert.deepEqual(servicos, ['s3']);
-    assert.doesNotMatch(plano, /fase seguinte/);
+    assert.match(plano, /S3 → MinIO/);
+    assert.doesNotMatch(plano, /RabbitMQ|PostgreSQL/);
+    assert.match(plano, /Nada é apagado na AWS/);
   });
 
   it('sem S3: não propõe migração e ignora node_modules', async () => {
