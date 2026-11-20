@@ -183,3 +183,16 @@ describe('certificado, provas e isco (ecrãs do desenho)', () => {
     assert.ok(!html.includes('Júri'));
   });
 });
+
+describe('linha "a pensar"', () => {
+  it('mostra o texto do último pensar do ciclo e tira-o da lista', () => {
+    const ev = [
+      { hora: '2026-11-20T10:00:00Z', pedidoId: '-', tipo: 'infra-no-ar', quem: 'orquestrador' },
+      { hora: '2026-11-20T10:00:01Z', pedidoId: '-', tipo: 'pensar', quem: 'atacante', depois: { passo: 'atacar', texto: 'A olhar para as portas da máquina nova' } },
+      { hora: '2026-11-20T10:00:02Z', pedidoId: '-', tipo: 'pensar', quem: 'defesa', depois: { passo: 'defender', texto: 'A ver que regra deixa isto aberto' } },
+    ];
+    const html = renderizar([], ev);
+    assert.match(html, /class="agora ag-defesa"><span>DEFESA · a pensar<\/span>A ver que regra deixa isto aberto/);
+    assert.ok(!html.includes('A olhar para as portas'));
+  });
+});

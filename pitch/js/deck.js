@@ -167,7 +167,7 @@
         ['P', 'Vista do apresentador (outra janela)'],
         ['G', 'Guião completo, para imprimir'],
         ['E', 'Números ao vivo: N, T, X, testes'],
-        ['D', 'Painel ao vivo por cima do slide'],
+        ['D · I · C', 'Painel ao vivo, ecrã do isco, certificado (por cima do slide)'],
         ['V', 'Vídeo de recurso'],
         ['B', 'Ecrã preto'],
         ['F', 'Ecrã inteiro'],
@@ -231,11 +231,15 @@
     return f;
   };
 
-  const painel = () => {
+  const pagina = (url, tecla) => () => {
     const o = el('div', 'sobre painel-vivo');
-    o.appendChild(el('iframe', null)).src = C.painelUrl;
-    o.appendChild(el('div', 'etiqueta-painel', `painel ao vivo · ${C.painelUrl} · D fecha`));
+    o.appendChild(el('iframe', null)).src = url;
+    o.appendChild(el('div', 'etiqueta-painel', `ao vivo · ${url} · ${tecla} fecha`));
     return o;
+  };
+  const abrirPagina = (nome, url, tecla) => {
+    for (const k of ['painel', 'isco', 'certificado']) if (k !== nome && sobre[k]) alternar(k);
+    alternar(nome, pagina(url, tecla));
   };
 
   const video = () => {
@@ -295,7 +299,9 @@
     if (s === 'h' || k === '?') alternar('ajuda', ajuda);
     else if (s === 'o') alternar('geral', vistaGeral);
     else if (s === 'e') alternar('editor', editor);
-    else if (s === 'd') alternar('painel', painel);
+    else if (s === 'd') abrirPagina('painel', C.painelUrl, 'D');
+    else if (s === 'i') abrirPagina('isco', C.iscoUrl, 'I');
+    else if (s === 'c') abrirPagina('certificado', C.certificadoUrl, 'C');
     else if (s === 'v') alternar('video', video);
     else if (s === 'b') document.body.classList.toggle('preto');
     else if (s === 'f') (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {});

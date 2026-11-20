@@ -308,13 +308,12 @@
       ...anexo('A8', 'The migration certificate', `
         <div class="certificado">
           <div class="cert-cab"><span class="mono">CERT-YYYYMMDD-HHMM</span><span class="muted">Leaseweb Public Cloud · Frankfurt</span></div>
+          <div class="cert-titulo">The migration finished, and it is secure.</div>
           <div class="cert-grelha">
-            <div><b>1 · Where the data lives</b><span>each AWS service → its new home, provider and country</span></div>
-            <div><b>2 · Nothing lost</b><span>files and rows copied, checksums before and after, app tests</span></div>
-            <div><b>3 · What was attacked</b><span>what the attacker found, and when</span></div>
-            <div><b>4 · What was closed</b><span>who approved, at what time, exposure in seconds</span></div>
-            <div><b>5 · How to undo</b><span>every action with its stored inverse</span></div>
-            <div><b>Summary</b><span>three sentences by the AI, from these facts only</span></div>
+            <div><b>1 · Where the data lives</b><span>each AWS service → its new home, provider, country, self-hosted or managed</span></div>
+            <div><b>2 · Proof nothing was lost</b><span>files and rows copied, checksums, app tests before and after</span></div>
+            <div><b>3 · Security after the move</b><span>what was found, closed at what time, by whom, seconds exposed</span></div>
+            <div><b>4 · How to undo</b><span>actions with a stored inverse, one tap each</span></div>
           </div>
         </div>
         <div class="mono muted">An audit-ready record, not an official certification. Every field comes from the logs.</div>`),
