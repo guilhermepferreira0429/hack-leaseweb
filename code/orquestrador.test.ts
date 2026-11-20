@@ -293,6 +293,25 @@ describe('orquestrador', () => {
     assert.ok(vistos.some((e) => e.tipo === 'infra-no-ar'), 'o deste ciclo está lá');
   });
 
+  it('decisor de destino: fala antes do pedido com os serviços do analisar; se falhar, migra na mesma', async () => {
+    const ok = montar({}, { atacar: false });
+    let recebidos: string[] = [];
+    ok.deps.migrador.planoDestino = async (s) => ((recebidos = s), 'O PostgreSQL vai para gerido.');
+    await ok.orq.correr();
+    assert.deepEqual(recebidos, ['s3', 'postgres', 'fila']);
+    const iDestino = ok.falas.findIndex((f) => f.texto === 'O PostgreSQL vai para gerido.');
+    const iCopia = ok.falas.findIndex((f) => /ficheiros copiados/.test(f.texto));
+    assert.ok(iDestino >= 0 && iDestino < iCopia);
+
+    const falha = montar({}, { atacar: false });
+    falha.deps.migrador.planoDestino = async () => {
+      throw new Error('tabela de preços');
+    };
+    await falha.orq.correr();
+    assert.ok(falha.notificacoes.some((n) => /decisor de destino/.test(n)));
+    assert.ok(falha.falas.some((f) => /ficheiros copiados/.test(f.texto)));
+  });
+
   it('o atacante diz se ainda chega à porta depois de fechar', async () => {
     const t = montar({ portaFechada: false }, { migrar: false });
     await t.orq.correr();

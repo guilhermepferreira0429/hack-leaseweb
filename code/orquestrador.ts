@@ -43,6 +43,8 @@ export interface Dependencias {
     verificar(): Promise<{ antes: boolean; depois: boolean }>;
     /** Resumo do tradutor AWS (Terraform) -> Leaseweb, só plano. undefined = não há configuração AWS para traduzir. */
     planoInfra?(): Promise<string | undefined>;
+    /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
+    planoDestino?(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<string | undefined>;
   };
   chefe: {
     resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
@@ -251,11 +253,25 @@ ${resumo}`);
     }
   }
 
+  /** Onde fica cada serviço (regras do decisor, preços com data). Só informa; um erro não trava a migração. */
+  async function mostrarPlanoDestino(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<void> {
+    if (!deps.migrador.planoDestino) return;
+    try {
+      const texto = await deps.migrador.planoDestino(servicos);
+      if (!texto) return;
+      auditar({ pedidoId: '-', tipo: 'migracao-plano-destino', quem: 'migrador', depois: { texto } });
+      falar('migrador', 'dono', texto);
+    } catch (erro) {
+      await falha('decisor de destino', erro);
+    }
+  }
+
   async function faseMigrar(): Promise<void> {
     const { servicos, plano } = await deps.migrador.analisar(opcoes.dirApp);
     const nomes = servicos.map((s) => NOME_SERVICO[s]).join(', ');
     falar('migrador', 'dono', `Encontrei ${servicos.length} serviços AWS na app: ${nomes}. Começo pelo S3 para MinIO na Leaseweb.`);
     await mostrarPlanoInfra();
+    await mostrarPlanoDestino(servicos);
     if (!servicos.includes('s3')) return;
 
     const pedido: Pedido = {
