@@ -37,8 +37,9 @@ action is stored. The migration then finishes, the Migrator opens a pull request
 the Terraform rule that caused the exposure, and the Chief issues a migration certificate generated from the audit
 log.
 
-Everything runs against the **real Leaseweb API**. The only simulated part is the AWS account, replaced by
-LocalStack and containers so the demo is repeatable and costs nothing on the AWS side.
+Everything that changes infrastructure runs against the **real Leaseweb API**. The AWS account is simulated with
+LocalStack, and the optional managed-service recommendation is a dry run; in the demo the data runs on the
+owner's VM. That keeps the run repeatable and costs nothing on the AWS side.
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the internals.
 
 ![The Telegram group "Direção" during the incident](docs/media/telegram-group.png)
@@ -106,9 +107,10 @@ from outside.
 ## How it works
 
 1. **Migrate.** The Migrator reads the sample app and its Terraform, then applies a **deterministic translation
-   table** (not the LLM) to decide what moves and where. The destination decider picks self-hosted open services
-   or an EU managed service using dated prices and simple rules. The owner gets one message with an
-   **Approve plan** button. On approval, five services move live, each with proof: S3 → MinIO, RDS Postgres →
+   table** (not the LLM) to decide what moves and where. The destination decider recommends self-hosted open
+   services or an EU managed service using dated prices and simple rules; the owner can switch to all self-hosted
+   before approving. The owner gets one message with an **Approve plan** button. On approval, five services move
+   live, each with proof: S3 → MinIO, RDS Postgres →
    PostgreSQL, SQS → RabbitMQ, Secrets Manager/SSM → OpenBao, ElastiCache Redis → Valkey. DynamoDB, SNS and
    CloudWatch Logs are in the plan for the next phase (**in development**). The same app tests run before and
    after, and an independent script compares source and target (`npm run seed:comparar -- --destino`).
@@ -339,7 +341,7 @@ was developed against a real event account:
 - **Measured on the day**: after a revoke, the port was already `filtered` in about 3 seconds, while the API kept
   listing the rule for about 39 seconds. That is why the Defender confirms from outside instead of trusting the
   API state.
-- **One region in the event account**: `eu-central-1` (Frankfurt). The victim script defaults to it.
+- **Only one instance region in the event account**: `eu-central-1` (Frankfurt). The victim script defaults to it.
 - **Never swap a security group.** Attaching a group replaces its rules, so the Defender only revokes the single
   offending rule and re-reads.
 
