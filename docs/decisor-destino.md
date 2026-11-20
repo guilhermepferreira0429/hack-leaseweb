@@ -1,143 +1,143 @@
-# Decisor de destino: self-hosted ou serviço gerido europeu
+# Destination decider: self-hosted or European managed service
 
-Para o migrador decidir onde fica cada serviço. Os agentes de código montam o decisor a partir deste ficheiro. Ver também `ferramentas.md`, secção "Planeador de destino".
+How the migrator decides where each service goes. The coding agents build the decider from this file. See also `ferramentas.md`, section "Destination planner".
 
-## Princípios
+## Principles
 
-1. **As regras decidem, a IA explica.** O modelo nunca escolhe o destino nem inventa preços.
-2. **Leaseweb primeiro.** Se a Leaseweb tiver o serviço gerido, é essa a escolha. Outro fornecedor europeu só quando a Leaseweb não o tiver.
-3. **Só fornecedores com sede e dados na UE.**
-4. **Preços só da tabela abaixo,** com a data em que foram vistos. Se um preço tiver mais de 30 dias, o agente diz "preço a confirmar".
-5. **O dono decide no fim:** "Aprovar plano" ou "Ignorar". Os botões "Tudo self-hosted" e "Porquê?" ficaram de fora.
+1. **The rules decide, the AI explains.** The model never chooses the destination and never invents prices.
+2. **Leaseweb first.** If Leaseweb has the managed service, that is the choice. Another European provider only when Leaseweb does not have it.
+3. **Only providers headquartered in the EU, with data in the EU.**
+4. **Prices only from the table below,** with the date they were seen. If a price is more than 30 days old, the agent says "price to be confirmed".
+5. **The owner decides at the end:** "Approve plan" or "Ignore". The "Everything self-hosted" and "Why?" buttons were left out.
 
-## Entradas do decisor
+## Decider inputs
 
-| Entrada | De onde vem |
+| Input | Where it comes from |
 |---|---|
-| RAM, vCPU e disco livres da VM de destino | API da Leaseweb (tipo de instância) ou `free -h` / `df -h` |
-| Serviços encontrados e tamanho dos dados | `migrador/analisar.ts` |
-| Criticidade de cada serviço (alta, média, baixa) | Pergunta ao dono no Telegram; por defeito, base de dados = alta |
-| Dados pessoais (sim/não) | Pergunta ao dono; por defeito, base de dados = sim |
-| Precisa de alta disponibilidade (sim/não) | Derivado: criticidade alta → sim |
+| Free RAM, vCPU and disk on the destination VM | Leaseweb API (instance type) or `free -h` / `df -h` |
+| Services found and data size | `migrador/analisar.ts` |
+| Criticality of each service (high, medium, low) | Question to the owner in Telegram; default: database = high |
+| Personal data (yes/no) | Question to the owner; default: database = yes |
+| Needs high availability (yes/no) | Derived: high criticality → yes |
 
-## Recursos mínimos para self-hosted (valores de referência do decisor)
+## Minimum resources for self-hosted (decider reference values)
 
-| Serviço (AWS) | Alternativa aberta | RAM mínima | Disco | Notas |
+| Service (AWS) | Open alternative | Minimum RAM | Disk | Notes |
 |---|---|---|---|---|
-| S3 | MinIO | 1 GB | dados × 1,2 | |
-| RDS PostgreSQL | PostgreSQL | 1 GB (2 GB recomendado) | dados × 1,5 | Backups por nossa conta |
-| RDS MySQL | MariaDB | 1 GB | dados × 1,5 | |
-| ElastiCache | Valkey | dados em RAM × 1,5 | baixo | |
-| DynamoDB | ScyllaDB (Alternator) | 2 GB | dados × 2 | Pesado para VMs pequenas |
-| DocumentDB | MongoDB / FerretDB | 1 GB | dados × 1,5 | |
-| SNS | NATS (fase seguinte) | 256 MB | baixo | |
-| SQS | RabbitMQ | 512 MB | baixo | |
-| MSK (Kafka) | Kafka / Redpanda | 2 GB | alto | Raramente vale a pena self-hosted numa PME |
-| Secrets Manager | OpenBao | 256 MB | baixo | Crítico: perder isto é perder tudo |
-| ECR | Harbor | 2 GB | imagens × 1,2 | |
-| CloudWatch Logs | Loki + Grafana | 1 GB | logs × retenção | |
-| Cognito | Keycloak | 1 GB | baixo | |
-| SES | Postal | 1 GB | baixo | Entregabilidade difícil em self-hosted |
-| Route 53 | PowerDNS | 256 MB | baixo | |
-| ELB | HAProxy / Caddy | 256 MB | baixo | |
-| EKS | k3s | 2 GB | médio | |
+| S3 | MinIO | 1 GB | data × 1.2 | |
+| RDS PostgreSQL | PostgreSQL | 1 GB (2 GB recommended) | data × 1.5 | Backups are on us |
+| RDS MySQL | MariaDB | 1 GB | data × 1.5 | |
+| ElastiCache | Valkey | data in RAM × 1.5 | low | |
+| DynamoDB | ScyllaDB (Alternator) | 2 GB | data × 2 | Heavy for small VMs |
+| DocumentDB | MongoDB / FerretDB | 1 GB | data × 1.5 | |
+| SNS | NATS (next phase) | 256 MB | low | |
+| SQS | RabbitMQ | 512 MB | low | |
+| MSK (Kafka) | Kafka / Redpanda | 2 GB | high | Rarely worth self-hosting for an SME |
+| Secrets Manager | OpenBao | 256 MB | low | Critical: losing this means losing everything |
+| ECR | Harbor | 2 GB | images × 1.2 | |
+| CloudWatch Logs | Loki + Grafana | 1 GB | logs × retention | |
+| Cognito | Keycloak | 1 GB | low | |
+| SES | Postal | 1 GB | low | Deliverability is hard when self-hosted |
+| Route 53 | PowerDNS | 256 MB | low | |
+| ELB | HAProxy / Caddy | 256 MB | low | |
+| EKS | k3s | 2 GB | medium | |
 
-Estes valores são regras de bolso do decisor, não medições. Margem: deixar sempre 25% da RAM da VM livre.
+These values are the decider's rules of thumb, not measurements. Margin: always leave 25% of the VM's RAM free.
 
-## Regras (por ordem; a primeira que se aplicar ganha)
+## Rules (in order; the first one that applies wins)
 
-1. Criticidade **alta** e precisa de alta disponibilidade → **gerido**.
-2. **Não cabe** na VM (RAM ou disco abaixo do mínimo, com a margem de 25%) → **gerido**.
-3. Dados pessoais e o dono não tem backups → **gerido** (backups e cifra geridos).
-4. Tudo o resto → **self-hosted na VM da Leaseweb**.
+1. **High** criticality and needs high availability → **managed**.
+2. **Does not fit** on the VM (RAM or disk below the minimum, with the 25% margin) → **managed**.
+3. Personal data and the owner has no backups → **managed** (managed backups and encryption).
+4. Everything else → **self-hosted on the Leaseweb VM**.
 
-Para escolher o gerido:
+To choose the managed service:
 
-1. Existe gerido na Leaseweb? → Leaseweb.
-2. Senão → o mais barato da tabela que cumpra os requisitos (alta disponibilidade, região UE).
-3. Empate → o que tiver região mais perto do cliente.
+1. Does Leaseweb have it managed? → Leaseweb.
+2. Otherwise → the cheapest in the table that meets the requirements (high availability, EU region).
+3. Tie → the one with the region closest to the customer.
 
-## Tabela de preços (vista a 20/11/2026)
+## Price table (seen on 20/11/2026)
 
-Preços sem IVA. "A confirmar" = o serviço existe mas não encontrámos o preço publicado. O decisor só mostra preços com data; os "a confirmar" aparecem como "preço a confirmar".
+Prices exclude VAT. "To be confirmed" = the service exists but we did not find a published price. The decider only shows prices with a date; the "to be confirmed" ones appear as "price to be confirmed".
 
-### O que a Leaseweb tem (escolha preferida)
+### What Leaseweb has (preferred choice)
 
-| Serviço | Produto Leaseweb | Preço | Fonte |
+| Service | Leaseweb product | Price | Source |
 |---|---|---|---|
-| VM | Public Cloud LSW.C3.LARGE (2 vCPU, 3 GB) | € 0,0395/h, € 26,02/mês | leaseweb.com/products-services/cloud/public-cloud/pricing |
-| VM | Public Cloud LSW.M3.LARGE (2 vCPU, 7 GB) | € 0,0447/h, € 29,44/mês | idem |
-| VM | Public Cloud LSW.R3.LARGE (2 vCPU, 15,25 GB) | € 0,0555/h, € 36,49/mês | idem |
-| Disco | Network SSD (até 5K IOPS) | € 0,0800/GB/mês | idem |
-| Tráfego | 1 TB/mês grátis partilhado; entrada grátis | — | idem |
-| Objetos (S3) | Object Storage on demand | € 0,01733/GB/mês (0 a 50 TB) | leaseweb.com/en/products-services/object-storage |
-| Objetos (S3) | Object Storage com compromisso (desde 500 GB) | € 0,01485/GB/mês | leaseweb.com/object-storage |
-| Balanceador (ELB) | Load balancer como serviço (HAProxy), corre numa instância | Preço da instância escolhida | kb.leaseweb.com (load balancer of Public Cloud) |
-| Kubernetes (EKS) | Managed Kubernetes | Gestão sem custo extra; base € 21,60/mês; vCPU € 0,0038/h, RAM € 0,0019/GB/h | leaseweb.com/en/configure/vc/product/entityKey/KUBERNETES/2001 |
-| CDN (CloudFront) | Leaseweb CDN | A confirmar com a Leaseweb (listagens de terceiros dão cerca de 0,01 $/GB; plano pay-as-you-go antigo a € 49/mês com 2 TB) | Confirmar com a Leaseweb |
-| DDoS (Shield) | DDoS IP Protection Standard | Incluído sem custo extra em todos os serviços | kb.leaseweb.com (DDoS IP Protection) |
-| DDoS (Shield Advanced) | DDoS IP Protection Advanced / Customized / Always-on | Advanced: pequena taxa por IP (valor não publicado); restantes sob consulta | europeanpurpose.com/category/ddos-protection-services |
-| WAF | Leaseweb Cyber Security (WAF) | A confirmar com a Leaseweb | leaseweb.us (folheto Cyber Security) |
-| Backups (AWS Backup) | Acronis Backup (Public Cloud, VPS, dedicados) | 25 GB € 3,75/mês · 100 GB € 10,00/mês · 500 GB € 41,25/mês · 1000 GB € 81,75/mês | leaseweb.com/add-ons/backup/acronis |
-| Bases de dados geridas | **Não encontrámos** na Public Cloud | — | Confirmar no dia com a Leaseweb |
+| VM | Public Cloud LSW.C3.LARGE (2 vCPU, 3 GB) | € 0.0395/h, € 26.02/month | leaseweb.com/products-services/cloud/public-cloud/pricing |
+| VM | Public Cloud LSW.M3.LARGE (2 vCPU, 7 GB) | € 0.0447/h, € 29.44/month | same |
+| VM | Public Cloud LSW.R3.LARGE (2 vCPU, 15.25 GB) | € 0.0555/h, € 36.49/month | same |
+| Disk | Network SSD (up to 5K IOPS) | € 0.0800/GB/month | same |
+| Traffic | 1 TB/month free, shared; inbound free | — | same |
+| Objects (S3) | Object Storage on demand | € 0.01733/GB/month (0 to 50 TB) | leaseweb.com/en/products-services/object-storage |
+| Objects (S3) | Object Storage with commitment (from 500 GB) | € 0.01485/GB/month | leaseweb.com/object-storage |
+| Load balancer (ELB) | Load balancer as a service (HAProxy), runs on an instance | Price of the chosen instance | kb.leaseweb.com (load balancer of Public Cloud) |
+| Kubernetes (EKS) | Managed Kubernetes | Management at no extra cost; base € 21.60/month; vCPU € 0.0038/h, RAM € 0.0019/GB/h | leaseweb.com/en/configure/vc/product/entityKey/KUBERNETES/2001 |
+| CDN (CloudFront) | Leaseweb CDN | To be confirmed with Leaseweb (third-party listings give about $0.01/GB; old pay-as-you-go plan at € 49/month with 2 TB) | Confirm with Leaseweb |
+| DDoS (Shield) | DDoS IP Protection Standard | Included at no extra cost on all services | kb.leaseweb.com (DDoS IP Protection) |
+| DDoS (Shield Advanced) | DDoS IP Protection Advanced / Customized / Always-on | Advanced: small fee per IP (amount not published); the others on request | europeanpurpose.com/category/ddos-protection-services |
+| WAF | Leaseweb Cyber Security (WAF) | To be confirmed with Leaseweb | leaseweb.us (Cyber Security brochure) |
+| Backups (AWS Backup) | Acronis Backup (Public Cloud, VPS, dedicated) | 25 GB € 3.75/month · 100 GB € 10.00/month · 500 GB € 41.25/month · 1000 GB € 81.75/month | leaseweb.com/add-ons/backup/acronis |
+| Managed databases | **Not found** on Public Cloud | — | Confirm with Leaseweb on the day |
 
-### Serviços geridos europeus quando a Leaseweb não tem
+### European managed services when Leaseweb does not have them
 
-| Serviço (AWS) | Fornecedor | Plano | Preço | Fonte |
+| Service (AWS) | Provider | Plan | Price | Source |
 |---|---|---|---|---|
-| RDS PostgreSQL / MySQL | Scaleway | DB-DEV-S (2 vCPU, 2 GB) | € 0,0156/h (cerca de € 11/mês) | scaleway.com/en/pricing/managed-databases-pricing |
-| RDS PostgreSQL | UpCloud | 1 nó, 2 GB, 25 GB, backups 24 h | € 30/mês | upcloud.com/docs/products/managed-postgresql/pricing |
-| RDS PostgreSQL | OVHcloud | Essential db1-7 (2 vCPU, 7 GB, 50 GB) | 0,17 $/h | sparecores.com/database/ovh/postgresql-essential-db1-7 |
-| Backups de BD | Scaleway | Backups/snapshots | € 0,03/GB/mês | scaleway.com (managed databases pricing) |
-| ElastiCache (Redis) | Scaleway | RED1-MICRO (2 vCPU, 2 GB) | desde € 0,048/h | scaleway.com/fr/tarifs/managed-databases |
-| DocumentDB (MongoDB) | Scaleway | MGDB-PLAY2-NANO (2 vCPU, 4 GB) | € 0,1077/h + armazenamento | scaleway.com/en/pricing/managed-databases-pricing |
-| SQS | Scaleway | Queues (SQS compatível) | € 0,01/GB | scaleway.com/en/pricing/managed-databases-pricing |
-| SNS (NATS) | Scaleway | NATS | € 0,01/GB; persistência cerca de € 0,14/GB/mês | idem |
-| MSK (Kafka) | OVHcloud / Scaleway | Kafka gerido | A confirmar | ovhcloud.com (choosing right database); scaleway.com |
-| CloudWatch Logs | Scaleway | Cockpit, logs custom | € 0,35/GB ingerido | scaleway.com/en/pricing/managed-services |
-| SES | Scaleway | Transactional Email (por destinatário) | A confirmar | scaleway.com/transactional-email-tem |
-| Secrets Manager | Scaleway | Secret Manager | A confirmar | scaleway.com/en/docs/secret-manager/faq |
-| ECR | Scaleway | Container Registry (paga-se o armazenado; entrada grátis) | A confirmar | scaleway.com/en/pricing/containers |
-| ELB | OVHcloud | Load Balancer | 6,94 $/mês | pricingsaas.com/companies/ovhcloud.publiccloud |
-| CloudFront (CDN) | **Bunny.net** (Eslovénia) | Standard, Europa e América do Norte | 0,01 $/GB; mínimo 1 $/mês | bunny.net/pricing |
-| CloudFront (CDN) | Gcore (Luxemburgo) | Free: 1 TB/mês incluído | 0 €; excedente 0,030 €/GB | whtop.com/plans/gcore.com/119338 |
-| CloudFront (CDN) | Gcore (Luxemburgo) | Start: 1,5 TB incluídos | 35 €/mês; excedente 0,023 €/GB | whtop.com/plans/gcore.com/88673 |
-| Route 53 (DNS) | Bunny.net | Bunny DNS | Incluído (grátis) | bitdoze.com/bunny-net-review |
-| S3 + CDN (ficheiros estáticos) | Bunny.net | Bunny Storage, 1 região | 0,01 $/GB/mês | bitdoze.com/bunny-net-review |
-| Lambda | Scaleway | Serverless Functions | € 0,15 por 1M pedidos após 1M grátis; € 0,50 por 100k GB-s após 400k GB-s grátis | scaleway.com/en/pricing/serverless |
-| Fargate / App Runner | Scaleway | Serverless Containers | Memória € 0,10 por 100k GB-s; vCPU € 1,0 por 100k vCPU-s (com free tier) | scaleway.com/fr/tarifs/serverless |
-| Cognito | Clever Cloud (França) | Keycloak as a Service | desde € 47/mês | clever-cloud.com (PDF Keycloak as a Service, jul/2026) |
-| Cognito | Cloud-IAM (França) | Keycloak gerido; grátis até 100 utilizadores (sem SLA, alojado na AWS) | Pagos a confirmar | europeanpurpose.com/tool/cloud-iam |
-| OpenSearch (pesquisa e logs) | OVHcloud | Managed OpenSearch, faturado por uso (inclui IOPS, backups e tráfego) | A confirmar | ovhcloud.com/en-in/public-cloud/opensearch |
-| OpenSearch Dashboards | OVHcloud | Dashboards dedicados (Logs Data Platform) | € 4,99/instância/mês | ovhcloud.com/en-ie/identity-security-operations/pricing |
-| Secrets Manager / KMS | OVHcloud | Secret Manager e KMS | Chaves a cerca de 0,05 £/chave/mês (UK); segredos a confirmar na região UE | ovhcloud.com/en-gb/identity-security-operations/pricing |
-| AWS Backup | IONOS (Alemanha) | Backup Service (Acronis) | 0,082 $/GB/30 dias + 2 $/dispositivo para extras | cloud.ionos.com/storage/backup |
-| IoT Core | Scaleway | IoT Hub Shared: 10 dispositivos, 50.000 mensagens/mês | Grátis | scaleway.com/en/pricing/managed-services |
-| IoT Core | Scaleway | IoT Hub Dedicated: 2M mensagens/mês | € 0,02/hora; excedente € 0,735/milhão | idem |
-| WAF | Bunny.net | Bunny Shield | A confirmar | bitdoze.com/bunny-net-review |
-| S3 (comparação) | Exoscale | Object Storage Standard | € 0,0184/GB/mês | exoscale.com/object-storage/classes |
-| S3 (comparação) | OVHcloud | Object Storage Standard | 8,3 $/TiB/mês | pricingsaas.com/companies/ovhcloud.publiccloud |
+| RDS PostgreSQL / MySQL | Scaleway | DB-DEV-S (2 vCPU, 2 GB) | € 0.0156/h (about € 11/month) | scaleway.com/en/pricing/managed-databases-pricing |
+| RDS PostgreSQL | UpCloud | 1 node, 2 GB, 25 GB, 24 h backups | € 30/month | upcloud.com/docs/products/managed-postgresql/pricing |
+| RDS PostgreSQL | OVHcloud | Essential db1-7 (2 vCPU, 7 GB, 50 GB) | $0.17/h | sparecores.com/database/ovh/postgresql-essential-db1-7 |
+| DB backups | Scaleway | Backups/snapshots | € 0.03/GB/month | scaleway.com (managed databases pricing) |
+| ElastiCache (Redis) | Scaleway | RED1-MICRO (2 vCPU, 2 GB) | from € 0.048/h | scaleway.com/fr/tarifs/managed-databases |
+| DocumentDB (MongoDB) | Scaleway | MGDB-PLAY2-NANO (2 vCPU, 4 GB) | € 0.1077/h + storage | scaleway.com/en/pricing/managed-databases-pricing |
+| SQS | Scaleway | Queues (SQS-compatible) | € 0.01/GB | scaleway.com/en/pricing/managed-databases-pricing |
+| SNS (NATS) | Scaleway | NATS | € 0.01/GB; persistence about € 0.14/GB/month | same |
+| MSK (Kafka) | OVHcloud / Scaleway | Managed Kafka | To be confirmed | ovhcloud.com (choosing right database); scaleway.com |
+| CloudWatch Logs | Scaleway | Cockpit, custom logs | € 0.35/GB ingested | scaleway.com/en/pricing/managed-services |
+| SES | Scaleway | Transactional Email (per recipient) | To be confirmed | scaleway.com/transactional-email-tem |
+| Secrets Manager | Scaleway | Secret Manager | To be confirmed | scaleway.com/en/docs/secret-manager/faq |
+| ECR | Scaleway | Container Registry (you pay for what is stored; inbound free) | To be confirmed | scaleway.com/en/pricing/containers |
+| ELB | OVHcloud | Load Balancer | $6.94/month | pricingsaas.com/companies/ovhcloud.publiccloud |
+| CloudFront (CDN) | **Bunny.net** (Slovenia) | Standard, Europe and North America | $0.01/GB; minimum $1/month | bunny.net/pricing |
+| CloudFront (CDN) | Gcore (Luxembourg) | Free: 1 TB/month included | € 0; overage € 0.030/GB | whtop.com/plans/gcore.com/119338 |
+| CloudFront (CDN) | Gcore (Luxembourg) | Start: 1.5 TB included | € 35/month; overage € 0.023/GB | whtop.com/plans/gcore.com/88673 |
+| Route 53 (DNS) | Bunny.net | Bunny DNS | Included (free) | bitdoze.com/bunny-net-review |
+| S3 + CDN (static files) | Bunny.net | Bunny Storage, 1 region | $0.01/GB/month | bitdoze.com/bunny-net-review |
+| Lambda | Scaleway | Serverless Functions | € 0.15 per 1M requests after 1M free; € 0.50 per 100k GB-s after 400k GB-s free | scaleway.com/en/pricing/serverless |
+| Fargate / App Runner | Scaleway | Serverless Containers | Memory € 0.10 per 100k GB-s; vCPU € 1.0 per 100k vCPU-s (with free tier) | scaleway.com/fr/tarifs/serverless |
+| Cognito | Clever Cloud (France) | Keycloak as a Service | from € 47/month | clever-cloud.com (Keycloak as a Service PDF, Jul/2026) |
+| Cognito | Cloud-IAM (France) | Managed Keycloak; free up to 100 users (no SLA, hosted on AWS) | Paid plans to be confirmed | europeanpurpose.com/tool/cloud-iam |
+| OpenSearch (search and logs) | OVHcloud | Managed OpenSearch, billed by usage (includes IOPS, backups and traffic) | To be confirmed | ovhcloud.com/en-in/public-cloud/opensearch |
+| OpenSearch Dashboards | OVHcloud | Dedicated dashboards (Logs Data Platform) | € 4.99/instance/month | ovhcloud.com/en-ie/identity-security-operations/pricing |
+| Secrets Manager / KMS | OVHcloud | Secret Manager and KMS | Keys at about £0.05/key/month (UK); secrets to be confirmed in the EU region | ovhcloud.com/en-gb/identity-security-operations/pricing |
+| AWS Backup | IONOS (Germany) | Backup Service (Acronis) | $0.082/GB/30 days + $2/device for extras | cloud.ionos.com/storage/backup |
+| IoT Core | Scaleway | IoT Hub Shared: 10 devices, 50,000 messages/month | Free | scaleway.com/en/pricing/managed-services |
+| IoT Core | Scaleway | IoT Hub Dedicated: 2M messages/month | € 0.02/hour; overage € 0.735/million | same |
+| WAF | Bunny.net | Bunny Shield | To be confirmed | bitdoze.com/bunny-net-review |
+| S3 (comparison) | Exoscale | Object Storage Standard | € 0.0184/GB/month | exoscale.com/object-storage/classes |
+| S3 (comparison) | OVHcloud | Object Storage Standard | $8.3/TiB/month | pricingsaas.com/companies/ovhcloud.publiccloud |
 
-### Como o decisor usa isto
+### How the decider uses this
 
-- Serviço que a **Leaseweb tem gerido** (objetos, Kubernetes, balanceador) → Leaseweb.
-- Serviço que a Leaseweb **não tem gerido** (bases de dados, Redis, filas, logs, email, segredos):
-  - não crítico e cabe na VM → **self-hosted na Leaseweb** (tabela de recursos acima);
-  - crítico ou não cabe → **o gerido europeu mais barato desta tabela**, com o preço e a data.
-- Preço "a confirmar" → mostrar o fornecedor, dizer "preço a confirmar" e não fazer contas.
-- **DDoS:** a proteção Standard da Leaseweb já vem incluída; não há nada a migrar nem a pagar à partida. Só se recomenda subir de nível se o cliente for alvo frequente.
-- **Backups:** a Leaseweb tem Acronis integrado, por isso é a primeira escolha. É também a resposta à regra "dados pessoais sem backups → gerido": um Postgres self-hosted com backups Acronis da Leaseweb pode ficar em self-hosted.
-- **IoT:** só aparece se a app usar AWS IoT. Começar no plano grátis da Scaleway e subir para dedicado com mais de 10 dispositivos.
-- **CDN:** a Leaseweb tem CDN, por isso é a primeira escolha; se o preço não estiver confirmado, mostrar a Bunny.net como alternativa europeia com preço.
-- **Identidade (Cognito):** self-hosted Keycloak só se houver quem o mantenha; senão Keycloak gerido europeu. Cuidado: o plano grátis da Cloud-IAM corre na AWS, por isso não serve para soberania.
+- A service that **Leaseweb offers managed** (objects, Kubernetes, load balancer) → Leaseweb.
+- A service that Leaseweb **does not offer managed** (databases, Redis, queues, logs, email, secrets):
+  - not critical and fits on the VM → **self-hosted on Leaseweb** (resource table above);
+  - critical or does not fit → **the cheapest European managed service in this table**, with the price and the date.
+- Price "to be confirmed" → show the provider, say "price to be confirmed" and do no maths.
+- **DDoS:** Leaseweb's Standard protection is already included; there is nothing to migrate or pay for up front. Upgrading is only recommended if the customer is a frequent target.
+- **Backups:** Leaseweb has Acronis built in, so it is the first choice. It is also the answer to the rule "personal data without backups → managed": a self-hosted Postgres with Leaseweb Acronis backups can stay self-hosted.
+- **IoT:** only appears if the app uses AWS IoT. Start on Scaleway's free plan and move to dedicated beyond 10 devices.
+- **CDN:** Leaseweb has a CDN, so it is the first choice; if the price is not confirmed, show Bunny.net as a priced European alternative.
+- **Identity (Cognito):** self-hosted Keycloak only if someone will maintain it; otherwise a European managed Keycloak. Careful: Cloud-IAM's free plan runs on AWS, so it does not work for sovereignty.
 
-## Mensagem no Telegram (modelo)
+## Telegram message (template)
 
-> **Migrador:** A tua VM tem {ram} GB de RAM livres. O {serviços_self} ficam nela. A base de dados {nome} é crítica e tem dados pessoais: proponho {fornecedor} {plano}, cerca de € {preço}/mês (preço visto a {data}). Porquê: {regra}. [Aprovar plano] [Ignorar]
+> **Migrator:** Your VM has {ram} GB of free RAM. {self_services} stay on it. The {name} database is critical and holds personal data: I propose {provider} {plan}, about €{price}/month (price seen on {date}). Why: {rule}. [Approve plan] [Ignore]
 
-`{regra}` é o texto da regra que ganhou, escrito pela IA em português simples.
+`{rule}` is the text of the winning rule, a fixed sentence per rule (`REGRAS` in `code/migrador/tradutor/destino/decidir.ts`).
 
-## Nível
+## Level
 
-- **B:** recomendação com regras e mensagem no Telegram.
-- **C:** criar os serviços geridos pelas APIs de cada fornecedor; preços atualizados automaticamente.
+- **B:** recommendation with rules and a Telegram message.
+- **C:** create the managed services through each provider's API; prices updated automatically.

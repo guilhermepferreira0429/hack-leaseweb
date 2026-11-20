@@ -1,110 +1,110 @@
-# Catálogo de ferramentas dos agentes
+# Agent tool catalogue
 
-A visão completa, como se houvesse tempo ilimitado. Cada linha tem um nível:
+The full vision, as if there were unlimited time. Each row has a level:
 
-- **A:** entra na demo de hoje.
-- **B:** entra se a integração n.º 2 passar antes do tempo.
-- **C:** fica para o slide "o que vem a seguir" e para depois do hackathon.
+- **A:** in today's demo.
+- **B:** goes in if integration no. 2 passes ahead of time.
+- **C:** stays on the "what comes next" slide and for after the hackathon.
 
-Regra: nada de nível B ou C começa antes de todo o nível A funcionar ponta a ponta.
+Rule: nothing at level B or C starts before all of level A works end to end.
 
-## Migrador: da AWS para alternativas abertas na Leaseweb
+## Migrator: from AWS to open alternatives on Leaseweb
 
-| Serviço AWS                       | Alternativa aberta na Leaseweb        | Como se prova que ficou igual                                               | Nível |
-| --------------------------------- | ------------------------------------- | --------------------------------------------------------------------------- | ----- |
-| S3                                | MinIO                                 | Contagem de objetos e checksums iguais; testes da app passam                | **A** |
-| RDS PostgreSQL                    | PostgreSQL                            | `pg_dump`/`pg_restore`; contagem de linhas por tabela e checksum por tabela | **B** |
-| SQS                               | RabbitMQ                              | Mensagens enviadas = recebidas; testes da app passam                        | **B** |
-| ElastiCache Redis                 | Valkey                                | Chaves e TTL iguais por amostragem                                          | **B** |
-| Secrets Manager / Parameter Store | OpenBao                               | Segredos migrados sem nunca aparecerem em texto no log; a app arranca       | **B** |
-| RDS MySQL                         | MariaDB                               | Contagens e checksums por tabela                                            | C     |
-| DynamoDB                          | ScyllaDB (Alternator, API compatível) | Contagem e amostragem de itens                                              | C     |
-| SNS                               | NATS (fase seguinte)                  | Subscrições e entrega de mensagens                                          | C     |
-| SES                               | Postal                                | Envio de teste a uma caixa nossa                                            | C     |
-| ECR                               | Harbor                                | Imagens com o mesmo digest                                                  | C     |
-| CloudWatch Logs                   | Loki + Grafana                        | Os logs chegam e pesquisam-se                                               | C     |
-| Cognito                           | Keycloak                              | Login de teste com um utilizador migrado                                    | C     |
-| Lambda                            | OpenFaaS                              | A mesma função dá a mesma resposta                                          | C     |
-| Route 53                          | PowerDNS                              | Os registos respondem igual (`dig`)                                         | C     |
-| CloudFront                        | Caddy / Varnish à frente do MinIO     | O mesmo ficheiro com o mesmo hash                                           | C     |
-| EKS                               | k3s                                   | Os manifestos aplicam e os pods ficam prontos                               | C     |
+| AWS service | Open alternative on Leaseweb | How we prove it stayed the same | Level |
+| --- | --- | --- | --- |
+| S3 | MinIO | Same object count and checksums; the app tests pass | **A** |
+| RDS PostgreSQL | PostgreSQL | `pg_dump`/`pg_restore`; row count and checksum per table | **B** |
+| SQS | RabbitMQ | Messages sent = messages received; the app tests pass | **B** |
+| ElastiCache Redis | Valkey | Same keys and TTLs, by sampling | **B** |
+| Secrets Manager / Parameter Store | OpenBao | Secrets migrated without ever appearing as plain text in the log; the app starts | **B** |
+| RDS MySQL | MariaDB | Counts and checksums per table | C |
+| DynamoDB | ScyllaDB (Alternator, compatible API) | Item count and sampling | C |
+| SNS | NATS (next phase) | Subscriptions and message delivery | C |
+| SES | Postal | Test email to one of our mailboxes | C |
+| ECR | Harbor | Images with the same digest | C |
+| CloudWatch Logs | Loki + Grafana | Logs arrive and are searchable | C |
+| Cognito | Keycloak | Test login with a migrated user | C |
+| Lambda | OpenFaaS | The same function gives the same answer | C |
+| Route 53 | PowerDNS | Records answer the same (`dig`) | C |
+| CloudFront | Caddy / Varnish in front of MinIO | The same file with the same hash | C |
+| EKS | k3s | Manifests apply and pods become ready | C |
 
-Para cada serviço o migrador faz sempre os mesmos 5 passos: **analisar** (encontra o serviço no código e na configuração), **propor** (plano em português simples, aprovado no Telegram), **provisionar** (cria o destino na Leaseweb), **copiar** (dados com prova) e **verificar** (mesmos testes antes e depois). Uma tabela de "tradução" por serviço; acrescentar um serviço é acrescentar uma entrada.
+For each service the migrator always follows the same 5 steps: **analyse** (finds the service in the code and configuration), **propose** (a plan in plain language, approved in Telegram), **provision** (creates the destination on Leaseweb), **copy** (data, with proof) and **verify** (same tests before and after). One "translation" table per service; adding a service means adding an entry.
 
-A origem "AWS" é simulada com o LocalStack, que emula S3, SQS, SNS, DynamoDB, Secrets Manager e outros.
+The "AWS" source is simulated with LocalStack, which emulates S3, SQS, SNS, DynamoDB, Secrets Manager and others.
 
-## Planeador de destino (parte do migrador)
+## Destination planner (part of the migrator)
 
-Antes de migrar, o migrador decide **onde fica cada serviço**, e explica porquê no Telegram:
+Before migrating, the migrator decides **where each service goes**, and explains why in Telegram:
 
-- **Self-hosted numa VM da Leaseweb:** quando a máquina tem recursos e o serviço não é crítico.
-- **Serviço gerido pago, europeu:** quando não há RAM ou disco que chegue, ou o serviço é crítico e precisa de alta disponibilidade e backups geridos.
-- **Leaseweb primeiro:** se a Leaseweb tiver o serviço gerido, é essa a escolha. Outro fornecedor europeu só quando a Leaseweb não o tiver.
+- **Self-hosted on a Leaseweb VM:** when the machine has the resources and the service is not critical.
+- **Paid European managed service:** when there is not enough RAM or disk, or the service is critical and needs high availability and managed backups.
+- **Leaseweb first:** if Leaseweb has the managed service, that is the choice. Another European provider only when Leaseweb does not have it.
 
-Exemplo da mensagem: "A tua VM tem 8 GB de RAM. O MinIO e o RabbitMQ ficam nela. A base de dados das encomendas é crítica: proponho um Postgres gerido europeu, com backups diários. Custo estimado: …. [Aprovar plano] [Ignorar]"
+Example message: "Your VM has 8 GB of RAM. MinIO and RabbitMQ stay on it. The orders database is critical: I propose a European managed Postgres, with daily backups. Estimated cost: …. [Approve plan] [Ignore]"
 
-Como decide:
+How it decides:
 
-1. Regras fixas no código (RAM e disco necessários por serviço, criticidade marcada pelo dono, dados pessoais ou não). As regras decidem.
-2. A IA só explica a decisão em português simples e responde a perguntas do dono. Não inventa preços: só usa os que estiverem na tabela do código, com a data em que foram vistos.
+1. Fixed rules in the code (RAM and disk needed per service, criticality set by the owner, personal data or not). The rules decide.
+2. The AI only explains the decision in plain language and answers the owner's questions. It does not invent prices: it only uses the ones in the table in the code, with the date they were seen.
 
-| Peça                                                                                                        | Nível |
-| ----------------------------------------------------------------------------------------------------------- | ----- |
-| Recomendar o destino de cada serviço com regras + explicação da IA no Telegram                              | **B** |
-| O dono aprova o plano ("Aprovar plano") ou ignora. Os botões "Tudo self-hosted" e "Porquê?" ficaram de fora | **B** |
-| Criar e configurar os serviços geridos pelas APIs dos fornecedores europeus                                 | C     |
-| Comparar custos atualizados entre fornecedores                                                              | C     |
+| Piece | Level |
+| --- | --- |
+| Recommend the destination of each service with rules + an AI explanation in Telegram | **B** |
+| The owner approves the plan ("Approve plan") or ignores it. The "Everything self-hosted" and "Why?" buttons were left out | **B** |
+| Create and configure the managed services through the European providers' APIs | C |
+| Compare up-to-date costs across providers | C |
 
-## Migrador de código (parte do migrador)
+## Code migrator (part of the migrator)
 
-Migrar a infraestrutura sem mudar o código deixa a app a apontar para a AWS. O migrador também muda o código, e entrega a mudança como **pull request** que o dono aprova no Telegram.
+Migrating the infrastructure without changing the code leaves the app pointing at AWS. The migrator also changes the code, and delivers the change as a **pull request** that the owner approves in Telegram.
 
-| Caso                                      | O que muda no código                                                                                                     | Dificuldade | Nível |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------- | ----- |
-| S3 → MinIO / Object Storage da Leaseweb   | Só configuração: `endpoint`, credenciais e `forcePathStyle` no cliente S3. O resto do código fica igual (API compatível) | Baixa       | **A** |
-| Variáveis de ambiente e `.env`            | Troca URLs e nomes de serviços AWS pelos novos; segredos nunca vão para o PR                                             | Baixa       | **A** |
-| RDS Postgres → Postgres                   | Só a connection string                                                                                                   | Baixa       | **B** |
-| SQS → RabbitMQ                            | Troca a configuração da fila: `FILA_TIPO=rabbitmq` e `RABBITMQ_URL`; as chaves do SQS deixam de ser precisas             | Média       | **B** |
-| DynamoDB → ScyllaDB Alternator            | Só o endpoint (API compatível)                                                                                           | Baixa       | C     |
-| Lambda → Serverless Functions / contentor | Reempacotar a função                                                                                                     | Alta        | C     |
+| Case | What changes in the code | Difficulty | Level |
+| --- | --- | --- | --- |
+| S3 → MinIO / Leaseweb Object Storage | Configuration only: `endpoint`, credentials and `forcePathStyle` in the S3 client. The rest of the code stays the same (compatible API) | Low | **A** |
+| Environment variables and `.env` | Swaps AWS URLs and service names for the new ones; secrets never go into the PR | Low | **A** |
+| RDS Postgres → Postgres | Only the connection string | Low | **B** |
+| SQS → RabbitMQ | Swaps the queue configuration: `FILA_TIPO=rabbitmq` and `RABBITMQ_URL`; the SQS keys are no longer needed | Medium | **B** |
+| DynamoDB → ScyllaDB Alternator | Only the endpoint (compatible API) | Low | C |
+| Lambda → Serverless Functions / container | Repackage the function | High | C |
 
-Como funciona:
+How it works:
 
-1. **Encontrar:** procura no código os clientes da AWS (`@aws-sdk/*`, `boto3`, variáveis `AWS_*`) e a configuração.
-2. **Propor:** a IA escreve a alteração; regras fixas validam que só mudam os ficheiros e linhas esperados.
-3. **Provar:** correr os testes da app com o código novo contra o destino novo. Se falharem, o PR não é proposto.
-4. **Aprovar:** o Migrador manda no Telegram "PR com 3 ficheiros alterados, testes a passar. [Aprovar PR] [Ignorar]". O "Aprovar PR" faz o merge no repo da app; `/undo` abre um PR que reverte. Só com `MIGRADOR_PR=real`; por omissão é um ensaio.
-5. **Liga com a defesa:** se a falha encontrada pelo atacante vier da configuração (por exemplo, uma regra aberta no Terraform), a defesa fecha na API e o migrador abre o PR que corrige a causa, para não voltar no próximo deploy. Feito: o PR abre no repo público `hack-leaseweb-exemplo-app`, ramo `migracao/leaseweb-<hora>`, e corrige a regra do Terraform.
+1. **Find:** searches the code for AWS clients (`@aws-sdk/*`, `boto3`, `AWS_*` variables) and the configuration.
+2. **Propose:** the AI writes the change; fixed rules check that only the expected files and lines change.
+3. **Prove:** run the app tests with the new code against the new destination. If they fail, the PR is not proposed.
+4. **Approve:** the Migrator sends in Telegram "PR with 3 files changed, tests passing. [Approve PR] [Ignore]". "Approve PR" merges into the app repo; `/undo` opens a PR that reverts it. Only with `MIGRADOR_PR=real`; by default it is a dry run.
+5. **Links up with the defence:** if the issue found by the attacker comes from the configuration (for example, an open rule in the Terraform), the defence closes it through the API and the migrator opens the PR that fixes the cause, so it does not come back on the next deploy. Done: the PR opens in the public repo `hack-leaseweb-exemplo-app`, branch `migracao/leaseweb-<hora>`, and fixes the Terraform rule.
 
-Regra: o código só muda por PR. Nunca há push direto para o ramo principal.
+Rule: code only changes through a PR. There is never a direct push to the main branch.
 
-## Atacante: só às nossas máquinas (allowlist)
+## Attacker: only against our machines (allowlist)
 
-| Ferramenta                           | O que procura                                                                                                                                                  | Nível |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| Ligação TCP às portas sensíveis      | Bases de dados, Redis, Elasticsearch, RDP abertos a toda a Internet                                                                                            | **A** |
-| Senhas SSH, limitado                 | Login SSH por senha fraca: no máximo 5 tentativas por ronda, um só alvo da allowlist, só com `/attack`; para na primeira entrada e passa às outras ferramentas | **B** |
-| Leitura dos security groups pela API | Regras com `0.0.0.0/0` ou `::/0`                                                                                                                               | **A** |
-| Bucket do MinIO público              | Política de leitura anónima depois da migração                                                                                                                 | **B** |
-| Credenciais por defeito              | Postgres, Redis, MinIO e painéis com a senha de fábrica (só tentativa de login, sem mexer em dados)                                                            | **B** |
-| Segredos expostos                    | Chaves no código e em variáveis de ambiente (gitleaks ou trufflehog no repo da app de exemplo)                                                                 | B     |
-| TLS e cabeçalhos HTTP                | Certificados fracos, HTTP sem TLS, cabeçalhos de segurança em falta                                                                                            | B     |
-| Versões com CVE conhecidas           | Comparar versões de serviços com CVE conhecidas (nuclei com templates não intrusivos)                                                                          | C     |
-| SSH                                  | Login por senha ativo, root permitido                                                                                                                          | C     |
+| Tool | What it looks for | Level |
+| --- | --- | --- |
+| TCP connection to sensitive ports | Databases, Redis, Elasticsearch, RDP open to the whole Internet | **A** |
+| SSH passwords, limited | SSH login with a weak password: at most 5 attempts per round, a single target from the allowlist, only with `/attack`; stops at the first successful login and moves on to the other tools | **B** |
+| Reading the security groups through the API | Rules with `0.0.0.0/0` or `::/0` | **A** |
+| Public MinIO bucket | Anonymous read policy after the migration | **B** |
+| Default credentials | Postgres, Redis, MinIO and dashboards with the factory password (login attempt only, no data touched) | **B** |
+| Exposed secrets | Keys in the code and in environment variables (gitleaks or trufflehog on the sample app repo) | B |
+| TLS and HTTP headers | Weak certificates, HTTP without TLS, missing security headers | B |
+| Versions with known CVEs | Compare service versions with known CVEs (nuclei with non-intrusive templates) | C |
+| SSH | Password login enabled, root allowed | C |
 
-Nada destrutivo. Só alvos em `ALVOS_PERMITIDOS`; qualquer outro é recusado e registado.
+Nothing destructive. Only targets in `ALVOS_PERMITIDOS`; any other is refused and logged.
 
-## Defesa: lista fechada de ações, cada uma com o seu inverso
+## Defence: closed list of actions, each with its inverse
 
-| Ação                                                           | Inverso                                   | Nível |
-| -------------------------------------------------------------- | ----------------------------------------- | ----- |
-| Remover regra do security group                                | Recriar a regra                           | **A** |
-| Restringir a origem da regra a um IP ou rede nossa             | Repor a origem anterior                   | **B** |
-| Snapshot da máquina antes de mexer                             | Repor o snapshot                          | **B** |
-| Tornar o bucket privado                                        | Repor a política anterior                 | **B** |
-| Trocar a senha por defeito por uma forte (guardada no OpenBao) | Repor a anterior                          | B     |
-| Rodar uma chave exposta                                        | Repor a anterior durante uma janela curta | C     |
-| Desligar login SSH por senha                                   | Voltar a ligar                            | C     |
-| Ativar fail2ban na máquina                                     | Desativar                                 | C     |
+| Action | Inverse | Level |
+| --- | --- | --- |
+| Remove a security group rule | Recreate the rule | **A** |
+| Restrict the rule's source to one of our IPs or networks | Restore the previous source | **B** |
+| Snapshot the machine before touching it | Restore the snapshot | **B** |
+| Make the bucket private | Restore the previous policy | **B** |
+| Replace the default password with a strong one (stored in OpenBao) | Restore the previous one | B |
+| Rotate an exposed key | Restore the previous one for a short window | C |
+| Disable SSH password login | Enable it again | C |
+| Enable fail2ban on the machine | Disable it | C |
 
-A IA explica e propõe. A ação vem sempre desta tabela; o modelo nunca escreve comandos.
+The AI explains and proposes. The action always comes from this table; the model never writes commands.
