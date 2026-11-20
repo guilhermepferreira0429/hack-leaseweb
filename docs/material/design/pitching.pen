@@ -542,6 +542,404 @@
         120,
         64,
         120
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "GIUr0",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 72,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "DC4Kr",
+              "name": "Title",
+              "fill": "$text",
+              "content": "Three agents. One flow.",
+              "fontFamily": "$font-sans",
+              "fontSize": 88,
+              "fontWeight": "800",
+              "letterSpacing": -2
+            },
+            {
+              "type": "frame",
+              "id": "EmeRm",
+              "name": "Diagram",
+              "width": "fill_container",
+              "gap": 20,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "QlyWo",
+                  "name": "Node Migrator",
+                  "width": "fill_container",
+                  "cornerRadius": 16,
+                  "stroke": "$line",
+                  "strokeWidth": 2,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": [
+                    32,
+                    28
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "wm62w",
+                      "name": "Label",
+                      "fill": "$text",
+                      "content": "Migrator",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 34,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "gYJg3",
+                      "name": "Desc",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "translates, in code",
+                      "lineHeight": 1.2,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 22,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "c3mAjG",
+                  "name": "Arrow 0",
+                  "fill": "$muted",
+                  "content": "→",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 40,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "mgFgE",
+                  "name": "Node Attacker",
+                  "width": "fill_container",
+                  "cornerRadius": 16,
+                  "stroke": "$purple",
+                  "strokeWidth": 2,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": [
+                    32,
+                    28
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "mrx91",
+                      "name": "Label",
+                      "fill": "$purple",
+                      "content": "Attacker",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 34,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "vwxx0",
+                      "name": "Desc",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "tests the new doors",
+                      "lineHeight": 1.2,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 22,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "nzWpx",
+                  "name": "Arrow 1",
+                  "fill": "$muted",
+                  "content": "→",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 40,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "GrnyT",
+                  "name": "Node Defense",
+                  "width": "fill_container",
+                  "cornerRadius": 16,
+                  "stroke": "$green",
+                  "strokeWidth": 2,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": [
+                    32,
+                    28
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "W29xDP",
+                      "name": "Label",
+                      "fill": "$green",
+                      "content": "Defense",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 34,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "FvHYm",
+                      "name": "Desc",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "explains, proposes",
+                      "lineHeight": 1.2,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 22,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "qzNuu",
+                  "name": "Arrow 2",
+                  "fill": "$muted",
+                  "content": "→",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 40,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "daVlm",
+                  "name": "Node You",
+                  "width": "fill_container",
+                  "fill": "$bg-2",
+                  "cornerRadius": 16,
+                  "stroke": "$line",
+                  "strokeWidth": 2,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": [
+                    32,
+                    28
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "x6SSVr",
+                      "name": "Label",
+                      "fill": "$text",
+                      "content": "You",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 34,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "E6wZZx",
+                      "name": "Desc",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "approve in Telegram",
+                      "lineHeight": 1.2,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 22,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "jlqc1",
+                  "name": "Arrow 3",
+                  "fill": "$muted",
+                  "content": "→",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 40,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "k2nQQ4",
+                  "name": "Node Leaseweb API",
+                  "width": "fill_container",
+                  "cornerRadius": 16,
+                  "stroke": "$green",
+                  "strokeWidth": 2,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": [
+                    32,
+                    28
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "DMKBQ",
+                      "name": "Label",
+                      "fill": "$green",
+                      "content": "Leaseweb API",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 34,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "whE6H",
+                      "name": "Desc",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "closes, verifies",
+                      "lineHeight": 1.2,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 22,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "WvymZ",
+              "name": "API calls",
+              "layout": "vertical",
+              "gap": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "UrR31",
+                  "name": "Call closes the rule",
+                  "gap": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "l33AKZ",
+                      "name": "Method",
+                      "fill": "$green",
+                      "content": "POST",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 28,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "RiaXf",
+                      "name": "Path",
+                      "fill": "$text",
+                      "content": "/securityGroups/{id}/revokeFirewallRules",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 28,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "DThmu",
+                      "name": "Meaning",
+                      "fill": "$muted",
+                      "content": "· closes the rule",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 28,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "CaeRV",
+                  "name": "Call puts it back",
+                  "gap": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "V3DOJ",
+                      "name": "Method",
+                      "fill": "$purple",
+                      "content": "POST",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 28,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "jwQyJ",
+                      "name": "Path",
+                      "fill": "$text",
+                      "content": "/securityGroups/{id}/authorizeFirewallRules",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 28,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "SquXk",
+                      "name": "Meaning",
+                      "fill": "$muted",
+                      "content": "· puts it back",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 28,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "K6SEN",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "Z6sVB",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "p5QDQ",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "04 / 07",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
+        }
       ]
     },
     {
@@ -560,6 +958,238 @@
         120,
         64,
         120
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "buvRQ",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "gap": 120,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "bLGqz",
+              "name": "Statement",
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "D9n8qQ",
+                  "name": "AI writes.",
+                  "fill": "$text",
+                  "content": "AI writes.",
+                  "lineHeight": 1.05,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 128,
+                  "fontWeight": "800",
+                  "letterSpacing": -4
+                },
+                {
+                  "type": "text",
+                  "id": "POTAN",
+                  "name": "Code acts.",
+                  "fill": "$green",
+                  "content": "Code acts.",
+                  "lineHeight": 1.05,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 128,
+                  "fontWeight": "800",
+                  "letterSpacing": -4
+                },
+                {
+                  "type": "text",
+                  "id": "Zsdg2",
+                  "name": "You approve.",
+                  "fill": "$purple",
+                  "content": "You approve.",
+                  "lineHeight": 1.05,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 128,
+                  "fontWeight": "800",
+                  "letterSpacing": -4
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "eC1h1",
+              "name": "Safeguards",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 36,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "D0iYqn",
+                  "name": "Item 1",
+                  "gap": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "id": "Z3BKj3",
+                      "name": "Tick",
+                      "fill": "$green",
+                      "width": 12,
+                      "height": 12
+                    },
+                    {
+                      "type": "text",
+                      "id": "ipjFV",
+                      "name": "Text",
+                      "fill": "$text",
+                      "content": "Closed list of actions",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 34,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "U9IvYJ",
+                  "name": "Item 2",
+                  "gap": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "id": "X9rt7",
+                      "name": "Tick",
+                      "fill": "$green",
+                      "width": 12,
+                      "height": 12
+                    },
+                    {
+                      "type": "text",
+                      "id": "o3v88V",
+                      "name": "Text",
+                      "fill": "$text",
+                      "content": "Every action stores its inverse",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 34,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ZNHmj",
+                  "name": "Item 3",
+                  "gap": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "id": "sFVZ2",
+                      "name": "Tick",
+                      "fill": "$green",
+                      "width": 12,
+                      "height": 12
+                    },
+                    {
+                      "type": "text",
+                      "id": "I1jUn",
+                      "name": "Text",
+                      "fill": "$text",
+                      "content": "Audit: who · when · before · after",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 34,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "SbYrW",
+                  "name": "Item 4",
+                  "gap": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "id": "KYQkK",
+                      "name": "Tick",
+                      "fill": "$green",
+                      "width": 12,
+                      "height": 12
+                    },
+                    {
+                      "type": "text",
+                      "id": "J04H1",
+                      "name": "Text",
+                      "fill": "$text",
+                      "content": "Model runs in the EU",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 34,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "D5Aof",
+                  "name": "Item 5",
+                  "gap": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "id": "GIMtX",
+                      "name": "Tick",
+                      "fill": "$green",
+                      "width": 12,
+                      "height": 12
+                    },
+                    {
+                      "type": "text",
+                      "id": "anWbz",
+                      "name": "Text",
+                      "fill": "$text",
+                      "content": "Attacker only touches our machines",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 34,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "BK170",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "t5KoYS",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "uGBh7",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "05 / 07",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
+        }
       ]
     },
     {
