@@ -1208,6 +1208,208 @@
         120,
         64,
         120
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "P2Sntf",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 64,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "UTIhL",
+              "name": "Title",
+              "fill": "$text",
+              "content": "Leave on your own terms. Safely.",
+              "fontFamily": "$font-sans",
+              "fontSize": 88,
+              "fontWeight": "800",
+              "letterSpacing": -2
+            },
+            {
+              "type": "frame",
+              "id": "fD4PS",
+              "name": "Before after",
+              "width": "fill_container",
+              "gap": 48,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "SxGgl",
+                  "name": "Before",
+                  "width": "fill_container",
+                  "cornerRadius": 20,
+                  "stroke": "$line",
+                  "strokeWidth": 2,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 28,
+                  "padding": [
+                    40,
+                    48
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "noODk",
+                      "name": "Heading",
+                      "fill": "$muted",
+                      "content": "TODAY",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 24,
+                      "fontWeight": "normal",
+                      "letterSpacing": 3
+                    },
+                    {
+                      "type": "text",
+                      "id": "ayxNz",
+                      "name": "Point 1",
+                      "fill": "$muted",
+                      "content": "Months to leave",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 36,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "nSvmx",
+                      "name": "Point 2",
+                      "fill": "$muted",
+                      "content": "Temporary doors left open",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 36,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "AqPgh",
+                      "name": "Point 3",
+                      "fill": "$muted",
+                      "content": "Alerts nobody reads",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 36,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "g3zkyh",
+                  "name": "Arrow",
+                  "fill": "$green",
+                  "content": "→",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 56,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "ltZ0T",
+                  "name": "After",
+                  "width": "fill_container",
+                  "fill": "$bg-2",
+                  "cornerRadius": 20,
+                  "layout": "vertical",
+                  "gap": 28,
+                  "padding": [
+                    40,
+                    48
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "jRfky",
+                      "name": "Heading",
+                      "fill": "$green",
+                      "content": "WITH US",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 24,
+                      "fontWeight": "normal",
+                      "letterSpacing": 3
+                    },
+                    {
+                      "type": "text",
+                      "id": "ZCtpm",
+                      "name": "Point 1",
+                      "fill": "$text",
+                      "content": "Migrated, with proof",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 36,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "VbhJP",
+                      "name": "Point 2",
+                      "fill": "$text",
+                      "content": "Doors closed as they open",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 36,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "CHKis",
+                      "name": "Point 3",
+                      "fill": "$text",
+                      "content": "Customers arrive secure",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 36,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "ei9Vx",
+              "name": "Leaseweb pillars",
+              "fill": "$purple",
+              "content": "Independent · Privately owned · Sovereign-by-design",
+              "fontFamily": "$font-mono",
+              "fontSize": 26,
+              "fontWeight": "normal",
+              "letterSpacing": 1
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "mb9z5",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "TO6Kg",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "FCDWn",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "06 / 07",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
+        }
       ]
     },
     {
@@ -1226,6 +1428,121 @@
         120,
         64,
         120
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "m3co2n",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 48,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "s1g2nv",
+              "name": "Thesis",
+              "fill": "$purple",
+              "content": "Sovereignty without security just moves the problem.",
+              "fontFamily": "$font-sans",
+              "fontSize": 44,
+              "fontWeight": "500"
+            },
+            {
+              "type": "frame",
+              "id": "qeelW",
+              "name": "Close",
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ByPrV",
+                  "name": "Line 1",
+                  "fill": "$text",
+                  "content": "Open source.",
+                  "lineHeight": 1.02,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 160,
+                  "fontWeight": "800",
+                  "letterSpacing": -6
+                },
+                {
+                  "type": "text",
+                  "id": "bPGcD",
+                  "name": "Line 2",
+                  "fill": "$green",
+                  "content": "Ready to continue.",
+                  "lineHeight": 1.02,
+                  "fontFamily": "$font-sans",
+                  "fontSize": 160,
+                  "fontWeight": "800",
+                  "letterSpacing": -6
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "McI3X",
+              "name": "Meta",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Fif6P",
+                  "name": "Team",
+                  "fill": "$text",
+                  "content": "Guilherme · David · Enio Carlos",
+                  "fontFamily": "$font-sans",
+                  "fontSize": 32,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "u5pTk",
+                  "name": "Repo",
+                  "fill": "$muted",
+                  "content": "github.com/guilhermepferreira0429/hack-leaseweb · Apache 2.0",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 24,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "EmqXj",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "X0wrdc",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "P5sOjc",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "07 / 07",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
+        }
       ]
     }
   ],
