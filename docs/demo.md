@@ -12,6 +12,19 @@
 
 **Se a demo falhar em palco:** "Gravámos às 14:30 por precaução" e passar o vídeo. Não se depura em palco.
 
+## Preparação do cérebro (antes de cada ensaio e da demo)
+
+`bash env/preparar-demo.sh`, da raiz do repo. Por esta ordem:
+
+1. Verifica o `.env` (inclui `POSTGRES_DESTINO_PASSWORD` e `DATABASE_URL_DESTINO`, senão o Postgres → Postgres não corre).
+2. `infra:up`: LocalStack, Postgres de origem e de destino, MinIO, todos em `127.0.0.1`.
+3. `npm run seed`: dados falsos de uma PME na origem.
+4. `npm run dev:exemplo -- --semear 20`: sem isto o teste 4 da app falha ("não há encomendas semeadas") e o migrador diz que os testes falham.
+5. Esvazia os buckets **só no destino** (MinIO), para o destino não aparecer cheio antes de Aprovar.
+
+Depois: `npm run dev -- --consola --uma-vez` (ensaio) ou `npm run dev` (com Telegram).
+Ver o painel do portátil: `ssh -L 3000:localhost:3000 ubuntu@<cérebro>` e abrir `http://localhost:3000`.
+
 ## Contar tentativas no isco
 
 ```bash
