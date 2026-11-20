@@ -34,7 +34,8 @@ function linhaMigracao(pedidos: Pedido[], eventos: EventoAuditoria[]): string | 
 
 function linhaDefesa(pedidos: Pedido[], eventos: EventoAuditoria[]): string {
   const falhas = pedidos.filter((p) => p.acao.tipo === 'remover_regra');
-  if (falhas.length === 0) return 'Nenhuma porta ficou aberta a toda a internet.';
+  // Diz o que a defesa viu, não uma garantia: se não lhe deram security groups, nem olhou.
+  if (falhas.length === 0) return 'A defesa não encontrou portas abertas a toda a internet.';
   const feitos = falhas.filter((p) => p.estado === 'feito');
   const desfeitos = falhas.filter((p) => p.estado === 'desfeito');
   const ignorados = falhas.filter((p) => p.estado === 'ignorado');

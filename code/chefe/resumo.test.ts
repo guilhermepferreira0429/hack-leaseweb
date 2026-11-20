@@ -45,7 +45,7 @@ describe('chefe/resumir', () => {
   it('sem falhas e migração não aprovada', () => {
     const texto = resumir([], [migrar('ignorado')]);
     assert.match(texto, /Migração não aprovada/);
-    assert.match(texto, /Nenhuma porta ficou aberta/);
+    assert.match(texto, /A defesa não encontrou portas abertas/);
   });
 
   it('não inventa números que não estão na auditoria', () => {
