@@ -44,21 +44,21 @@ export interface OpcoesCodigo {
 function corpoPR(usos: UsoAws[], ficheiros: string[], fora: string[], causas: CausaCorrigida[]): string {
   const servicos = [...new Set(usos.map((u) => u.servico).filter((s) => s !== 'outro' && s !== 'credencial'))];
   return [
-    'Proposto pelo migrador de código depois de os dados passarem para a Leaseweb, com o OK do dono no Telegram.',
+    'Proposed by the code migrator after the data moved to Leaseweb, with the owner\'s OK in Telegram.',
     '',
-    `Serviços: ${servicos.join(', ') || 'nenhum'}. Encontrei ${usos.length} sítios no código e na configuração que apontam para a AWS.`,
-    `Ficheiros alterados: ${ficheiros.join(', ')}.`,
-    'Os mesmos testes da app passam contra a Leaseweb.',
+    `Services: ${servicos.join(', ') || 'none'}. I found ${usos.length} places in the code and configuration that point to AWS.`,
+    `Files changed: ${ficheiros.join(', ')}.`,
+    'The same app tests pass against Leaseweb.',
     ...(causas.length
       ? [
           '',
-          'Segurança (a causa da falha que a defesa fechou pela API da Leaseweb):',
-          ...causas.map((c) => `- ${c.ficheiro}: ${c.recurso}, porta ${c.porta}, deixa de estar aberta a toda a Internet; só ${c.via === 'sgApp' ? 'o grupo da app' : 'a subrede da app'} entra.`),
-          'Sem esta correção, a porta voltava a abrir no próximo deploy.',
+          'Security (the cause of the issue the defense closed through the Leaseweb API):',
+          ...causas.map((c) => `- ${c.ficheiro}: ${c.recurso}, port ${c.porta}, is no longer open to the whole Internet; only ${c.via === 'sgApp' ? 'the app security group' : 'the app subnet'} can reach it.`),
+          'Without this fix, the port would open again on the next deploy.',
         ]
       : []),
-    'Nenhum segredo vem neste PR: os valores reais vão só no .env.',
-    ...(fora.length ? ['', 'Fica fora deste PR:', ...fora.map((f) => `- ${f}`)] : []),
+    'No secrets in this PR: real values go only in .env.',
+    ...(fora.length ? ['', 'Not in this PR:', ...fora.map((f) => `- ${f}`)] : []),
   ].join('\n');
 }
 
@@ -67,11 +67,11 @@ export async function migrarCodigo(dirApp: string, opcoes: OpcoesCodigo): Promis
   const proposta = await proporAlteracao(dirApp, usos);
   const ficheiros = proposta.alteracoes.map((a) => a.ficheiro);
   const problemas = validarAlteracao(proposta, usos);
-  if (!opcoes.testesOk) problemas.push('os testes da app não passaram contra a Leaseweb');
+  if (!opcoes.testesOk) problemas.push('the app tests did not pass against Leaseweb');
   const base = { usos: usos.length, ficheiros, fora: proposta.fora, problemas, causas: proposta.causas.length };
   if (problemas.length || ficheiros.length === 0) return base;
 
-  const titulo = 'Migrador: a app passa a usar os serviços na Leaseweb';
+  const titulo = 'Migrator: point the app to the Leaseweb services';
   const corpo = corpoPR(usos, ficheiros, proposta.fora, proposta.causas);
   if (opcoes.repoApp) {
     const pr = await abrirPRNoRepoDaApp(
