@@ -8,6 +8,7 @@ import {
   garantirPermitido,
 } from '../alvos';
 import { paraAchado } from '../reconhecimento';
+import { executarForcaBruta, lerWordlist } from '../index';
 
 const LISTA = '203.0.113.10, 198.51.100.7';
 
@@ -63,5 +64,25 @@ describe('atacante/reconhecimento', () => {
     const achado = paraAchado({ alvo: '203.0.113.10', porta: 8080, estado: 'aberta' });
     assert.equal(achado.servico, null);
     assert.equal(achado.severidade, 'media');
+  });
+});
+
+describe('atacante/ssh', () => {
+  it('lê a wordlist e ignora comentários, linhas vazias e repetidas', () => {
+    const lista = lerWordlist('\uFEFF# comentário\r\ndeploy\r\n\r\n  deploy123  \ndeploy\r\n');
+    assert.deepEqual(lista, ['deploy', 'deploy123']);
+  });
+
+  it('recusa o alvo fora da allowlist antes de qualquer ligação', async () => {
+    await assert.rejects(
+      executarForcaBruta({
+        alvo: '203.0.113.11',
+        senhas: ['deploy123'],
+        allowlist: carregarAllowlist('203.0.113.10'),
+        pausaMs: 0,
+        log: () => {},
+      }),
+      AlvoRecusadoError,
+    );
   });
 });

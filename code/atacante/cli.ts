@@ -1,12 +1,16 @@
-// npm run dev:atacante [-- <ip> ...]
+// npm run dev:atacante [-- <ip> ...]     reconhecimento TCP das portas da demo
+// npm run dev:atacante -- --ssh <ip>     passo de SSH da demo (um só alvo, sempre na allowlist)
 // Sem argumentos: todos os IPs de ALVOS_PERMITIDOS. IPs fora da lista são recusados e nunca contactados.
 // Na demo, o reconhecimento corre pelo orquestrador (npm run dev).
 import { carregarEnv } from '@mwbe/shared';
 import { carregarAllowlist, filtrarAlvos } from './alvos';
+import { mainForcaBruta } from './index';
 import { PORTAS_ALVO, verificarPortas } from './reconhecimento';
 
 async function main(): Promise<number> {
   const args = process.argv.slice(2);
+  if (args[0] === '--ssh') return mainForcaBruta(args.slice(1));
+
   carregarEnv();
   const allowlist = carregarAllowlist(process.env.ALVOS_PERMITIDOS);
   const pedidos = args.length > 0 ? args : [...allowlist];
