@@ -56,5 +56,31 @@ Se falhar:
 - Só aceita ordens e botões de `TELEGRAM_APROVADORES` (por defeito o `TELEGRAM_DONO_ID`). Ignora os outros.
 - O relatório do incidente (`shared/relatorio.ts`) leva um botão **Desfazer <passo>** por passo feito: `callback_data` = `desfazer:<pedidoId>`, chega por `telegram.aoDesfazer`.
 - Os bots não recebem mensagens de outros bots: a conversa entre agentes passa pelo bus interno e cada bot só publica a sua parte.
-- Comandos: `/estado` (o que está pendente e feito), `/desfazer <pedidoId>`.
+- Comandos: `/estado` (o que está pendente e feito), `/desfazer <pedidoId>` e `/atacar [ip]` (abaixo).
 - Espelhar o ecrã do telemóvel no pitch (ou Telegram Desktop no portátil da apresentação).
+
+## `/atacar [ip]`: a sequência do atacante
+
+Uma mensagem no grupo arranca a sequência e cada passo é relatado pelo agente atacante no próprio grupo
+(`shared/bus.ts`). Sem `ip`, usa o primeiro alvo de `ALVOS_PERMITIDOS`.
+
+1. `⚔️ Ataque iniciado contra <alvo>`
+2. `👁️ Reconhecimento: …` — ligações TCP às 13 portas sensíveis de `PORTAS_ALVO` (SSH, bases de dados,
+   Redis, Elasticsearch, RDP, …); `ATACANTE_IGNORAR_PORTAS` tira portas. Só ao alvo permitido.
+3. `✅/❌ SSH: …` — adivinhação de palavra-passe limitada: no máximo 20 tentativas, pausa de 800 ms, para na
+   primeira entrada. A palavra-passe nunca é publicada; só o utilizador e o número de tentativas.
+4. `🧪 Extras: …` — só com `ATACANTE_EXTRAS=1`: TLS/cabeçalhos, credenciais de fábrica, bucket público e
+   segredos no código da app de exemplo. Tudo de leitura.
+5. `✅ Ataque terminado`
+
+Travas (não são opcionais):
+
+- **Allowlist:** só IPs de `ALVOS_PERMITIDOS`. Lista vazia → `allowlist vazia, ataque recusado`. Alvo fora da
+  lista → `alvo recusado (fora da allowlist): <alvo>` e nunca é contactado. A guarda (`garantirPermitido`)
+  repete-se antes de cada ligação, não é uma verificação única no início.
+- **Um de cada vez:** com um ataque a decorrer, outro `/atacar` responde `ataque já em curso`.
+- **Permissão:** só `TELEGRAM_DONO_ID` ou `TELEGRAM_APROVADORES`; qualquer outro `from.id` recebe `sem permissão`.
+- **Nada destrutivo:** sem sudo, sem persistência e sem escrever no alvo; o `auth.log` prova as tentativas.
+
+Para ensaiar sem Telegram: `npm run dev:atacante -- <ip>` (reconhecimento), `-- --ssh <ip>` (força bruta),
+`-- --extras <ip>` (nível B) ou `-- --segredos [pasta]`.
