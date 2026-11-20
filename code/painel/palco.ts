@@ -127,12 +127,23 @@ const SAIDAS: [RegExp, string][] = [
   [/nenhuma porta aberta/, 'no open ports'],
   [/regra reposta/, 'rule restored'],
   [/regra temporária/, 'temporary rule'],
-  [/serviços AWS:/, 'AWS services:'],
+  [/serviços AWS: (.*)/, 'AWS services: $1'],
   [/plano gerado \(nada criado ainda\)/, 'plan generated (nothing created yet)'],
   [/ficheiro\(s\) alterados · testes/, 'file(s) changed · tests'],
   [/^concluído$/, 'done'],
 ];
-const emIngles = (t: string) => SAIDAS.reduce((s, [de, para]) => s.replace(de, para), t).replace(/(\d)\.(\d{3})/g, '$1,$2');
+const COMANDOS: [RegExp, string][] = [
+  [/^migrar código → leaseweb/, 'migrate code → leaseweb'],
+  [/^migrar /, 'migrate '],
+  [/^analisar /, 'analyse '],
+  [/^traduzir terraform aws/, 'translate terraform aws'],
+];
+const SERVICOS: Record<string, string> = { s3: 'S3', postgres: 'Postgres', fila: 'SQS', segredos: 'Secrets Manager', cache: 'ElastiCache' };
+const comandoIngles = (c: string) => COMANDOS.reduce((s, [de, para]) => s.replace(de, para), c);
+const emIngles = (t: string) =>
+  SAIDAS.reduce((s, [de, para]) => s.replace(de, para), t)
+    .replace(/(\d)\.(\d{3})/g, '$1,$2')
+    .replace(/^(AWS services: )(.*)$/, (_m, a: string, l: string) => a + l.split(', ').map((x) => SERVICOS[x] ?? x).join(', '));
 
 const COR: Record<Agente, string> = { migrador: 'mig', atacante: 'atk', defesa: 'def', chefe: 'chf', dono: 'ink' };
 const NOME: Record<Agente, string> = { migrador: 'MIGRATOR', atacante: 'ATTACKER', defesa: 'DEFENCE', chefe: 'CHIEF', dono: 'OWNER' };
@@ -152,7 +163,7 @@ grid-template-rows:auto auto auto auto 1fr auto;font-size:20px}
 .porta .onde{color:var(--muted);font-size:18px}.tag{display:inline-block;font:13px var(--mono);letter-spacing:1px;padding:3px 10px;border-radius:999px;margin-left:8px;vertical-align:middle}
 .real{color:var(--def);border:1px solid #7DD3A866}.sim{color:var(--muted);border:1px solid var(--line)}
 .relogio .rot{font:16px var(--mono);letter-spacing:2px;color:var(--muted)}.relogio .seg{font:400 120px/1 var(--serif);color:var(--atk)}
-.relogio.fechada .seg{color:var(--def)}.relogio.espera .seg{color:var(--faint);font-size:56px}.relogio .isco{color:var(--muted);font-size:18px}
+.relogio.fechada .seg{color:var(--def)}.relogio.parado .seg{color:var(--faint);font-size:34px;line-height:1.2;margin-top:10px}.relogio .isco{color:var(--muted);font-size:18px}
 .ia{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center}.ia .quem{font:700 15px var(--mono);letter-spacing:2px;color:var(--def)}
 .ia blockquote{margin:8px 0;font-size:22px;line-height:1.4;color:var(--ink);font-style:italic}
 .ia .regra{font:15px var(--mono);color:var(--muted)}.ia .regra b{color:var(--ink);font-weight:400}
@@ -203,12 +214,12 @@ export function renderizarPalco(pedidos: Pedido[], todos: EventoAuditoria[], opc
   const relogio = exp
     ? `<div class="cartao relogio ${exp.aindaExposta ? '' : 'fechada'}" data-inicio="${escapar(exp.inicio)}" data-fim="${escapar(exp.fim ?? '')}">
 <div class="rot">${exp.aindaExposta ? 'EXPOSED FOR' : 'WAS EXPOSED FOR'}</div><div class="seg">${exp.segundos} s</div><div class="isco">&nbsp;</div></div>`
-    : `<div class="cartao relogio espera"><div class="rot">EXPOSURE CLOCK</div><div class="seg">starts when the new infrastructure goes live</div></div>`;
+    : `<div class="cartao relogio parado"><div class="rot">EXPOSURE CLOCK</div><div class="seg">starts when the new infrastructure goes live</div></div>`;
 
   // 4. A IA e a pessoa.
   const qr = opcoes.qr ? `<div><div class="qr">${opcoes.qr}</div><small>jury: join &amp; approve</small></div>` : '';
   const ia = s.textoIa
-    ? `<div class="cartao ia ${s.aEsperar ? 'espera' : ''}"><div><div class="quem">DEFENCE · AI EXPLANATION TO THE OWNER</div>
+    ? `<div class="cartao ia ${s.aEsperar ? 'espera' : ''}"><div><div class="quem">DEFENCE · AI EXPLANATION TO THE OWNER <span style="color:var(--faint);letter-spacing:0">(in Portuguese, plain words)</span></div>
 <blockquote>“${escapar(s.textoIa)}”</blockquote>
 <div class="regra">written by AI (text only) · action chosen by code from a closed list: <b>remove 1 firewall rule</b> · undo saved first</div>
 ${s.aEsperar ? '<div class="aviso">▶ Waiting for a human to approve in Telegram</div>' : s.aprovadoPorPessoa ? '<div class="regra" style="color:var(--def);margin-top:8px">✓ approved by a human</div>' : ''}</div>${s.aEsperar ? qr : ''}</div>`
@@ -224,7 +235,11 @@ ${s.aEsperar ? '<div class="aviso">▶ Waiting for a human to approve in Telegra
     kpi(p.objetos !== undefined ? `${n(p.objetos)} ${p.checksums ? '✓' : '✗'}` : '—', 'files copied · sha256 match', p.objetos === undefined ? 'nd' : p.checksums ? 'ok' : 'mau'),
     kpi(p.linhas !== undefined ? `${n(p.linhas)} ✓` : '—', 'database rows · sha256 match', p.linhas === undefined ? 'nd' : 'ok'),
     kpi(`${tA} / ${tD}`, 'app tests before / after', cA === 'mau' || cD === 'mau' ? 'mau' : cA === 'nd' ? 'nd' : 'ok'),
-    kpi(p.nmapDepois ? escapar(p.nmapDepois.estado) : p.nmapAntes ? escapar(p.nmapAntes.estado) : '—', `port ${s.porta?.numero ?? ''} seen from outside`.trim(), p.nmapDepois ? (p.nmapDepois.estado === 'open' ? 'mau' : 'ok') : p.nmapAntes ? 'mau' : 'nd'),
+    (() => {
+      // nmap da defesa (antes/depois); sem ele, o que o atacante viu de fora.
+      const v = p.nmapDepois?.estado ?? p.nmapAntes?.estado ?? (s.porta && s.porta.estado === 'open' ? 'open' : undefined);
+      return kpi(v ? escapar(v) : '—', `port ${s.porta?.numero ?? ''} seen from outside`.replace('  ', ' '), v ? (v === 'open' ? 'mau' : 'ok') : 'nd');
+    })(),
     kpi(p.ultimoFecho ? 'ready ✓' : '—', 'undo (inverse saved)', p.ultimoFecho ? 'ok' : 'nd'),
   ].join('');
 
@@ -232,17 +247,17 @@ ${s.aEsperar ? '<div class="aviso">▶ Waiting for a human to approve in Telegra
   const feed = eventos
     .map((e) => ({ e, f: fraseIngles(e) }))
     .filter((x): x is { e: EventoAuditoria; f: string } => Boolean(x.f))
-    .slice(-4)
+    .slice(-7)
     .map(({ e, f }) => {
       const a = agenteDe(e);
       return `<div class="ev"><b class="${COR[a]}">${NOME[a]}</b><span>${escapar(f)}</span></div>`;
     })
     .join('');
   const term = linhasTerminal(eventos)
-    .slice(-5)
+    .slice(-9)
     .map(
       (l) =>
-        (l.comando ? `<div class="c"><i class="${COR[l.agente]}">${l.agente === 'migrador' ? 'migrator' : l.agente === 'atacante' ? 'attacker' : l.agente === 'defesa' ? 'defence' : 'chief'}$</i> ${escapar(l.comando)}</div>` : '') +
+        (l.comando ? `<div class="c"><i class="${COR[l.agente]}">${l.agente === 'migrador' ? 'migrator' : l.agente === 'atacante' ? 'attacker' : l.agente === 'defesa' ? 'defence' : 'chief'}$</i> ${escapar(comandoIngles(l.comando))}</div>` : '') +
         l.saida
           .filter((o) => !o.texto.startsWith('#'))
           .map((o) => `<div class="o ${o.tom ?? ''}">${escapar(emIngles(o.texto))}</div>`)

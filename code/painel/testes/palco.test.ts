@@ -49,6 +49,7 @@ describe('/palco: estado por fase', () => {
     assert.match(html, /Waiting for a human to approve in Telegram/);
     assert.match(html, /written by AI \(text only\)/);
     assert.match(html, /<svg id="qr">/);
+    assert.match(html, /<div class="v mau">open<\/div><div class="l">port 5432 seen from outside/);
   });
   it('fechada: CLOSED, relógio parado, provas em números, sem faixa', () => {
     const s = estadoPalco(EV, []);
@@ -74,5 +75,10 @@ describe('/palco: em inglês', () => {
     assert.match(html, /<html lang="en">/);
     assert.match(html, /rule removed · confirmed from outside · undo saved/);
     for (const pt of ['objetos copiados', 'regra removida', 'testes da app', 'inverso guardado']) assert.ok(!html.includes(pt), pt);
+    const inicio = renderizarPalco([], EV.slice(0, 4));
+    assert.match(inicio, /analyse exemplo-app/);
+    assert.match(inicio, /AWS services: S3, Postgres, SQS, Secrets Manager, ElastiCache/);
+    assert.match(inicio, /migrate s3 → minio/);
+    assert.ok(!/\$<\/i> migrar/.test(inicio));
   });
 });
