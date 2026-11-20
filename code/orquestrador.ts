@@ -37,6 +37,8 @@ export interface Dependencias {
     ): void;
     aoMensagemDoDono(cb: (agente: Agente | null, texto: string) => void): void;
     notificar(texto: string): Promise<void>;
+    /** Anexo no grupo (ex.: o relatório HTML). Opcional: sem ele, não se anexa. */
+    enviarDocumento?(agente: Agente, nome: string, conteudo: string, legenda?: string): Promise<void>;
   };
   bus: { enviar(m: Mensagem): void };
   estado: {
@@ -118,6 +120,8 @@ export interface Dependencias {
     estadoAtual(pedidos: Pedido[]): string;
     /** Certificado de migração (ideia wow 3), dito pelo chefe no fim. */
     certificado?(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
+    /** O relatório da demo como ficheiro (HTML A4), para anexar no Telegram. */
+    relatorioFicheiro?(eventos: EventoAuditoria[], pedidos: Pedido[]): { nome: string; conteudo: string };
   };
 }
 
@@ -1038,6 +1042,14 @@ ${resumo}`,
         );
       } catch (erro) {
         await falha("migration certificate", erro);
+      }
+    }
+    if (deps.chefe.relatorioFicheiro && deps.telegram.enviarDocumento) {
+      try {
+        const f = deps.chefe.relatorioFicheiro(doCiclo(), deps.estado.listarPedidos());
+        await deps.telegram.enviarDocumento("chefe", f.nome, f.conteudo, "Full report (A4, ready to print or save as PDF).");
+      } catch (erro) {
+        await falha("report file", erro);
       }
     }
   }

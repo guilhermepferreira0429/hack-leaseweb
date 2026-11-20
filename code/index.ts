@@ -30,12 +30,14 @@ import {
   migrarSegredos,
   verificar,
 } from "@mwbe/migrador";
-import { certificado, estadoAtual, resumir } from "@mwbe/chefe";
+import { certificado, estadoAtual, nomeRelatorioFicheiro, relatorioHtml, resumir } from "@mwbe/chefe";
 import { iniciarPainel } from "@mwbe/painel";
 import {
   decidirDestino,
   mensagemDestino,
   resumoPlano,
+  resumoSimulacao,
+  simularProvisionamento,
   traduzir,
 } from "./migrador/tradutor/index";
 import { aprovarPR, migrarCodigo, reverterPR } from "./migrador/codigo/index";
@@ -99,7 +101,15 @@ async function planoDestino(
     vm,
     temBackups: process.env.DONO_TEM_BACKUPS === "sim",
   });
-  return mensagemDestino(decisoes, vm);
+  // Simulação (dry-run) do que se criaria na Leaseweb pela API para os serviços que o decisor manda para gerido.
+  // Nada é criado: no Telegram vai só o resumo curto.
+  let simulacao = "";
+  try {
+    simulacao = resumoSimulacao(simularProvisionamento(decisoes, { redeApp: process.env.MIGRADOR_REDE_APP || undefined }));
+  } catch {
+    simulacao = "";
+  }
+  return simulacao ? `${mensagemDestino(decisoes, vm)}\n${simulacao}` : mensagemDestino(decisoes, vm);
 }
 
 async function main(): Promise<void> {
@@ -185,6 +195,11 @@ async function main(): Promise<void> {
         estadoAtual,
         certificado: (eventos, pedidos) =>
           certificado(eventos, pedidos, process.env.LOCAL_DADOS || undefined),
+        // Relatório A4 (HTML) anexado no grupo no fim; o painel também o oferece em /relatorio.html.
+        relatorioFicheiro: (eventos, pedidos) => {
+          const opcoes = { localDados: process.env.LOCAL_DADOS || undefined };
+          return { nome: nomeRelatorioFicheiro(eventos, pedidos, opcoes), conteudo: relatorioHtml(eventos, pedidos, opcoes) };
+        },
       },
     },
     {

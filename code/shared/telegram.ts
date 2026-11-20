@@ -195,6 +195,27 @@ export async function editarResultado(pedidoId: string, resultado: string): Prom
   );
 }
 
+/** Envia um ficheiro (ex.: o relatório HTML) para o grupo, pelo bot do agente. multipart/form-data. */
+export async function enviarDocumento(agente: Agente, nome: string, conteudo: string, legenda?: string, tipo = 'text/html'): Promise<void> {
+  const t = tokenPara(agente);
+  if (!t) throw new Error('Nenhum TELEGRAM_TOKEN_* configurado.');
+  const form = new FormData();
+  form.set('chat_id', destino(agente));
+  form.set('document', new Blob([conteudo], { type: `${tipo}; charset=utf-8` }), nome);
+  if (legenda) form.set('caption', (t.proprio ? legenda : `[${NOME_AGENTE[agente]}] ${legenda}`).slice(0, 1000));
+  const base = cfg().apiBase ?? 'https://api.telegram.org';
+  await emSerie(async () => {
+    let resposta: Response;
+    try {
+      resposta = await fetch(`${base}/bot${t.token}/sendDocument`, { method: 'POST', body: form, signal: AbortSignal.timeout(30_000) });
+    } catch (erro) {
+      throw new ErroTelegram('sendDocument', erro instanceof Error ? erro.name : 'falha de rede');
+    }
+    const dados = (await resposta.json().catch(() => ({}))) as { ok?: boolean; description?: string };
+    if (!dados.ok) throw new ErroTelegram('sendDocument', dados.description ?? `HTTP ${resposta.status}`);
+  });
+}
+
 /** Mensagem simples no grupo (pelo bot do chefe). */
 export async function notificar(texto: string): Promise<void> {
   await falar('chefe', texto);

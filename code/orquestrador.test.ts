@@ -313,6 +313,25 @@ describe("orquestrador", () => {
     assert.equal(estranho.corrigidos.length, 0);
   });
 
+  it('relatório em ficheiro: o chefe anexa-o no fim, depois do certificado; uma falha só avisa', async () => {
+    const t = montar();
+    const anexos: { agente: string; nome: string; conteudo: string }[] = [];
+    t.deps.telegram.enviarDocumento = async (agente, nome, conteudo) => void anexos.push({ agente, nome, conteudo });
+    t.deps.chefe.relatorioFicheiro = (eventos) => ({ nome: 'CERT-X.html', conteudo: `<html>${eventos.length}</html>` });
+    await t.orq.correr();
+    assert.equal(anexos.length, 1);
+    assert.equal(anexos[0]!.agente, 'chefe');
+    assert.equal(anexos[0]!.nome, 'CERT-X.html');
+
+    const erro = montar();
+    erro.deps.telegram.enviarDocumento = async () => {
+      throw new Error('Telegram em baixo');
+    };
+    erro.deps.chefe.relatorioFicheiro = () => ({ nome: 'x.html', conteudo: 'x' });
+    await erro.orq.correr();
+    assert.ok(erro.notificacoes.some((n) => /report file.*Telegram em baixo/.test(n)));
+  });
+
   it("não fecha nada se o dono ignorar", async () => {
     const t = montar({
       decisao: (p) => (p.acao.tipo === "remover_regra" ? "ignorar" : "aprovar"),
