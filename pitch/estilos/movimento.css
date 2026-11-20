@@ -463,3 +463,12 @@
     color: var(--verde);
   }
 }
+
+/* Estado final nas miniaturas: o que só aparece por animação tem de estar visível. */
+.instantaneo .tl-msg {
+  opacity: 1;
+}
+.instantaneo .riscado::after,
+.instantaneo .sublinha::after {
+  transform: none;
+}
