@@ -136,7 +136,7 @@ describe('exemplo-app: arranque com segredos e cache (nível B)', () => {
       assert.ok(cfg.fornecedor.length > 0 && cfg.endpoint.length > 0, 'fornecedor e endpoint presentes');
       assert.ok(cfg.apiKey.length > 0, `apiKey presente (${segredos.descricao})`);
     } catch (erro) {
-      if (!ESTRITA && erro instanceof Error && /não responde|não existe|Não consegui ler/.test(erro.message)) {
+      if (!ESTRITA && erro instanceof Error && /is not responding|not found|Could not read/.test(erro.message)) {
         t.skip(`${segredos.descricao}: ${erro.message}`);
         return;
       }

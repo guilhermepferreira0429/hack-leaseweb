@@ -89,7 +89,7 @@ export async function registarEncomenda(
      VALUES ($1, $2, $3, $4, $5) RETURNING ${COLUNAS}`,
     [id, dados.cliente, dados.totalCentimos, faturaChave, faturaSha256],
   );
-  if (!linha) throw new Error(`A base de dados não devolveu a encomenda ${id}`);
+  if (!linha) throw new Error(`The database did not return order ${id}`);
   await deps.fila.enviar(JSON.stringify({ tipo: 'encomenda-criada', id }));
   return paraEncomenda(linha);
 }

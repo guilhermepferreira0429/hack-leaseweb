@@ -18,7 +18,7 @@ function argNumero(nome: string): number | undefined {
   const i = process.argv.indexOf(nome);
   if (i === -1) return undefined;
   const n = Number(process.argv[i + 1] ?? '10');
-  if (!Number.isInteger(n) || n < 1 || n > 1000) throw new Error(`${nome} espera um número entre 1 e 1000`);
+  if (!Number.isInteger(n) || n < 1 || n > 1000) throw new Error(`${nome} expects a number between 1 and 1000`);
   return n;
 }
 
@@ -30,7 +30,7 @@ async function main(): Promise<void> {
     const env = process.env;
     const destinoS3 = env.ARMAZENAMENTO_ENDPOINT?.trim() && env.ARMAZENAMENTO_ENDPOINT.trim() !== (env.LOCALSTACK_ENDPOINT?.trim() || 'http://127.0.0.1:4566');
     const destinoPg = env.DATABASE_URL_DESTINO?.trim() && env.DATABASE_URL?.trim() === env.DATABASE_URL_DESTINO.trim();
-    if (destinoS3 || destinoPg) throw new Error('--repor só corre na origem (LocalStack e DATABASE_URL de origem)');
+    if (destinoS3 || destinoPg) throw new Error('--repor only runs on the source (LocalStack and the source DATABASE_URL)');
   }
   const deps = criarDependencias();
   try {

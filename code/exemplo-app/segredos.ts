@@ -32,11 +32,11 @@ export function lerSegredosConfig(env: NodeJS.ProcessEnv = process.env): {
 } {
   const v = (nome: string): string | undefined => env[nome]?.trim() || undefined;
   const tipo = (v('SEGREDOS_TIPO') ?? 'aws').toLowerCase();
-  if (tipo !== 'aws' && tipo !== 'openbao') throw new Error(`SEGREDOS_TIPO desconhecido: ${tipo} (aws ou openbao)`);
+  if (tipo !== 'aws' && tipo !== 'openbao') throw new Error(`Unknown SEGREDOS_TIPO: ${tipo} (use aws or openbao)`);
   const regiao = v('AWS_REGION') ?? 'us-east-1';
   if (tipo === 'aws') return { tipo, endpoint: v('LOCALSTACK_ENDPOINT') ?? 'http://127.0.0.1:4566', regiao };
   const token = v('OPENBAO_TOKEN');
-  if (!token) throw new Error('SEGREDOS_TIPO=openbao mas OPENBAO_TOKEN não está definido no .env');
+  if (!token) throw new Error('SEGREDOS_TIPO=openbao but OPENBAO_TOKEN is not set in .env');
   return { tipo, endpoint: (v('OPENBAO_ADDR') ?? 'http://127.0.0.1:8200').replace(/\/+$/, ''), token, regiao };
 }
 
@@ -53,14 +53,14 @@ export function criarSegredos(env: NodeJS.ProcessEnv = process.env): Segredos {
             signal: AbortSignal.timeout(5000),
           });
         } catch {
-          throw new Error(`OpenBao não responde em ${c.endpoint}`);
+          throw new Error(`OpenBao is not responding at ${c.endpoint}`);
         }
-        if (r.status === 404) throw new Error(`Segredo ${nome} não existe no OpenBao`);
-        if (r.status === 403) throw new Error('OpenBao recusou o token');
-        if (!r.ok) throw new Error(`OpenBao respondeu ${r.status} ao ler ${nome}`);
+        if (r.status === 404) throw new Error(`Secret ${nome} not found in OpenBao`);
+        if (r.status === 403) throw new Error('OpenBao rejected the token');
+        if (!r.ok) throw new Error(`OpenBao returned ${r.status} reading ${nome}`);
         const corpo = (await r.json()) as { data?: { data?: { valor?: unknown } } };
         const valor = corpo.data?.data?.valor;
-        if (typeof valor !== 'string') throw new Error(`Segredo ${nome} sem campo "valor" no OpenBao`);
+        if (typeof valor !== 'string') throw new Error(`Secret ${nome} has no "valor" field in OpenBao`);
         return valor;
       },
       async fechar() {},
@@ -76,17 +76,17 @@ export function criarSegredos(env: NodeJS.ProcessEnv = process.env): Segredos {
       try {
         if (nome.startsWith('/')) {
           const r = await ssm.send(new GetParameterCommand({ Name: nome, WithDecryption: true }));
-          if (typeof r.Parameter?.Value !== 'string') throw new Error('sem valor');
+          if (typeof r.Parameter?.Value !== 'string') throw new Error('no value');
           return r.Parameter.Value;
         }
         const r = await sm.send(new GetSecretValueCommand({ SecretId: nome }));
         if (typeof r.SecretString === 'string') return r.SecretString;
         if (r.SecretBinary) return Buffer.from(r.SecretBinary).toString('base64');
-        throw new Error('sem valor');
+        throw new Error('no value');
       } catch (erro) {
         // Só o nome e o tipo de erro; nunca o corpo da resposta.
         const tipo = (erro as { name?: string }).name ?? 'erro';
-        throw new Error(`Não consegui ler ${nome} na AWS (${tipo})`);
+        throw new Error(`Could not read ${nome} on AWS (${tipo})`);
       }
     },
     async fechar() {
@@ -112,11 +112,11 @@ export async function carregarConfiguracao(segredos: Segredos): Promise<Configur
   try {
     dados = JSON.parse(await segredos.ler(SEGREDO_PAGAMENTOS)) as Partial<ConfiguracaoPagamentos>;
   } catch (erro) {
-    if (erro instanceof SyntaxError) throw new Error(`${SEGREDO_PAGAMENTOS} não é JSON válido`);
+    if (erro instanceof SyntaxError) throw new Error(`${SEGREDO_PAGAMENTOS} is not valid JSON`);
     throw erro;
   }
   for (const campo of ['fornecedor', 'endpoint', 'apiKey'] as const) {
-    if (typeof dados[campo] !== 'string' || dados[campo] === '') throw new Error(`${SEGREDO_PAGAMENTOS} sem o campo ${campo}`);
+    if (typeof dados[campo] !== 'string' || dados[campo] === '') throw new Error(`${SEGREDO_PAGAMENTOS} is missing the ${campo} field`);
   }
   return dados as ConfiguracaoPagamentos;
 }

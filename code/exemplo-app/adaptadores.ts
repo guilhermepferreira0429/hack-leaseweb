@@ -79,13 +79,13 @@ export function lerAmbiente(env: NodeJS.ProcessEnv = process.env): Ambiente {
   const regiao = v('AWS_REGION') ?? 'us-east-1';
   const databaseUrl = v('DATABASE_URL');
   if (!databaseUrl || databaseUrl.includes('<senha>')) {
-    throw new Error('DATABASE_URL não está definida no .env (ver env/.env.example)');
+    throw new Error('DATABASE_URL is not set in .env (see env/.env.example)');
   }
   const tipoFila = (v('FILA_TIPO') ?? 'sqs').toLowerCase();
-  if (tipoFila !== 'sqs' && tipoFila !== 'rabbitmq') throw new Error(`FILA_TIPO desconhecido: ${tipoFila} (sqs ou rabbitmq)`);
+  if (tipoFila !== 'sqs' && tipoFila !== 'rabbitmq') throw new Error(`Unknown FILA_TIPO: ${tipoFila} (use sqs or rabbitmq)`);
   const rabbitmqUrl = v('RABBITMQ_URL');
   if (tipoFila === 'rabbitmq' && (!rabbitmqUrl || rabbitmqUrl.includes('<senha>'))) {
-    throw new Error('FILA_TIPO=rabbitmq mas RABBITMQ_URL não está definida no .env');
+    throw new Error('FILA_TIPO=rabbitmq but RABBITMQ_URL is not set in .env');
   }
   return {
     armazenamento: {
@@ -151,7 +151,7 @@ export function criarArmazenamento(env?: NodeJS.ProcessEnv): Armazenamento {
     },
     async ler(chave) {
       const r = await s3.send(new GetObjectCommand({ Bucket: c.bucket, Key: chave }));
-      if (!r.Body) throw new Error(`Objeto sem corpo: ${chave}`);
+      if (!r.Body) throw new Error(`Object without a body: ${chave}`);
       return Buffer.from(await r.Body.transformToByteArray());
     },
     async listar(prefixo) {
@@ -257,7 +257,7 @@ function criarFilaSqs(c: Ambiente['fila']): Fila {
   const urlFila = (): Promise<string> => (url ??= sqs
     .send(new CreateQueueCommand({ QueueName: c.nome })) // idempotente: devolve a fila se já existir
     .then((r) => {
-      if (!r.QueueUrl) throw new Error(`SQS não devolveu o URL da fila ${c.nome}`);
+      if (!r.QueueUrl) throw new Error(`SQS did not return the URL of queue ${c.nome}`);
       return r.QueueUrl;
     })
     .catch((erro) => {
