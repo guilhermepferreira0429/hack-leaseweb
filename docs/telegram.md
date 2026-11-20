@@ -51,7 +51,7 @@ Se falhar:
 
 ## Comportamento
 
-- Cada pedido chega com título, explicação e os botões do tipo de ação: **Aprovar plano** / **Ignorar** na migração e **Fechar** / **Ignorar** na defesa (textos de `shared/mensagens.ts`). `callback_data` = `aprovar:<pedidoId>` ou `ignorar:<pedidoId>`.
+- Cada pedido chega com título, explicação e os botões do tipo de ação: **Approve plan** / **Ignore** na migração, **Close** / **Ignore** na defesa e **Approve PR** / **Ignore** no PR (textos de `shared/mensagens.ts`). `callback_data` = `aprovar:<pedidoId>` ou `ignorar:<pedidoId>`.
 - Ao carregar: `answerCallbackQuery` e editar a mensagem com o resultado ("Fechado e confirmado às 14:02").
 - Só aceita ordens e botões de `TELEGRAM_APROVADORES` (por defeito o `TELEGRAM_DONO_ID`). Ignora os outros.
 - O relatório do incidente (`shared/relatorio.ts`) leva um botão **Desfazer <passo>** por passo feito: `callback_data` = `desfazer:<pedidoId>`, chega por `telegram.aoDesfazer`.
