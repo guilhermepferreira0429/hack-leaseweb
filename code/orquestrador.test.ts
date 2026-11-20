@@ -847,7 +847,7 @@ describe("orquestrador", () => {
     await t.orq.correr();
     assert.ok(
       t.falas.some((f) =>
-        /proponho Scaleway[\s\S]*\/recomendado[\s\S]*\/selfhosted[\s\S]*simulated in this demo; the data runs on the VM underneath\./.test(
+        /proponho Scaleway[\s\S]*\/recomendado[\s\S]*\/selfhosted[\s\S]*simulated today; the data runs on the VM\./.test(
           f.texto,
         ),
       ),

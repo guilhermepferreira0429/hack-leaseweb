@@ -597,7 +597,7 @@ ${resumo}`,
         "migrador",
         "dono",
         geridos
-          ? `${texto}\nYou choose before approving: /recomendado (this plan: Leaseweb managed where it makes sense) or /selfhosted (everything on your own VM). Without a choice I follow the recommendation. Managed services are simulated in this demo; the data runs on the VM underneath.`
+          ? `${texto}\nApprove this plan (/recomendado), or /selfhosted for everything on your own VM. Managed services are simulated today; the data runs on the VM.`
           : texto,
       );
     } catch (erro) {
