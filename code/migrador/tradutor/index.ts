@@ -3,3 +3,4 @@ export type * from './tipos';
 export { traduzir, normalizarAdminIp, POR_ESCOLHER } from './traduzir';
 export { resumoPlano } from './resumo';
 export { REGIAO_DESTINO, PORTAS_SENSIVEIS, TIPOS, IMAGENS } from './tabelas';
+export * from './destino/index';

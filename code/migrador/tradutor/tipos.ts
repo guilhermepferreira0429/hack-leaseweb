@@ -40,7 +40,7 @@ export type ItemSubstituir = {
 
 export type ItemSinalizar = {
   origem: string;
-  assunto: 'iam' | 'lock-in' | 'ami-custom' | 'egress' | 'regiao' | 'tipo' | 'rede' | 'ssh' | 'admin-ip' | 'desconhecido';
+  assunto: 'iam' | 'lock-in' | 'ami-custom' | 'egress' | 'regiao' | 'tipo' | 'rede' | 'ssh' | 'admin-ip' | 'segredo' | 'desconhecido';
   /** Etiqueta curta para o resumo, ex.: "Lambda miniaturas". */
   titulo: string;
   porque: string;

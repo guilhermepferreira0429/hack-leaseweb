@@ -22,9 +22,20 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir no .env}
       POSTGRES_DB: encomendas
 
+  # Destino do RDS na Leaseweb (nível B): o migrador copia o esquema e as linhas para aqui.
+  # Porta por omissão 5434; POSTGRES_DESTINO_PORTA muda-a se estiver ocupada na máquina.
+  postgres-destino:
+    image: postgres:16
+    ports:
+      - "127.0.0.1:${POSTGRES_DESTINO_PORTA:-5434}:5432"
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_DESTINO_PASSWORD:?definir no .env}
+      POSTGRES_DB: encomendas
+
   minio:
     # minio/minio saiu do Docker Hub (e quay.io pede login); a build da Chainguard é pública e tem o mesmo binário.
-    image: cgr.dev/chainguard/minio:latest
+    image: cgr.dev/chainguard/minio@sha256:e9cf6b99c226e9539ed0f14b6f00e37b07da153c7ba1f4f8709c807574b471ec # RELEASE.2026-11-16T00-11-40Z, testado pelo migrador
     user: "0"
     command: server /data --console-address ":9001"
     ports:

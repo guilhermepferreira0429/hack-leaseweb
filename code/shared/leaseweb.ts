@@ -73,12 +73,14 @@ type RegraApi = {
 /** Converte a regra da API para o nosso tipo. Sem id não dá para fazer revoke: falha alto. */
 export function normalizarRegra(r: RegraApi): Regra & { estado?: string } {
   if (!r.id) throw new ErroLeaseweb('A API devolveu uma regra sem id: o revoke precisa dele (ver docs/leaseweb-api.md)');
+  // Sem portas (protocolo ANY ou "todas as portas"): é a regra mais perigosa, trata-se como 1-65535.
+  const semPortas = r.startPort == null && r.endPort == null;
   return {
     id: r.id,
     protocol: String(r.protocol ?? '').toUpperCase(),
     source: String(r.source ?? ''),
-    startPort: Number(r.startPort ?? 0),
-    endPort: Number(r.endPort ?? r.startPort ?? 0),
+    startPort: semPortas ? 1 : Number(r.startPort ?? r.endPort),
+    endPort: semPortas ? 65535 : Number(r.endPort ?? r.startPort),
     ...(r.state ? { estado: r.state } : {}),
   };
 }
@@ -108,6 +110,38 @@ export async function listarSecurityGroups(): Promise<{ id: string; nome: string
     const total = r?._metadata?.totalCount ?? grupos.length;
     if (pagina.length < limite || grupos.length >= total) return grupos;
   }
+}
+
+type InstanciaApi = { id: string; ips?: { ip?: string; networkType?: string; version?: number }[] };
+
+/**
+ * IPs públicos das instâncias de cada security group: { sgId: [ip, ...] }.
+ * 1.º LSW_IP_SG no .env ("ip=sg,ip=sg"), que manda sempre; 2.º a API (GET /instances + /instances/{id}/securityGroups).
+ * Se a API falhar, fica só o que vem do .env: sem mapa, a defesa não liga achados do atacante a regras (falha fechado).
+ */
+export async function ipsPorSecurityGroup(): Promise<Record<string, string[]>> {
+  carregarEnv();
+  const mapa: Record<string, string[]> = {};
+  const juntar = (sg: string, ip: string) => {
+    mapa[sg] ??= [];
+    if (!mapa[sg].includes(ip)) mapa[sg].push(ip);
+  };
+  for (const par of (process.env.LSW_IP_SG ?? '').split(',')) {
+    const [ip, sg] = par.split('=').map((s) => s.trim());
+    if (ip && sg) juntar(sg, ip);
+  }
+  try {
+    const r = await pedido<{ instances?: InstanciaApi[] }>('GET', '/instances?limit=50');
+    for (const inst of r?.instances ?? []) {
+      const ips = (inst.ips ?? []).filter((i) => i.ip && i.networkType !== 'INTERNAL').map((i) => i.ip!);
+      if (!ips.length) continue;
+      const g = await pedido<{ securityGroups?: { id: string }[] }>('GET', `/instances/${encodeURIComponent(inst.id)}/securityGroups`);
+      for (const sg of g?.securityGroups ?? []) for (const ip of ips) juntar(sg.id, ip);
+    }
+  } catch (erro) {
+    console.warn('[leaseweb] não consegui mapear IP -> security group pela API:', erro instanceof Error ? erro.message : erro);
+  }
+  return mapa;
 }
 
 /** Regras com o estado da API (ACTIVE, CREATING, DELETING...). Uso interno e para verificar. */

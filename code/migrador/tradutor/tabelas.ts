@@ -131,6 +131,16 @@ export const SUBSTITUICOES: Record<
       motor: /^(redis|valkey)/,
     },
   ],
+  // Grupo de replicação: sem `engine` é Redis por omissão.
+  aws_elasticache_replication_group: [
+    {
+      servicoAws: 'ElastiCache Redis',
+      alternativa: 'Valkey numa instância Leaseweb',
+      comoSeMove: 'Chaves copiadas com o TTL; confirma-se por amostragem.',
+      nivel: 'B',
+      motor: /^(redis|valkey|)$/,
+    },
+  ],
   aws_secretsmanager_secret: [
     {
       servicoAws: 'Secrets Manager',

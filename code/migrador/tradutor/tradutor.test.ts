@@ -277,6 +277,33 @@ describe('tradutor: substituir e sinalizar', () => {
     assert.ok(!p.criar.some((c) => c.origem.startsWith('aws_iam') || c.origem.startsWith('aws_lambda')));
   });
 
+  it('ElastiCache -> Valkey (cluster e grupo de replicação); Secrets Manager -> OpenBao, valor nunca copiado', () => {
+    const segredo = `Fict${randomUUID()}`;
+    const p = traduzir(
+      tfCom({
+        recursos: {
+          aws_elasticache_cluster: { cache: { engine: 'redis' } },
+          aws_elasticache_replication_group: { rg: { description: 'sessões' } },
+          aws_secretsmanager_secret: { db: { name: 'db' } },
+          aws_secretsmanager_secret_version: { db: { secret_id: '${aws_secretsmanager_secret.db.id}', secret_string: segredo } },
+        },
+      }),
+      { adminIp: ADMIN },
+    );
+    assert.deepEqual(
+      p.substituir.map((s) => [s.origem, s.alternativa.split(' ')[0]]),
+      [
+        ['aws_elasticache_cluster.cache', 'Valkey'],
+        ['aws_elasticache_replication_group.rg', 'Valkey'],
+        ['aws_secretsmanager_secret.db', 'OpenBao'],
+      ],
+    );
+    assert.ok(assuntos(p).includes('aws_secretsmanager_secret_version.db:segredo'));
+    assert.deepEqual(segredos(p).map((s) => [s.origem, s.nome]), [['aws_secretsmanager_secret_version.db', 'secret_string']]);
+    semValor(JSON.stringify(p), segredo, 'plano');
+    semValor(resumoPlano(p), segredo, 'resumo');
+  });
+
   it('recurso desconhecido -> sinalizado para revisão humana', () => {
     const p = traduzir(tfCom({ recursos: { aws_glue_job: { x: {} } } }), { adminIp: ADMIN });
     assert.ok(assuntos(p).includes('aws_glue_job.x:desconhecido'));

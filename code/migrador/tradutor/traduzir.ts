@@ -577,6 +577,14 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
           porque: 'A rede da VPC não se copia: na Leaseweb cada instância tem um IPv4 público e grupos de segurança.',
           oQueFazer: 'Nada a fazer para a demo; numa migração real, desenhar a rede privada do destino.',
         });
+      } else if (tipo === 'aws_secretsmanager_secret_version') {
+        sinalizar({
+          origem,
+          assunto: 'segredo',
+          titulo: `valor do segredo ${nome}`,
+          porque: 'O valor de um segredo nunca passa pelo tradutor nem fica no plano.',
+          oQueFazer: 'Migra-se de cofre para cofre (Secrets Manager -> OpenBao), sem aparecer em texto no log.',
+        });
       } else if (tipo === 'aws_key_pair') {
         sinalizar({
           origem,
