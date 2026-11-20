@@ -24,9 +24,9 @@ export function avaliarMetodosSsh(alvo: string, metodos: readonly string[], port
       origem: 'atacante',
       alvo,
       porta,
-      servico: 'SSH (palavra-passe)',
+      servico: 'SSH (password login)',
       severidade: 'media',
-      detalhe: `SSH anuncia autenticação por palavra-passe (${metodos.join(', ')})`,
+      detalhe: `SSH advertises password authentication (${metodos.join(', ')})`,
     },
   ];
 }

@@ -10,8 +10,8 @@ describe('atacante/ssh-auth', () => {
   it('métodos com password viram achado', () => {
     const achados = avaliarMetodosSsh('203.0.113.10', ['publickey', 'password']);
     assert.equal(achados.length, 1);
-    assert.equal(achados[0]!.servico, 'SSH (palavra-passe)');
-    assert.match(achados[0]!.detalhe, /palavra-passe/);
+    assert.equal(achados[0]!.servico, 'SSH (password login)');
+    assert.match(achados[0]!.detalhe, /password authentication/);
   });
 
   it('só publickey não é achado', () => {
@@ -49,7 +49,7 @@ describe('atacante/ssh-auth', () => {
         timeoutMs: 3_000,
       });
       assert.equal(achados.length, 1);
-      assert.equal(achados[0]!.servico, 'SSH (palavra-passe)');
+      assert.equal(achados[0]!.servico, 'SSH (password login)');
       assert.equal(achados[0]!.porta, porta);
       assert.equal(achados[0]!.alvo, '127.0.0.1');
     } finally {
