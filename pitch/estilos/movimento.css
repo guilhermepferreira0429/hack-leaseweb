@@ -1,0 +1,464 @@
+/* Movimento: como os slides entram, saem e se constroem. Uma só curva para tudo (sai depressa, assenta devagar).
+   .e        entra a subir quando o slide fica .ativo; --d é a ordem (90 ms cada)
+   .ap/.on   aparece num clique;  .recua  escurece o que já foi dito
+   .escada   os filhos entram um a seguir ao outro
+   .instantaneo (miniaturas, vista do apresentador): sem movimento, tudo no estado final */
+
+:root {
+  --curva: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- troca de slide: o antigo desvanece enquanto o novo entra ---------- */
+.palco > .slide {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.55s ease, transform 0.8s var(--curva), filter 0.55s ease;
+}
+.palco > .slide:not(.ativo) {
+  opacity: 0;
+  transform: scale(1.02);
+}
+.palco > .slide.saindo {
+  opacity: 0;
+  transform: scale(0.985);
+  filter: blur(6px);
+  pointer-events: none;
+}
+
+/* ---------- entradas ---------- */
+.slide .e {
+  opacity: 0;
+}
+.slide.ativo .e {
+  animation: entrar 0.8s var(--curva) both;
+  animation-delay: calc(var(--d, 0) * 90ms + 120ms);
+}
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.slide .escada > * {
+  opacity: 0;
+}
+.slide.ativo .escada > * {
+  animation: entrar 0.7s var(--curva) both;
+}
+.slide.ativo .escada > *:nth-child(1) { animation-delay: 0.25s; }
+.slide.ativo .escada > *:nth-child(2) { animation-delay: 0.37s; }
+.slide.ativo .escada > *:nth-child(3) { animation-delay: 0.49s; }
+.slide.ativo .escada > *:nth-child(4) { animation-delay: 0.61s; }
+.slide.ativo .escada > *:nth-child(5) { animation-delay: 0.73s; }
+.slide.ativo .escada > *:nth-child(6) { animation-delay: 0.85s; }
+.slide.ativo .escada > *:nth-child(7) { animation-delay: 0.97s; }
+.slide.ativo .escada > *:nth-child(8) { animation-delay: 1.09s; }
+.slide.ativo .escada > *:nth-child(9) { animation-delay: 1.21s; }
+.slide.ativo .escada.atrasada > * { animation-duration: 0.7s; }
+.slide.ativo .escada.atrasada > *:nth-child(1) { animation-delay: 0.75s; }
+.slide.ativo .escada.atrasada > *:nth-child(2) { animation-delay: 0.9s; }
+.slide.ativo .escada.atrasada > *:nth-child(3) { animation-delay: 1.05s; }
+.slide.ativo .escada.atrasada > *:nth-child(4) { animation-delay: 1.2s; }
+.slide.ativo .escada.atrasada > *:nth-child(5) { animation-delay: 1.35s; }
+
+.ap {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.6s ease, transform 0.8s var(--curva);
+}
+.ap.on {
+  opacity: 1;
+  transform: none;
+}
+.recua {
+  opacity: 0.25;
+  transition: opacity 0.6s ease;
+}
+
+/* Sem movimento nas miniaturas e para quem pede menos movimento. */
+.instantaneo *,
+.instantaneo *::before,
+.instantaneo *::after {
+  animation: none !important;
+  transition: none !important;
+}
+.instantaneo .e,
+.instantaneo .escada > * {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide *,
+  .slide *::before,
+  .slide *::after {
+    animation-duration: 0.01s !important;
+    transition-duration: 0.01s !important;
+  }
+}
+
+/* ---------- abertura: isco a pulsar, depois o inquérito ---------- */
+.abertura .isco {
+  flex: 1;
+  transition: opacity 0.6s ease;
+}
+.abertura .inquerito {
+  width: 760px;
+}
+.nota-isco {
+  margin-top: 24px;
+  font-size: 24px;
+}
+.divisor {
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.9s var(--curva);
+}
+.divisor.cresce,
+.instantaneo .divisor {
+  transform: none;
+}
+.mercado .divisor,
+.problema .divisor {
+  transform: none;
+}
+.numero-e-pontos {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  margin: 12px 0 20px;
+}
+.ao-vivo .ponto {
+  box-shadow: 0 0 0 0 currentColor;
+  animation: radar 1.8s ease-out infinite;
+}
+@keyframes radar {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 70%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 18px transparent;
+  }
+}
+
+/* ---------- grelha de 100 pontos ---------- */
+.pontos {
+  display: grid;
+  grid-template-columns: repeat(10, 22px);
+  gap: 12px;
+}
+.pt {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--linha);
+}
+.pt.aceso {
+  background: var(--verde);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--verde) 45%, transparent);
+  animation: acender 0.5s var(--curva) both;
+  animation-delay: calc(var(--i) * 16ms + 500ms);
+}
+.pt.aceso.lilas {
+  background: var(--lilas);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--lilas) 45%, transparent);
+  animation-delay: calc((var(--i) - 73) * 90ms + 300ms);
+}
+@keyframes acender {
+  0% {
+    background: var(--linha);
+    box-shadow: none;
+    transform: scale(1);
+  }
+  60% {
+    transform: scale(1.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.mercado .pontos {
+  grid-template-columns: repeat(10, 34px);
+  gap: 16px;
+}
+.mercado .pt {
+  width: 34px;
+  height: 34px;
+}
+.mercado .estat {
+  flex: 1;
+}
+.nl {
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+  margin-top: 40px;
+}
+
+/* ---------- o pedido: "not months" riscado ---------- */
+.riscado {
+  position: relative;
+  color: var(--muted);
+}
+.riscado::after {
+  content: '';
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  top: 54%;
+  height: 10px;
+  border-radius: 6px;
+  background: var(--lilas);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.slide.ativo .riscado::after {
+  animation: riscar 0.6s var(--curva) 1.1s both;
+}
+@keyframes riscar {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ---------- o problema: um dia contra segundos ---------- */
+.problema {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 72px;
+}
+.problema-cima {
+  display: flex;
+  align-items: center;
+  gap: 64px;
+}
+.problema-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 900px;
+}
+.barras {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.barra-linha {
+  display: grid;
+  grid-template-columns: 360px 1fr 180px;
+  align-items: center;
+  gap: 32px;
+  transition: opacity 0.6s ease;
+}
+.barra-rotulo {
+  font: 28px var(--mono);
+  color: var(--muted);
+}
+.barra-valor {
+  font-size: 40px;
+  font-weight: 800;
+}
+.barra-pista {
+  position: relative;
+  height: 36px;
+  background: var(--fundo-2);
+  border-radius: 999px;
+  overflow: visible;
+}
+.barra {
+  height: 100%;
+  border-radius: 999px;
+  transform-origin: left;
+}
+.barra.lilas {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--lilas) 60%, transparent), var(--lilas));
+}
+.slide.ativo .barra.longa {
+  animation: encher 1.8s var(--curva) 0.7s both;
+}
+@keyframes encher {
+  from {
+    transform: scaleX(0);
+  }
+}
+.barra.verde {
+  background: var(--verde);
+  width: 8px;
+}
+.faisca {
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: var(--verde);
+}
+.ap.on .faisca {
+  animation: radar-verde 1.6s ease-out 0.4s 3;
+}
+@keyframes radar-verde {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--verde) 80%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 40px transparent;
+  }
+}
+
+/* ---------- para quem: o grupo do Telegram a escrever-se ---------- */
+.para-quem .pq-texto {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.para-quem .frase-xl {
+  font-size: 112px;
+}
+.telemovel {
+  width: 720px;
+  background: #0e1733;
+  border: 2px solid var(--linha);
+  border-radius: 36px;
+  padding: 24px;
+  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.7);
+}
+.tl-cab {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 8px 20px;
+  border-bottom: 1px solid var(--linha);
+  margin-bottom: 18px;
+}
+.tl-cab b {
+  display: block;
+  font-size: 26px;
+}
+.tl-cab small {
+  font-size: 18px;
+  color: var(--muted);
+}
+.tl-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--verde);
+  color: #04120c;
+  font-weight: 800;
+  font-size: 24px;
+  display: grid;
+  place-items: center;
+}
+.tl-conversa {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tl-msg {
+  background: var(--fundo-2);
+  border-radius: 6px 20px 20px 20px;
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 22px;
+  line-height: 1.35;
+  opacity: 0;
+}
+.slide.ativo .tl-msg {
+  animation: mensagem 0.5s var(--curva) both;
+  animation-delay: calc(var(--m) * 0.7s + 0.9s);
+}
+@keyframes mensagem {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.tl-msg b {
+  font-size: 18px;
+}
+.tl-botao {
+  align-self: flex-start;
+  margin-top: 8px;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--verde);
+  border: 2px solid var(--verde);
+  border-radius: 10px;
+  padding: 4px 14px;
+}
+
+/* ---------- demo: barra de progresso e passo atual a respirar ---------- */
+.progresso {
+  height: 6px;
+  background: var(--fundo-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progresso-barra {
+  height: 100%;
+  background: var(--verde);
+  transform-origin: left;
+  transform: scaleX(var(--k));
+  transition: transform 0.8s var(--curva);
+}
+.passos-demo li.agora {
+  animation: respirar 2.2s ease-in-out infinite;
+}
+@keyframes respirar {
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--verde) 18%, transparent);
+  }
+}
+
+/* ---------- fecho: o sublinhado varre ---------- */
+.sublinha {
+  position: relative;
+  display: inline-block;
+}
+.sublinha::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--verde);
+  opacity: 0.35;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.slide.ativo .sublinha::after {
+  animation: riscar 0.9s var(--curva) 1.2s both;
+}
+
+/* ---------- soberania: as peças ganham brilho ao entrar ---------- */
+.peca.on {
+  border-color: color-mix(in srgb, var(--verde) 50%, var(--linha));
+}
+.junta .soberano {
+  text-shadow: 0 0 60px color-mix(in srgb, var(--verde) 35%, transparent);
+}
+
+/* ---------- como funciona: as setas acendem em sequência ---------- */
+.slide.ativo .fluxo .seta {
+  animation: entrar 0.7s var(--curva) both, seta 1.2s ease 1.6s 1;
+}
+@keyframes seta {
+  50% {
+    color: var(--verde);
+  }
+}

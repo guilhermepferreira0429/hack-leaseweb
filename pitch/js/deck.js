@@ -56,6 +56,8 @@
       return;
     }
     if (a.nodeType !== 1) return;
+    // Um número que já está a contar (ou já contou) não volta ao valor final de repente.
+    if (a.classList.contains('conta') && a.dataset.feito && a.dataset.valor === b.getAttribute('data-valor')) return;
     for (const { name } of [...a.attributes]) if (!b.hasAttribute(name)) a.removeAttribute(name);
     for (const { name, value } of [...b.attributes]) if (a.getAttribute(name) !== value) a.setAttribute(name, value);
     const ca = [...a.childNodes];
@@ -67,11 +69,56 @@
     ca.forEach((n, k) => morph(n, cb[k]));
   };
 
+  // Números que contam de 0 até ao valor quando ficam visíveis (não nas miniaturas).
+  const formatar = (n) => (n >= 1000 ? n.toLocaleString('en') : String(n));
+  const contar = (raiz) => {
+    if (raiz.closest('.instantaneo')) return;
+    raiz.querySelectorAll('.conta:not([data-feito])').forEach((c) => {
+      if (c.closest('.ap:not(.on)')) return;
+      c.dataset.feito = '1';
+      const alvo = Number(c.dataset.valor);
+      const t0 = performance.now() + Number(c.dataset.atraso || 0) + 250;
+      const dur = alvo > 500 ? 1800 : 1300;
+      c.textContent = '0';
+      const quadro = (t) => {
+        const k = Math.min(1, Math.max(0, (t - t0) / dur));
+        c.textContent = formatar(Math.round(alvo * (k >= 1 ? 1 : 1 - Math.pow(2, -10 * k))));
+        if (k < 1) requestAnimationFrame(quadro);
+      };
+      requestAnimationFrame(quadro);
+    });
+  };
+
+  // Mesmo slide: só muda o que muda (as transições CSS correm). Slide novo: o antigo desvanece
+  // enquanto o novo entra, e os elementos dele sobem um a um (classe .ativo).
   const desenhar = (palco, i, p, suave) => {
     const novo = el('div', null, htmlSlide(i, p)).firstElementChild;
-    const atual = palco.firstElementChild;
-    if (suave && atual && atual.dataset.id === novo.dataset.id) morph(atual, novo);
-    else palco.replaceChildren(novo);
+    const atuais = [...palco.children].filter((x) => !x.classList.contains('saindo'));
+    const atual = atuais[atuais.length - 1];
+    if (suave && atual && atual.dataset.id === novo.dataset.id) {
+      morph(atual, novo);
+      atual.classList.add('ativo');
+      contar(atual);
+      return;
+    }
+    if (!suave || palco.classList.contains('instantaneo')) {
+      palco.replaceChildren(novo);
+      novo.classList.add('ativo');
+      contar(novo);
+      return;
+    }
+    atuais.forEach((x) => {
+      x.classList.remove('ativo');
+      x.classList.add('saindo');
+      setTimeout(() => x.remove(), 700);
+    });
+    palco.appendChild(novo);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        novo.classList.add('ativo');
+        contar(novo);
+      }),
+    );
   };
 
   // Um palco de 1920x1080 escalado para caber na caixa.
@@ -97,6 +144,9 @@
     history.replaceState(null, '', `#${estado.i}.${estado.p}`);
     aoMudar(true);
   };
+  // O pitch acaba no fecho: as setas nunca entram nos anexos. Só a tecla A (ou a vista geral) os abre.
+  const podeAvancar = () => estado.i < S.length - 1 && (S[estado.i].anexo || !S[estado.i + 1].anexo);
+  const ultimoPrincipal = () => window.PRIMEIRO_ANEXO - 1;
   const acoes = {
     seguinte() {
       if (estado.inicio === null) estado.inicio = Date.now();
@@ -104,7 +154,7 @@
         estado.p++;
         history.replaceState(null, '', `#${estado.i}.${estado.p}`);
         aoMudar(true);
-      } else if (estado.i < S.length - 1) ir(estado.i + 1, 0);
+      } else if (podeAvancar()) ir(estado.i + 1, 0);
     },
     anterior() {
       if (estado.p > 0) {
@@ -113,10 +163,11 @@
         aoMudar(true);
       } else if (estado.i > 0) ir(estado.i - 1, S[estado.i - 1].passos);
     },
-    slideSeguinte: () => ir(estado.i + 1, 0),
+    slideSeguinte: () => podeAvancar() && ir(estado.i + 1, 0),
     slideAnterior: () => ir(estado.i - 1, 0),
     inicio: () => ir(0, 0),
     anexos: () => ir(window.PRIMEIRO_ANEXO, 0),
+    fim: () => ir(ultimoPrincipal(), S[ultimoPrincipal()].passos),
     ir: (i) => ir(i, 0),
     zerarRelogio() {
       estado.inicio = null;
@@ -162,7 +213,9 @@
         ['Shift + → / ←', 'Slide seguinte / anterior'],
         ['número + Enter', 'Ir para o slide'],
         ['Home', 'Primeiro slide'],
-        ['A', 'Anexos (para as perguntas)'],
+        ['A, depois 1–8', 'Anexos, para as perguntas. As setas nunca entram nos anexos'],
+        ['Esc (num anexo)', 'Voltar ao fecho'],
+        ['End', 'Ir para o fecho'],
         ['O', 'Vista geral'],
         ['P', 'Vista do apresentador (outra janela)'],
         ['G', 'Guião completo, para imprimir'],
@@ -178,6 +231,22 @@
         .join('')}</table></div>`,
     );
 
+  const seletorAnexos = () => {
+    const o = el('div', 'sobre seletor-anexos');
+    const lista = S.map((s, i) => [s, i]).filter(([s]) => s.anexo);
+    o.innerHTML = `<div class="caixa-anexos"><h2>Anexos</h2><p>Carregar no número (ou clicar). Esc num anexo volta ao fecho.</p>${lista
+      .map(([s, i], k) => `<button data-i="${i}"><kbd>${k + 1}</kbd><span class="cod">${s.codigo}</span>${s.titulo}</button>`)
+      .join('')}</div>`;
+    o.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-i]');
+      if (b) {
+        alternar('anexos');
+        ir(+b.dataset.i, 0);
+      }
+    });
+    return o;
+  };
+
   const vistaGeral = () => {
     const o = el('div', 'sobre geral');
     const grelha = (de, ate, titulo) => {
@@ -190,7 +259,9 @@
         c.appendChild(el('span', 'nome', `${S[i].anexo ? S[i].codigo : i + 1} · ${S[i].titulo}`));
         g.appendChild(c);
         const palco = criarPalco(caixa);
+        palco.classList.add('instantaneo');
         palco.innerHTML = htmlSlide(i, S[i].passos);
+        palco.firstElementChild.classList.add('ativo');
         c.onclick = () => {
           alternar('geral');
           ir(i, 0);
@@ -263,6 +334,13 @@
       return;
     }
     const k = e.key;
+    if (sobre.anexos && /^[1-9]$/.test(k)) {
+      const lista = S.map((s, i) => i).filter((i) => S[i].anexo);
+      const alvo = lista[+k - 1];
+      alternar('anexos');
+      if (alvo !== undefined) ir(alvo, 0);
+      return;
+    }
     if (/^\d$/.test(k)) {
       digitos += k;
       clearTimeout(tDigitos);
@@ -281,8 +359,7 @@
       ArrowLeft: e.shiftKey ? 'slideAnterior' : 'anterior',
       PageUp: 'anterior',
       Home: 'inicio',
-      a: 'anexos',
-      A: 'anexos',
+      End: 'fim',
       t: 'arrancarRelogio',
       T: 'zerarRelogio',
     };
@@ -293,10 +370,12 @@
     }
     if (modo === 'apresentador') {
       if (k === 'q' || k === 'Q') document.body.classList.toggle('com-perguntas');
+      if (k === 'a' || k === 'A') enviar('anexos');
       return;
     }
     const s = k.toLowerCase();
-    if (s === 'h' || k === '?') alternar('ajuda', ajuda);
+    if (s === 'a') alternar('anexos', seletorAnexos);
+    else if (s === 'h' || k === '?') alternar('ajuda', ajuda);
     else if (s === 'o') alternar('geral', vistaGeral);
     else if (s === 'e') alternar('editor', editor);
     else if (s === 'd') abrirPagina('painel', C.painelUrl, 'D');
@@ -308,8 +387,10 @@
     else if (s === 'p') abrirApresentador();
     else if (s === 'g') window.open('index.html?guiao', 'guiao');
     else if (k === 'Escape') {
+      const havia = Object.keys(sobre).length || document.body.classList.contains('preto');
       fecharTudo();
       document.body.classList.remove('preto');
+      if (!havia && S[estado.i].anexo) acoes.fim();
     }
   };
 
@@ -367,6 +448,8 @@
     document.body.appendChild(raiz);
     const pAtual = criarPalco(raiz.querySelector('.atual'));
     const pProx = criarPalco(raiz.querySelector('.proximo'));
+    pAtual.classList.add('instantaneo');
+    pProx.classList.add('instantaneo');
     const notas = raiz.querySelector('.notas');
     const perg = raiz.querySelector('.perguntas');
     const ligado = !!window.opener;

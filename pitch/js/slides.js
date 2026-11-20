@@ -1,11 +1,27 @@
 // Os slides. Cada slide é uma função (passo, v) que devolve HTML para um palco de 1920x1080.
 // `passo` é o clique em que vai (0 a `passos`); `v` são os números ao vivo (n, t, x, testes).
 // Para mudar a ordem, troca as entradas em `principais`. Para tirar um slide, apaga a entrada.
-// Texto no ecrã: poucas palavras. Quem fala carrega o resto (js/guiao.js).
+//
+// Movimento (estilos/slides.css):
+//   E(d)        entra a subir quando o slide aparece; d é a ordem (cada unidade = 90 ms de atraso).
+//   ap(p, n)    aparece no clique n (e fica).
+//   recua(p, n) escurece a partir do clique n, para dar palco ao que entra.
+//   conta(v)    número que conta de 0 até v quando fica visível.
+//   escada      numa lista: cada filho entra a seguir ao anterior.
+//   pontos()    grelha de 100 pontos que se acendem um a um.
 (function () {
-  const ap = (p, n) => `ap${p >= n ? ' on' : ''}`;
-  const num = (x, letra) => (x === null || x === undefined || x === '' ? `<span class="falta">${letra}</span>` : /^\d{4,}$/.test(String(x)) ? Number(x).toLocaleString('en') : String(x));
-  const rotulo = (t, cor = 'muted') => `<div class="rotulo ${cor}">${t}</div>`;
+  const E = (d, cls = '') => `class="e ${cls}" style="--d:${d}"`;
+  const ap = (p, n, cls = '') => `class="ap ${cls}${p >= n ? ' on' : ''}"`;
+  const recua = (p, n) => (p >= n ? ' recua' : '');
+  const falta = (letra) => `<span class="falta">${letra}</span>`;
+  const vazio = (x) => x === null || x === undefined || x === '';
+  const fmt = (x) => (/^\d{4,}$/.test(String(x)) ? Number(x).toLocaleString('en') : String(x));
+  const conta = (x, letra = '?', atraso = 0) =>
+    vazio(x) ? falta(letra) : /^\d+$/.test(String(x)) ? `<span class="conta" data-valor="${x}" data-atraso="${atraso}">${fmt(x)}</span>` : fmt(x);
+  const rotulo = (t, cor = 'muted', extra = '') => `<div class="rotulo ${cor}" ${extra}>${t}</div>`;
+  // Grelha de 100 pontos: os primeiros `verdes` acendem a verde, os `lilases` seguintes a lilás.
+  const pontos = (verdes, lilases = 0) =>
+    `<div class="pontos">${Array.from({ length: 100 }, (_, i) => `<i class="pt${i < verdes ? ' aceso' : i < verdes + lilases ? ' aceso lilas' : ''}" style="--i:${i}"></i>`).join('')}</div>`;
 
   const principais = [
     {
@@ -13,17 +29,21 @@
       titulo: 'Abertura a frio',
       passos: 1,
       html: (p, v) => `
-        <div class="lado-a-lado">
-          <div class="estat ${ap(p, 1)}">
-            ${rotulo('LEASEWEB DIGITAL INDEPENDENCE SURVEY · 2026')}
-            <div class="numero gigante verde">11%</div>
-            <div class="legenda">could leave their cloud provider<br>in three weeks.</div>
+        <div class="lado-a-lado abertura">
+          <div class="estat isco${recua(p, 1)}">
+            <div ${E(0, 'ao-vivo lilas')}><span class="ponto"></span>LIVE · BAIT VM ON LEASEWEB</div>
+            <div ${E(1, 'numero gigante lilas')}>${conta(v.n, 'N', 300)}</div>
+            <div ${E(2, 'legenda')}>attempts to break in<br>since 08:00.</div>
+            <div ${E(4, 'mono muted nota-isco')}>Nobody told anyone it exists.</div>
           </div>
-          <div class="divisor"></div>
-          <div class="estat lateral">
-            <div class="ao-vivo lilas"><span class="ponto"></span>LIVE · BAIT VM ON LEASEWEB</div>
-            <div class="numero grande lilas">${num(v.n, 'N')}</div>
-            <div class="legenda">attempts to break in<br>since 08:00</div>
+          <div class="divisor${p >= 1 ? ' cresce' : ''}"></div>
+          <div ${ap(p, 1, 'estat inquerito')}>
+            ${rotulo('LEASEWEB DIGITAL INDEPENDENCE SURVEY · 2026')}
+            <div class="numero-e-pontos">
+              <div class="numero grande verde">${p >= 1 ? conta(11) : '11'}<small>%</small></div>
+              ${p >= 1 ? pontos(11) : pontos(0)}
+            </div>
+            <div class="legenda">could leave their cloud provider<br>in three weeks.</div>
           </div>
         </div>`,
     },
@@ -33,9 +53,12 @@
       passos: 0,
       html: () => `
         <div class="centro-v">
-          ${rotulo('OUR ASK', 'lilas')}
-          <div class="frase-xl">Leave a hyperscaler<br><span class="verde">in minutes, not months.</span></div>
-          <div class="sub">Safely. Proven live on Leaseweb, in the next four minutes.</div>
+          ${rotulo('OUR ASK', 'lilas', E(0))}
+          <div class="frase-xl">
+            <div ${E(1)}>Leave a hyperscaler</div>
+            <div ${E(2)}><span class="verde">in minutes,</span> <span class="riscado">not months.</span></div>
+          </div>
+          <div ${E(7, 'sub')}>Safely. Proven live on Leaseweb, in the next four minutes.</div>
         </div>`,
     },
     {
@@ -61,17 +84,25 @@
       titulo: 'O problema (49%)',
       passos: 1,
       html: (p) => `
-        <div class="lado-a-lado">
-          <div class="estat">
-            ${rotulo('SANS CLOUD SECURITY SURVEY · 2026')}
-            <div class="numero gigante lilas">49%</div>
-            <div class="legenda">need more than a day to close<br>a critical gap they already know.</div>
+        <div class="problema">
+          <div class="problema-cima">
+            <div ${E(1, 'numero gigante lilas')}>${conta(49, '?', 200)}<small>%</small></div>
+            <div class="problema-texto">
+              ${rotulo('SANS CLOUD SECURITY SURVEY · 2026', 'muted', E(0))}
+              <div ${E(2, 'legenda')}>of companies need more than a day to close a critical gap they already know about.</div>
+            </div>
           </div>
-          <div class="divisor"></div>
-          <div class="estat lateral ${ap(p, 1)}">
-            ${rotulo('TODAY, LIVE', 'verde')}
-            <div class="numero grande verde segundos">Seconds.</div>
-            <div class="legenda">watch us close one</div>
+          <div class="barras">
+            <div ${E(4, 'barra-linha' + recua(p, 1))}>
+              <span class="barra-rotulo">Known critical gap</span>
+              <div class="barra-pista"><div class="barra lilas longa"></div></div>
+              <span class="barra-valor lilas">&gt; 24 h</span>
+            </div>
+            <div ${ap(p, 1, 'barra-linha')}>
+              <span class="barra-rotulo verde">Today, live</span>
+              <div class="barra-pista"><div class="barra verde curta"></div><span class="faisca"></span></div>
+              <span class="barra-valor verde">seconds</span>
+            </div>
           </div>
         </div>`,
     },
@@ -79,16 +110,37 @@
       id: 'para-quem',
       titulo: 'Para quem',
       passos: 0,
-      html: () => `
-        <div class="centro-v">
-          ${rotulo("FOR OWNERS WHO AREN'T TECHNICAL", 'lilas')}
-          <div class="frase-xl">Your whole IT team,<br>inside Telegram.</div>
-          <div class="agentes">
-            ${[['Migrator', ''], ['Attacker', 'lilas'], ['Defense', 'verde'], ['Chief', '']]
-              .map(([n, c]) => `<span class="agente"><span class="ponto ${c}"></span>${n}</span>`)
-              .join('')}
+      html: () => {
+        const msgs = [
+          ['Migrator', '', 'Found S3, Postgres and SQS. Plan: MinIO, PostgreSQL and RabbitMQ, on your server.', 'Approve plan'],
+          ['Attacker', 'lilas', 'The new database answers anyone on the internet. Port 5432. High. @defense', ''],
+          ['Defense', 'verde', 'Your customer database is open to the whole internet. I propose closing it to outside access.', 'Close'],
+          ['Defense', 'verde', 'Closed and confirmed from outside. Undo is saved.', ''],
+          ['Chief', '', 'Migration complete and secure. Nothing left the EU.', ''],
+        ];
+        return `
+        <div class="lado-a-lado para-quem">
+          <div class="pq-texto">
+            ${rotulo("FOR OWNERS WHO AREN'T TECHNICAL", 'lilas', E(0))}
+            <div ${E(1, 'frase-xl')}>Your whole<br>IT team,<br><span class="verde">inside Telegram.</span></div>
           </div>
-        </div>`,
+          <div ${E(2, 'telemovel')}>
+            <div class="tl-cab"><span class="tl-avatar">D</span><div><b>Direção</b><small>4 agents · you</small></div></div>
+            <div class="tl-conversa">
+              ${msgs
+                .map(
+                  ([quem, cor, texto, botao], i) => `
+                <div class="tl-msg" style="--m:${i}">
+                  <b class="${cor}">${quem}</b>
+                  <span>${texto}</span>
+                  ${botao ? `<em class="tl-botao">${botao}</em>` : ''}
+                </div>`,
+                )
+                .join('')}
+            </div>
+          </div>
+        </div>`;
+      },
     },
     {
       id: 'demo',
@@ -108,10 +160,11 @@
         return `
         <div class="demo">
           <div class="cabeca-demo">
-            <div class="ao-vivo verde etiqueta"><span class="ponto"></span>LIVE ON LEASEWEB</div>
-            <div class="nota-honesta">AWS side simulated · everything on Leaseweb is real</div>
+            <div ${E(0, 'ao-vivo verde etiqueta')}><span class="ponto"></span>LIVE ON LEASEWEB</div>
+            <div ${E(1, 'nota-honesta')}>AWS side simulated · everything on Leaseweb is real</div>
           </div>
-          <ol class="passos-demo">
+          <div ${E(1, 'progresso')}><div class="progresso-barra" style="--k:${Math.min(p, 8) / 8}"></div></div>
+          <ol class="passos-demo escada">
             ${passos
               .map(([t, d], i) => {
                 const k = i + 1;
@@ -129,14 +182,14 @@
       passos: 0,
       html: (p, v) => `
         <div class="centro-v">
-          <div class="titulo">Built today. Measured today.</div>
-          <div class="placar">
-            <div class="kpi"><div class="numero medio">${num(v.x, 'X')}<small> min</small></div><div class="legenda-p">hyperscaler to Leaseweb</div></div>
-            <div class="kpi verde"><div class="numero medio verde">${num(v.t, 'T')}<small> s</small></div><div class="legenda-p">exposed, not a day</div></div>
-            <div class="kpi lilas"><div class="numero medio lilas">${num(v.n, 'N')}</div><div class="legenda-p">attacks on the bait</div></div>
-            <div class="kpi"><div class="numero medio">${num(v.testes, '?')}</div><div class="legenda-p">automated tests</div></div>
+          <div ${E(0, 'titulo')}>Built today. Measured today.</div>
+          <div class="placar escada">
+            <div class="kpi"><div class="numero medio">${conta(v.x, 'X', 400)}<small> min</small></div><div class="legenda-p">from a hyperscaler to Leaseweb</div></div>
+            <div class="kpi verde"><div class="numero medio verde">${conta(v.t, 'T', 500)}<small> s</small></div><div class="legenda-p">exposed. Not a day.</div></div>
+            <div class="kpi lilas"><div class="numero medio lilas">${conta(v.n, 'N', 600)}</div><div class="legenda-p">attacks on the bait</div></div>
+            <div class="kpi"><div class="numero medio">${conta(v.testes, '?', 700)}</div><div class="legenda-p">automated tests</div></div>
           </div>
-          <div class="mono muted">X, T and N come from the live run. Every action is on the record.</div>
+          <div ${E(7, 'mono muted')}>X, T and N come from the live run. Every action is on the record.</div>
         </div>`,
     },
     {
@@ -145,8 +198,8 @@
       passos: 0,
       html: () => `
         <div class="centro-v">
-          <div class="titulo">Four agents. One flow.</div>
-          <div class="fluxo">
+          <div ${E(0, 'titulo')}>Four agents. One flow.</div>
+          <div class="fluxo escada">
             ${[
               ['Migrator', 'translates, in code', ''],
               ['Attacker', 'tests the new doors', 'lilas'],
@@ -158,8 +211,8 @@
               .join('<span class="seta">→</span>')}
           </div>
           <div class="camadas">
-            <div class="camada"><span class="rotulo">YOUR SERVER · SELF-HOSTED</span><span>MinIO · PostgreSQL · RabbitMQ · OpenBao · Valkey</span></div>
-            <div class="camada"><span class="rotulo verde">PROVIDER · LEASEWEB API</span><span class="mono"><b class="verde">revoke</b>FirewallRules closes in ~3 s · <b class="lilas">authorize</b>FirewallRules puts it back</span></div>
+            <div ${E(10, 'camada')}><span class="rotulo">YOUR SERVER · SELF-HOSTED</span><span>MinIO · PostgreSQL · RabbitMQ · OpenBao · Valkey</span></div>
+            <div ${E(11, 'camada')}><span class="rotulo verde">PROVIDER · LEASEWEB API</span><span class="mono"><b class="verde">revoke</b>FirewallRules closes in ~3 s · <b class="lilas">authorize</b>FirewallRules puts it back</span></div>
           </div>
         </div>`,
     },
@@ -169,8 +222,12 @@
       passos: 0,
       html: () => `
         <div class="lado-a-lado">
-          <div class="frase-xl empilhada">AI writes.<br><span class="verde">Code acts.</span><br><span class="lilas">You approve.</span></div>
-          <ul class="lista">
+          <div class="frase-xl empilhada">
+            <div ${E(0)}>AI writes.</div>
+            <div ${E(2, 'verde')}>Code acts.</div>
+            <div ${E(4, 'lilas')}>You approve.</div>
+          </div>
+          <ul class="lista escada atrasada">
             <li>Closed list of actions</li>
             <li>Every action stores its inverse</li>
             <li>Audit: who · when · before · after</li>
@@ -185,9 +242,9 @@
       passos: 0,
       html: () => `
         <div class="centro-v">
-          ${rotulo('NEXT · NOT BUILT YET', 'lilas')}
-          <div class="titulo">Same flow. Any provider.</div>
-          <div class="proximos">
+          ${rotulo('NEXT · NOT BUILT YET', 'lilas', E(0))}
+          <div ${E(1, 'titulo')}>Same flow. Any provider.</div>
+          <div class="proximos escada atrasada">
             <div class="proximo-item"><div class="t">More providers</div><div class="d">Hostinger, OVHcloud: one adapter each, same operations</div></div>
             <div class="proximo-item"><div class="t">Your own machine</div><div class="d">over SSH, everything self-hosted, host firewall</div></div>
             <div class="proximo-item"><div class="t">Regulated reports</div><div class="d">the record shaped for NIS2 and DORA notifications</div></div>
@@ -199,18 +256,14 @@
       titulo: 'O mercado (73%)',
       passos: 1,
       html: (p) => `
-        <div class="lado-a-lado">
+        <div class="lado-a-lado mercado">
           <div class="estat">
-            ${rotulo('LEASEWEB DIGITAL INDEPENDENCE SURVEY · 2026')}
-            <div class="numero gigante verde">73%</div>
-            <div class="legenda">would pay at least 11% more<br>for infrastructure independence.</div>
+            ${rotulo('LEASEWEB DIGITAL INDEPENDENCE SURVEY · 2026', 'muted', E(0))}
+            <div ${E(1, 'numero gigante verde')}>${conta(73, '?', 200)}<small>%</small></div>
+            <div ${E(2, 'legenda')}>would pay at least 11% more<br>for infrastructure independence.</div>
+            <div ${ap(p, 1, 'nl')}><span class="numero medio lilas">${p >= 1 ? conta(81) : '81'}<small>%</small></span><span class="legenda-p">in the Netherlands</span></div>
           </div>
-          <div class="divisor"></div>
-          <div class="estat lateral ${ap(p, 1)}">
-            ${rotulo('IN THE NETHERLANDS', 'lilas')}
-            <div class="numero grande lilas">81%</div>
-            <div class="legenda">would pay at least 11% more</div>
-          </div>
+          <div ${E(2)}>${pontos(73, p >= 1 ? 8 : 0)}</div>
         </div>`,
     },
     {
@@ -218,17 +271,24 @@
       titulo: 'Fecho e pedido',
       passos: 0,
       html: () => `
-        <div class="centro-v">
-          <div class="sub lilas">Sovereignty without security just moves the problem.</div>
-          <div class="frase-xxl">Open source.<br><span class="verde">Ready to continue.</span></div>
-          <div class="pedido-final">${rotulo('OUR ASK', 'lilas')}<span>Make this the safe way in to Leaseweb.</span></div>
-          <div class="equipa">${window.CONFIG.equipa.join(' · ')}</div>
-          <div class="mono muted">${window.CONFIG.repo} · Apache 2.0</div>
+        <div class="centro-v fecho">
+          <div ${E(0, 'sub lilas')}>Sovereignty without security just moves the problem.</div>
+          <div class="frase-xxl">
+            <div ${E(2)}>Open source.</div>
+            <div ${E(4, 'verde sublinha')}>Ready to continue.</div>
+          </div>
+          <div ${E(8, 'pedido-final')}>${rotulo('OUR ASK', 'lilas')}<span>Make this the safe way in to Leaseweb.</span></div>
+          <div ${E(10, 'equipa')}>${window.CONFIG.equipa.join(' · ')}</div>
+          <div ${E(11, 'mono muted')}>${window.CONFIG.repo} · Apache 2.0</div>
         </div>`,
     },
   ];
 
-  const anexo = (codigo, titulo, corpo) => ({ codigo, titulo, html: () => `<div class="anexo">${rotulo('ANNEX ' + codigo, 'lilas')}<div class="titulo">${titulo}</div><div class="corpo-anexo">${corpo}</div></div>` });
+  const anexo = (codigo, titulo, corpo) => ({
+    codigo,
+    titulo,
+    html: () => `<div class="anexo">${rotulo('ANNEX ' + codigo, 'lilas', E(0))}<div ${E(1, 'titulo')}>${titulo}</div><div class="corpo-anexo escada">${corpo}</div></div>`,
+  });
 
   const anexos = [
     {
