@@ -61,7 +61,7 @@ const iguais = (a: string, b: string) => {
 /** POST /desfazer: token certo e pedido vindo da própria página (Origin igual ao Host), nunca por GET. */
 export async function tratarDesfazer(req: IncomingMessage, res: ServerResponse, desfazer: (id: string) => Promise<void>): Promise<void> {
   const token = process.env.PAINEL_TOKEN ?? '';
-  if (!token) return void texto(res, 403, 'Desfazer pelo painel desligado (PAINEL_TOKEN vazio). Use /desfazer <id> no Telegram.');
+  if (!token) return void texto(res, 403, 'Undo from the dashboard is off (PAINEL_TOKEN is empty). Use /undo <id> in Telegram.');
   const origem = req.headers.origin;
   if (origem && new URL(origem).host !== req.headers.host) return void texto(res, 403, 'Origem recusada');
   const campos = new URLSearchParams(await lerCorpo(req));

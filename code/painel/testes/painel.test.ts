@@ -166,7 +166,7 @@ describe('certificado, provas e isco (ecrãs do desenho)', () => {
     assert.match(html, /17\.518 linhas em 5 tabelas/);
     assert.match(html, /Tempo exposto<\/span><span>24 s/);
     assert.match(html, /5432 filtered ✓/);
-    assert.match(html, /\/desfazer p1/);
+    assert.match(html, /\/undo p1/);
     assert.match(html, /dono · consola/);
     const semFecho = renderizarCertificado([], ev.slice(0, 5));
     assert.match(semFecho, /Há pontos por fechar/);

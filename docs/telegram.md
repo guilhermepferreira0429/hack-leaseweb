@@ -56,12 +56,12 @@ Se falhar:
 - Só aceita ordens e botões de `TELEGRAM_APROVADORES` (por defeito o `TELEGRAM_DONO_ID`). Ignora os outros.
 - O relatório do incidente (`shared/relatorio.ts`) leva um botão **Desfazer <passo>** por passo feito: `callback_data` = `desfazer:<pedidoId>`, chega por `telegram.aoDesfazer`.
 - Os bots não recebem mensagens de outros bots: a conversa entre agentes passa pelo bus interno e cada bot só publica a sua parte.
-- Comandos: `/estado` (o que está pendente e feito), `/desfazer <pedidoId>` e `/atacar [ip]` (abaixo).
+- Comandos: `/status` (o que está pendente e feito), `/undo <pedidoId>` e `/attack [ip]` (abaixo).
 - Espelhar o ecrã do telemóvel no pitch (ou Telegram Desktop no portátil da apresentação).
 
-## `/atacar [ip]`: a sequência do atacante
+## `/attack [ip]`: a sequência do atacante
 
-`/atacar` no grupo (ou em privado ao bot do atacante) arranca a sequência; o atacante relata os passos no grupo
+`/attack` no grupo (ou em privado ao bot do atacante) arranca a sequência; o atacante relata os passos no grupo
 (ou em privado, com `TELEGRAM_ATACANTE_PRIVADO=sim`). Sem `ip`, usa o primeiro alvo de `ALVOS_PERMITIDOS`.
 Ao aprovar o plano de migração, o atacante arranca sozinho, em paralelo com a cópia, **em rondas**: anuncia o
 que encontrou (reconhecimento, SSH, extras) e a defesa deteta e pede aprovação antes da tentativa seguinte.
@@ -80,7 +80,7 @@ Travas (não são opcionais):
 - **Allowlist:** só IPs de `ALVOS_PERMITIDOS`. Lista vazia → `allowlist vazia, ataque recusado`. Alvo fora da
   lista → `alvo recusado (fora da allowlist): <alvo>` e nunca é contactado. A guarda (`garantirPermitido`)
   repete-se antes de cada ligação, não é uma verificação única no início.
-- **Um de cada vez:** com um ataque a decorrer, outro `/atacar` responde `ataque já em curso`.
+- **Um de cada vez:** com um ataque a decorrer, outro `/attack` responde `ataque já em curso`.
 - **Permissão:** só `TELEGRAM_DONO_ID` ou `TELEGRAM_APROVADORES`; qualquer outro `from.id` recebe `sem permissão`.
 - **Nada destrutivo:** sem sudo, sem persistência e sem escrever no alvo; o `auth.log` prova as tentativas.
 

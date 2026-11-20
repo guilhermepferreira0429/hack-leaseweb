@@ -53,8 +53,8 @@ the bots are talking to each other.
 
 The same module also handles the awkward parts of having four bots in one group:
 
-- **One bot answers a command.** In a group with privacy mode disabled, all four bots receive `/estado` or
-  `/atacar`. `esteBotResponde` selects exactly one: the bot of the private conversation, the mentioned bot in the
+- **One bot answers a command.** In a group with privacy mode disabled, all four bots receive `/status` or
+  `/attack`. `esteBotResponde` selects exactly one: the bot of the private conversation, the mentioned bot in the
   group, or the main bot when there is no mention.
 - **Only approvers can act.** `TELEGRAM_DONO_ID` and `TELEGRAM_APROVADORES` are the only IDs whose button taps
   and commands are accepted. Everyone else gets "No permission."
@@ -214,7 +214,7 @@ Night mode is the only path that changes infrastructure without a tap. It is del
 - `MODO_NOITE_MINUTOS` and `MODO_NOITE_IPS` must both be set; an empty or "world" IP fails closed.
 - It first authorizes the same port for the known IPs, then revokes the rule open to the world, so the team is
   not locked out.
-- Every step goes to the audit log with its inverse; `/desfazer` removes the temporary rules as well.
+- Every step goes to the audit log with its inverse; `/undo` removes the temporary rules as well.
 
 The orchestrator arms the timer when the request is created. If the owner answers first, the timer is cancelled.
 
@@ -252,7 +252,7 @@ output and never invents a field. The identifier is `CERT-YYYYMMDD-HHMM` in Lisb
    sides. A checksum mismatch is printed as a warning and the summary says the migration is not complete.
 3. **Security after the migration** — what the attacker found, which rule was closed and when, who approved it
    (a person, or night mode), the exposure time and the attacker's confirmation.
-4. **How to undo** — the requests with a stored inverse and the `/desfazer` command for each.
+4. **How to undo** — the requests with a stored inverse and the `/undo` command for each.
 
 Missing values print `not measured`. The certificate contains counts, hashes, service names and the approver's
 role, not secret values. It is a record for the owner and for an auditor; it is not a formal certification.

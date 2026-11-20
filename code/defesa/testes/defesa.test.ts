@@ -134,7 +134,7 @@ describe('ciclo detetar -> corrigir -> desfazer', () => {
     const pedido: Pedido = { id: 'p9', titulo: 'PG', texto: '', acao: { tipo: 'remover_regra', securityGroupId: SG, regra: regraPg }, estado: 'aprovado' };
     await corrigir(pedido, async (t) => void avisos.push(t));
     await desfazer('p9', async (t) => void avisos.push(t));
-    assert.match(avisos[0], /Closed and confirmed at \d\d:\d\d.*To roll back: \/desfazer p9/);
+    assert.match(avisos[0], /Closed and confirmed at \d\d:\d\d.*To roll back: \/undo p9/);
     assert.match(avisos[1], /Undone at \d\d:\d\d: the rule is back/);
   });
 
@@ -279,7 +279,7 @@ describe('modo noite', () => {
     const pg = () => regras.filter((r) => r.startPort === 5432).map((r) => r.source).sort();
     assert.deepEqual(pg(), ['203.0.113.50/32']);
     assert.equal(estado.obterPedido('pn')?.estado, 'feito');
-    assert.match(avisos[0], /Night mode at.*203\.0\.113\.50\/32.*\/desfazer pn/);
+    assert.match(avisos[0], /Night mode at.*203\.0\.113\.50\/32.*\/undo pn/);
     // authorize antes do revoke
     const posts = pedidosHttp.filter((p) => p.metodo === 'POST').map((p) => p.caminho.split('/').pop());
     assert.deepEqual(posts, ['authorizeFirewallRules', 'revokeFirewallRules']);

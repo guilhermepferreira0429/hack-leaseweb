@@ -31,7 +31,7 @@ describe('shared/voz', () => {
     assert.equal(await responderComoAgente('chefe', 'x', 'y', { configurado: false } as unknown as ClienteLLM), respostaFixa('chefe'));
     assert.equal(await responderComoAgente('migrador', 'x', 'y', falso(new Error('timeout')).cliente), respostaFixa('migrador'));
     assert.equal(await responderComoAgente('atacante', 'x', 'y', falso('').cliente), respostaFixa('atacante'));
-    assert.equal(respostaFixa('defesa'), "I can't answer as the Defender right now. Type /estado to see the current status.");
+    assert.equal(respostaFixa('defesa'), "I can't answer as the Defender right now. Type /status to see the current status.");
   });
 
   it('corta pergunta e estado gigantes (a pergunta vem do Telegram)', () => {

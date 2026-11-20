@@ -48,7 +48,7 @@ RESUMO
 · Confirmação do atacante: {já não chega lá ✓}
 
 4. COMO VOLTAR ATRÁS
-· {n} ações guardadas com o inverso · desfazer: /desfazer {pedidoId}
+· {n} ações guardadas com o inverso · desfazer: /undo {pedidoId}
 
 Nenhum dado saiu da UE. Gerado automaticamente a partir do registo de auditoria.
 ```

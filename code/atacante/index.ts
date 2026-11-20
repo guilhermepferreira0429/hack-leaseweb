@@ -196,7 +196,7 @@ export async function mainForcaBruta(args: string[] = process.argv.slice(2)): Pr
   return resultado.sucesso ? 0 : 1;
 }
 
-// ---------- /atacar: sequência completa, com relato no grupo ----------
+// ---------- /attack (ou /atacar): sequência completa, com relato no grupo ----------
 
 export type EstadoAtaque = 'feito' | 'em-curso' | 'recusado' | 'falhou';
 
@@ -258,7 +258,7 @@ function semSegredo(texto: string): string {
 }
 
 /**
- * Sequência /atacar: reconhecimento -> SSH -> extras (opcional).
+ * Sequência /attack (ou /atacar): reconhecimento -> SSH -> extras (opcional).
  * Relata cada passo pelo bus (agente atacante) e nunca publica palavras-passe/segredos.
  * A allowlist é a primeira barreira; um ataque de cada vez.
  */

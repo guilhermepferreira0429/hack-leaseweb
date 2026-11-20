@@ -8,7 +8,7 @@
 4. O Migrador avisa o **Atacante** no grupo. O Atacante faz ligações TCP às portas sensíveis da VM nova, encontra a base de dados (5432) aberta a toda a Internet e chama a **Defesa**. A verificação da defesa, vista de fora com `nmap`, dá `open` (sem o IP da vítima, a defesa espera pela API da Leaseweb).
 5. A **Defesa** explica em inglês simples e propõe **Close**. **Um jurado carrega** (entrou pelo QR code; ver `ideias-wow.md`). O Atacante confirma que já não chega lá e o **Chefe** resume.
 6. A verificação da defesa (`nmap`, de fora) volta a correr e dá `filtered`; a regra também sai da API da Leaseweb. O painel mostra o **relógio de exposição** ("exposto N s") e as tentativas do isco nesse tempo. No painel: linha do tempo, auditoria com o inverso guardado e botão Desfazer.
-7. **Corrigir a causa:** o **Migrador** abre um PR no repo público da app (`hack-leaseweb-exemplo-app`). O PR aponta a app para a Leaseweb e corrige a regra do Terraform que abria a 5432, para não voltar no próximo deploy. → **Approve PR** faz o merge; `/desfazer` abre um PR que reverte. Só com `MIGRADOR_PR=real`; num ensaio o PR é simulado e não há botão.
+7. **Corrigir a causa:** o **Migrador** abre um PR no repo público da app (`hack-leaseweb-exemplo-app`). O PR aponta a app para a Leaseweb e corrige a regra do Terraform que abria a 5432, para não voltar no próximo deploy. → **Approve PR** faz o merge; `/undo` abre um PR que reverte. Só com `MIGRADOR_PR=real`; num ensaio o PR é simulado e não há botão.
 8. Fecho: "Tudo o que viram foi feito hoje e corre na Leaseweb, com IA de fornecedores europeus. Nada saiu da UE. Migrar sem ficar exposto nem um minuto."
 
 **Números:** só o N medido no dia e os que a demo mostrar. Não inventar países nem estatísticas.

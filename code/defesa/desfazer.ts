@@ -1,5 +1,5 @@
 // desfazer(pedidoId): aplica o inverso guardado na auditoria (criar_regra), volta a ler,
-// regista 'desfeito' e avisa no Telegram. Chamado pelo comando /desfazer <pedidoId> ou pelo painel.
+// regista 'desfeito' e avisa no Telegram. Chamado pelo comando /undo <pedidoId> (ou /desfazer) ou pelo painel.
 import type { EventoAuditoria, Inverso, Regra } from '@mwbe/shared';
 import { auditoria, estado, leaseweb, telegram } from '@mwbe/shared';
 import { type Avisar, avisarSemFalhar, horaCurta } from './corrigir';

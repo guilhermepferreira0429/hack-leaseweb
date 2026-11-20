@@ -1,5 +1,5 @@
 // npm run dev:defesa -> só a defesa, sem migrador nem atacante: detetar pela API, pedir aprovação no Telegram,
-// fechar, e ficar à escuta dos botões Desfazer e do /desfazer <id>. Útil para testar a peça sozinha;
+// fechar, e ficar à escuta dos botões Desfazer e do /undo <id> (ou /desfazer, o nome antigo). Útil para testar a peça sozinha;
 // na demo corre tudo pelo orquestrador (npm run dev).
 import { auditoria, carregarConfig, estado, telegram } from '@mwbe/shared';
 import { corrigir } from './corrigir';
@@ -21,7 +21,7 @@ async function main(): Promise<void> {
     if (aprovado) corrigir({ ...p, estado: 'aprovado' }, avisar).catch((e) => console.error('[defesa]', e instanceof Error ? e.message : e));
   });
   telegram.aoMensagemDoDono((_agente, texto) => {
-    const m = texto.trim().match(/^\/desfazer(?:@\S+)?\s+(\S+)/);
+    const m = texto.trim().match(/^\/(?:undo|desfazer)(?:@\S+)?\s+(\S+)/);
     if (m) desfazer(m[1], avisar).catch((e) => avisar(`Could not undo ${m[1]}: ${e instanceof Error ? e.message : e}`));
   });
   const achados = await detetar();

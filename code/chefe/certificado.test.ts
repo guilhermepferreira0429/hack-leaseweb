@@ -71,7 +71,7 @@ describe('chefe/certificado (modelo de docs/certificado-migracao.md)', () => {
     assert.match(t, /· ElastiCache Redis → Valkey · Leaseweb, Frankfurt \(DE\) · self-hosted/);
     assert.match(t, /2\. PROOF NOTHING WAS LOST\n· Files: 20 copied · checksum ✓\n· Database: 17498 rows in 5 tables · checksum ✓\n· Queues: 50 messages moved · checksum ✓\n· Secrets: 16 moved, no value ever shown · checksum ✓\n· Cache: 594 keys copied · checksum ✓\n· App tests: before ✓ · after ✓/);
     assert.match(t, /3\. SECURITY AFTER THE MIGRATION\n· Found: 1 issue: PostgreSQL 5432\n· PostgreSQL aberto a toda a internet → closed at 14:00, approved by a person, in Telegram\n· Time exposed: 38 seconds\n· Attacker confirmation: can no longer reach it ✓\n· Root cause fixed in code/);
-    assert.match(t, /4\. HOW TO UNDO\n· 1 action stored with the inverse · undo: \/desfazer a1/);
+    assert.match(t, /4\. HOW TO UNDO\n· 1 action stored with the inverse · undo: \/undo a1/);
     assert.match(t, /Data destination: Leaseweb, Frankfurt \(DE\)\. Generated automatically from the audit log/);
     assert.match(t, /No data left the EU\. Data destination: Leaseweb, Frankfurt \(DE\)\./, 'destino num país da UE');
     assert.doesNotMatch(t, /203\.0\.113\.10/, 'o certificado não precisa do IP');

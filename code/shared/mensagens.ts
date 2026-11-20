@@ -48,7 +48,7 @@ export const MODELOS = {
   ataque: 'I found the new database open to the whole Internet (port {porta}).\nSeverity: {gravidade}. Anyone can try to get in.\n@defesa',
   defesaExplicacao: 'The database with the company data is open to the whole Internet.\nSomeone outside could try to guess the password and get in.',
   defesaProposta: 'I propose closing outside access and allowing only your app. I keep a way to undo it.',
-  fechado: 'Closed at {hora_fecho} and confirmed. Time exposed: {segundos} s.\nUndo saved: /desfazer {pedido_id}\n@atacante, please confirm.',
+  fechado: 'Closed at {hora_fecho} and confirmed. Time exposed: {segundos} s.\nUndo saved: /undo {pedido_id}\n@atacante, please confirm.',
   atacanteConfirma: 'Confirmed. I can no longer reach it.',
   codigo:
     'I opened PR #{numero}: {n_ficheiros} files changed, tests passing.\n· The app now uses Leaseweb instead of AWS.\n· I fixed the configuration that left the database open, so it does not come back on the next deploy.',
@@ -152,7 +152,7 @@ export function msgFimRelatorio(v: { minutos?: number; nFalhas?: number; certifi
 
 /** Respostas fixas úteis (fim do mensagens-demo.md). */
 export const RESPOSTAS_FIXAS = {
-  foraDoEstado: "I don't have that information. Type /estado to see the current status.",
+  foraDoEstado: "I don't have that information. Type /status to see the current status.",
   pedidoIgnorado: 'OK, leaving it as it is. Your decision not to close it is logged.',
   erroApi: 'Leaseweb did not answer in time. I changed nothing. I will try again.',
 } as const;

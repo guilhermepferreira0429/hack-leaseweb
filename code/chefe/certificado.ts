@@ -171,7 +171,7 @@ export function certificado(eventos: EventoAuditoria[], pedidos: Pedido[], local
   if (comInverso.length === 0) l.push('· No action with a stored inverse in this run');
   else {
     const ids = [...new Set(comInverso.map((e) => e.pedidoId))];
-    l.push(`· ${ids.length} ${ids.length === 1 ? 'action stored' : 'actions stored'} with the inverse · undo: ${ids.slice(0, 3).map((id) => `/desfazer ${id}`).join(', ')}`);
+    l.push(`· ${ids.length} ${ids.length === 1 ? 'action stored' : 'actions stored'} with the inverse · undo: ${ids.slice(0, 3).map((id) => `/undo ${id}`).join(', ')}`);
   }
   l.push('');
 

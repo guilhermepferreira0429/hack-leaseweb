@@ -54,7 +54,7 @@ function linhaModoNoite(pedidos: Pedido[], eventos: EventoAuditoria[]): string |
   const ids = new Set(eventos.filter((e) => e.tipo === 'aprovado' && e.quem === 'modo-noite').map((e) => e.pedidoId));
   const n = pedidos.filter((p) => ids.has(p.id) && p.estado === 'feito').length;
   if (n === 0) return undefined;
-  return `${n === 1 ? 'One issue was closed' : `${n} issues were closed`} by night mode, with no answer from the owner: only known IPs get in, and /desfazer puts it back.`;
+  return `${n === 1 ? 'One issue was closed' : `${n} issues were closed`} by night mode, with no answer from the owner: only known IPs get in, and /undo puts it back.`;
 }
 
 function linhaDefesa(pedidos: Pedido[], eventos: EventoAuditoria[]): string {
@@ -111,7 +111,7 @@ const ROTULO: Record<Pedido['estado'], string> = {
   ignorado: 'Ignored',
 };
 
-/** Resposta ao /estado: pedidos agrupados por estado, com o id para o /desfazer. */
+/** Resposta ao /status: pedidos agrupados por estado, com o id para o /undo. */
 export function estadoAtual(pedidos: Pedido[]): string {
   if (pedidos.length === 0) return 'No requests yet.';
   const blocos = (Object.keys(ROTULO) as Pedido['estado'][])
@@ -122,5 +122,5 @@ export function estadoAtual(pedidos: Pedido[]): string {
     })
     .filter(Boolean);
   const podeDesfazer = pedidos.some((p) => p.estado === 'feito' && p.acao.tipo === 'remover_regra');
-  return [...blocos, ...(podeDesfazer ? ['To undo: /desfazer <id>'] : [])].join('\n\n');
+  return [...blocos, ...(podeDesfazer ? ['To undo: /undo <id>'] : [])].join('\n\n');
 }
