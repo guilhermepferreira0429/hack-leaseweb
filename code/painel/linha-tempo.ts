@@ -2,6 +2,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { EventoAuditoria, Pedido } from '@mwbe/shared';
 import { auditoria, estado } from '@mwbe/shared';
+import { relogioExposicao } from '@mwbe/chefe';
 
 export const FASES = ['migrar', 'atacar', 'aprovar', 'fechar'] as const;
 export type Fase = (typeof FASES)[number];
@@ -17,30 +18,6 @@ export function faseDe(evento: EventoAuditoria): Fase {
   return 'aprovar'; // pedido, aprovado, ignorado e afins
 }
 
-export interface Exposicao {
-  inicio: string;
-  fim?: string;
-  segundos?: number;
-}
-
-/**
- * Relógio de exposição (docs/ideias-wow.md n.º 2): da infraestrutura nova no ar até a defesa confirmar o fecho.
- * Início: migração feita; sem migrador (corte), o primeiro reconhecimento; senão o primeiro pedido da defesa.
- * Fim: o primeiro "feito" da defesa (tem inverso criar_regra) depois do início. Só horas da auditoria, nada estimado.
- */
-export function exposicao(eventos: EventoAuditoria[]): Exposicao | undefined {
-  const ordenados = [...eventos].sort((a, b) => Date.parse(a.hora) - Date.parse(b.hora));
-  const inicio =
-    ordenados.find((e) => e.quem === 'migrador' && e.tipo === 'feito') ??
-    ordenados.find((e) => e.tipo === 'reconhecimento') ??
-    ordenados.find((e) => e.tipo === 'pedido' && e.quem !== 'migrador');
-  if (!inicio) return undefined;
-  const t0 = Date.parse(inicio.hora);
-  const fim = ordenados.find((e) => e.tipo === 'feito' && e.inverso?.tipo === 'criar_regra' && Date.parse(e.hora) >= t0);
-  if (!fim) return { inicio: inicio.hora };
-  return { inicio: inicio.hora, fim: fim.hora, segundos: Math.round((Date.parse(fim.hora) - t0) / 1000) };
-}
-
 const escapar = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const hora = (iso: string) => {
   const d = new Date(iso);
@@ -49,10 +26,11 @@ const hora = (iso: string) => {
 
 /** HTML sem frameworks, texto escapado, a ler /estado.json de 2 em 2 s. */
 export function renderizar(pedidos: Pedido[], eventos: EventoAuditoria[], token = ''): string {
-  const exp = exposicao(eventos);
+  // Relógio de exposição (ideia wow 2): a conta é do chefe (último 'infra-no-ar' -> primeiro fecho confirmado).
+  const exp = relogioExposicao(eventos);
   const relogio = exp
-    ? `<div class="relogio" data-inicio="${escapar(exp.inicio)}" data-fim="${escapar(exp.fim ?? '')}">
-<div class="seg">${exp.segundos !== undefined ? `exposto ${exp.segundos} s` : 'exposto…'}</div>
+    ? `<div class="relogio ${exp.aindaExposta ? 'exposta' : 'fechada'}" data-inicio="${escapar(exp.inicio)}" data-fim="${escapar(exp.fim ?? '')}">
+<div class="seg">exposto ${exp.segundos} s</div>
 <div class="isco">&nbsp;</div></div>`
     : '';
   const colunas = FASES.map((f) => {
@@ -81,7 +59,7 @@ h2{margin:0 0 6px;text-transform:uppercase;font-size:.9rem;letter-spacing:.08em}
 li{padding:3px 0;border-bottom:1px solid #222c37}small,.vazio{color:var(--mut)}.seta{align-self:center;color:var(--mut);font-size:1.4rem}
 table{width:100%;border-collapse:collapse;margin-top:16px;font-size:.9rem}td,th{padding:6px;border-bottom:1px solid #222c37;text-align:left}
 .relogio{background:var(--card);border-radius:10px;padding:12px 16px;margin:0 0 12px;display:flex;gap:24px;align-items:baseline;flex-wrap:wrap}
-.relogio .seg{font-size:2.4rem;font-weight:800;color:var(--mau)}.relogio .isco{color:var(--mut)}
+.relogio .seg{font-size:2.4rem;font-weight:800}.exposta .seg{color:var(--mau)}.fechada .seg{color:var(--ok)}.relogio .isco{color:var(--mut)}
 button{background:var(--mau);color:#fff;border:0;border-radius:6px;padding:4px 10px;cursor:pointer}form{margin:0}
 .e-feito{color:var(--ok)}.e-pendente,.e-aprovado{color:var(--esp)}.e-desfeito,.e-ignorado{color:var(--mut)}</style>
 <h1>Migrar → atacar → aprovar → fechar</h1>${relogio}<div class="fases">${colunas}</div>

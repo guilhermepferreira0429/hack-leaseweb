@@ -29,17 +29,17 @@ describe('linha do tempo', () => {
 });
 
 describe('relógio de exposição', () => {
-  it('da migração feita ao primeiro fecho da defesa', async () => {
-    const { exposicao } = await import('@mwbe/painel');
+  it('mostra o relógio do chefe: vermelho enquanto exposta, verde depois', () => {
     const inv = { tipo: 'criar_regra', securityGroupId: 's', regra: { protocol: 'TCP', source: '0.0.0.0/0', startPort: 5432, endPort: 5432 } } as const;
     const ev = [
-      { hora: '2026-11-20T10:00:00Z', pedidoId: 'm', tipo: 'feito', quem: 'migrador' },
-      { hora: '2026-11-20T10:00:10Z', pedidoId: '-', tipo: 'reconhecimento', quem: 'atacante' },
+      { hora: '2026-11-20T10:00:00Z', pedidoId: '-', tipo: 'infra-no-ar', quem: 'orquestrador' },
       { hora: '2026-11-20T10:00:38Z', pedidoId: 'p', tipo: 'feito', inverso: inv },
     ];
-    assert.deepEqual(exposicao(ev), { inicio: '2026-11-20T10:00:00Z', fim: '2026-11-20T10:00:38Z', segundos: 38 });
-    assert.deepEqual(exposicao(ev.slice(0, 2)), { inicio: '2026-11-20T10:00:00Z' });
-    assert.equal(exposicao([]), undefined);
+    const html = renderizar([], ev);
+    assert.match(html, /class="relogio fechada"/);
+    assert.match(html, /exposto 38 s/);
+    assert.match(renderizar([], ev.slice(0, 1)), /class="relogio exposta"/);
+    assert.ok(!renderizar([], []).includes('class="relogio'));
   });
   it('isco conta só dentro da janela', () => {
     const r = contarLinhas(LOG, [], { desde: Date.parse('2026-11-20T09:40:00Z'), ate: Date.parse('2026-11-20T09:44:30Z') });
