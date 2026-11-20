@@ -247,7 +247,7 @@ describe('orquestrador', () => {
     await esperar();
     assert.ok(t.notificacoes.includes('ESTADO'));
     assert.deepEqual(t.desfeitos, ['abc12345']);
-    assert.match(textos(t.falas, 'defesa').at(-1)!, /Desfeito/);
+    assert.ok(!t.falas.some((f) => /Desfeito/.test(f.texto)), 'o aviso de desfeito vem do desfazer(), não se repete');
   });
 });
 

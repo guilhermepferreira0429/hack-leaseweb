@@ -196,8 +196,9 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     if (desfazer) {
       const id = desfazer[1];
       try {
+        // O aviso "Desfeito às HH:MM: a regra voltou (...)" já vem do desfazer() da defesa.
         await deps.defesa.desfazer(id);
-        falar('defesa', 'dono', `Desfeito: a regra do pedido ${id} foi reposta e confirmada.`);
+        log(`pedido ${id} desfeito`);
       } catch (erro) {
         await falha(`desfazer ${id}`, erro);
       }
