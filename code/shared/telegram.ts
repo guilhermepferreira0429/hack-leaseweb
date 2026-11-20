@@ -1,7 +1,7 @@
 // Telegram é o palco: um bot por agente, todos no grupo "Direção". Long polling (getUpdates), sem webhook.
 // Ver docs/telegram.md e docs/agentes-telegram.md.
 // Botões: callback_data = "aprovar:<pedidoId>" | "ignorar:<pedidoId>".
-// Só aceita botões e ordens de TELEGRAM_DONO_ID. Comandos: /estado, /desfazer <pedidoId>.
+// Só aceita botões e ordens de TELEGRAM_DONO_ID. Comandos: /estado, /desfazer <pedidoId>, /atacar.
 // Os bots não recebem mensagens de outros bots: a conversa entre agentes passa por shared/bus.ts.
 //
 // Aprovação: sendMessage com reply_markup.inline_keyboard; a resposta chega como callback_query.
@@ -219,6 +219,11 @@ export function podeAprovar(id: string | number): boolean {
   return cfg().aprovadores.includes(String(id));
 }
 
+/** Dono ou aprovador: a mesma verificação que vale para /desfazer, botões e /atacar. */
+export function podeComandar(id: string | number): boolean {
+  return podeAprovar(id) || String(id) === cfg().donoId;
+}
+
 // ---------- receção (long polling) ----------
 
 type CbResposta = (pedidoId: string, decisao: Decisao, quem: string) => void;
@@ -354,13 +359,21 @@ async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: U
 
   const m = u.message;
   if (!m?.text || !m.from || m.from.is_bot) return;
-  if (!podeAprovar(m.from.id) && String(m.from.id) !== cfg().donoId) return;
+  const texto = nomeBot ? m.text.replaceAll(`@${nomeBot}`, '').trim() : m.text.trim();
+  if (!podeComandar(m.from.id)) {
+    // /atacar de quem não está na lista: responde no chat e não chega ao orquestrador.
+    if (/^\/atacar(?:@\S+)?(?:\s|$)/.test(texto)) {
+      await chamar(token, 'sendMessage', { chat_id: m.chat.id, text: 'sem permissão' }).catch((e: unknown) =>
+        console.warn('[telegram]', e instanceof Error ? e.message : e),
+      );
+    }
+    return;
+  }
   let paraQuem: Agente | null = null;
   if (m.chat.type === 'private') paraQuem = agente;
   else if (nomeBot && m.text.includes(`@${nomeBot}`)) paraQuem = agente;
   // Comandos no grupo (/estado) chegam a todos os bots com privacy desligado: só um os trata.
   else if (agente !== principal()) return;
-  const texto = nomeBot ? m.text.replaceAll(`@${nomeBot}`, '').trim() : m.text.trim();
   for (const cb of cbsMensagem) cb(paraQuem, texto);
 }
 
