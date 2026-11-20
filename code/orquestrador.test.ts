@@ -27,6 +27,12 @@ type Cenario = {
   quem?: string;
   migrarFalha?: boolean;
   portaFechada?: boolean;
+  /** bus, auditoria, notificar e correlacionar a lançar de forma síncrona, como os stubs naoImplementado. */
+  stubs?: boolean;
+};
+
+const stub = (): never => {
+  throw new Error('Ainda não implementado');
 };
 
 function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
@@ -51,11 +57,13 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
       },
       aoResponder: (cb) => (aoResponder = cb),
       aoMensagemDoDono: (cb) => (aoMensagem = cb),
-      async notificar(t) {
-        notificacoes.push(t);
-      },
+      notificar: cenario.stubs
+        ? stub
+        : async (t) => {
+            notificacoes.push(t);
+          },
     },
-    bus: { enviar: (m) => falas.push(m) },
+    bus: { enviar: cenario.stubs ? stub : (m) => void falas.push(m) },
     estado: {
       guardarPedido: (p) => void pedidos.set(p.id, { ...p }),
       obterPedido: (id) => pedidos.get(id),
@@ -66,10 +74,10 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
       },
       listarPedidos: () => [...pedidos.values()],
     },
-    auditoria: { registar: (e) => void eventos.push(e), ler: () => eventos },
+    auditoria: cenario.stubs ? { registar: stub, ler: stub } : { registar: (e) => void eventos.push(e), ler: () => eventos },
     defesa: {
       detetar: async () => [achadoApi],
-      correlacionar: (api, atk) => [...api, ...atk.filter((a) => !api.some((b) => b.alvo === a.alvo && b.porta === a.porta))],
+      correlacionar: cenario.stubs ? stub : (api, atk) => [...api, ...atk.filter((a) => !api.some((b) => b.alvo === a.alvo && b.porta === a.porta))],
       acaoPara,
       async tratar(achado) {
         const pedido = montarPedido(achado, 'Três frases.', acaoPara(achado)!);
@@ -207,6 +215,13 @@ describe('orquestrador', () => {
     assert.ok(t.notificacoes.some((n) => /MinIO em baixo/.test(n)));
     assert.equal(t.corrigidos.length, 1);
     assert.equal(t.falas.at(-1)?.de, 'chefe');
+  });
+
+  it('peças ainda em stub (lançam de forma síncrona) não param o fluxo', async () => {
+    const t = montar({ stubs: true, migrarFalha: true }, { atacar: false });
+    await t.orq.correr();
+    // bus, auditoria, notificar e correlacionar rebentam; a migração falha; mesmo assim a defesa fecha.
+    assert.equal(t.corrigidos.length, 1);
   });
 
   it('o atacante diz se ainda chega à porta depois de fechar', async () => {

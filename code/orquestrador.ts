@@ -67,20 +67,49 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   const hora = () => agora().toISOString();
   const horaCurta = () =>
     agora().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' });
-  const falar = (de: Agente, para: Mensagem['para'], texto: string) => deps.bus.enviar({ de, para, texto });
+  // As peças dos outros podem ainda ser stubs que lançam de forma síncrona: nada disso pode parar a demo.
+  function falar(de: Agente, para: Mensagem['para'], texto: string): void {
+    try {
+      deps.bus.enviar({ de, para, texto });
+    } catch (erro) {
+      log(`bus falhou (${de} -> ${para}):`, mensagem(erro), '|', texto);
+    }
+  }
+
+  /** Cópia local do que se auditou: se a auditoria falhar, o resumo do chefe continua a ter números. */
+  const eventosLocais: EventoAuditoria[] = [];
 
   function auditar(e: Omit<EventoAuditoria, 'hora'>): void {
+    const evento = { hora: hora(), ...e };
+    eventosLocais.push(evento);
     try {
-      deps.auditoria.registar({ hora: hora(), ...e });
+      deps.auditoria.registar(evento);
     } catch (erro) {
       log('auditoria falhou:', mensagem(erro));
+    }
+  }
+
+  function lerAuditoria(): EventoAuditoria[] {
+    try {
+      return deps.auditoria.ler();
+    } catch (erro) {
+      log('auditoria.ler falhou, a usar a cópia local:', mensagem(erro));
+      return eventosLocais;
+    }
+  }
+
+  async function notificar(texto: string): Promise<void> {
+    try {
+      await deps.telegram.notificar(texto);
+    } catch (erro) {
+      log('notificar falhou:', mensagem(erro), '|', texto);
     }
   }
 
   async function falha(fase: string, erro: unknown): Promise<void> {
     log(`${fase} falhou:`, mensagem(erro));
     auditar({ pedidoId: '-', tipo: 'erro', quem: 'orquestrador', depois: { fase, erro: mensagem(erro) } });
-    await deps.telegram.notificar(`Falha em ${fase}: ${mensagem(erro)}. A demo continua.`).catch(() => {});
+    await notificar(`Falha em ${fase}: ${mensagem(erro)}. A demo continua.`);
   }
 
   /** Respostas que chegaram antes de alguém estar à espera (o dono pode ser mais rápido do que o fluxo). */
@@ -159,7 +188,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   async function aoMensagemDoDono(agente: Agente | null, texto: string): Promise<void> {
     const t = texto.trim();
     if (t === '/estado' || t.startsWith('/estado@')) {
-      await deps.telegram.notificar(deps.chefe.estadoAtual(deps.estado.listarPedidos()));
+      await notificar(deps.chefe.estadoAtual(deps.estado.listarPedidos()));
       return;
     }
     const desfazer = t.match(/^\/desfazer(?:@\S+)?\s+(\S+)/);
@@ -229,7 +258,14 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     } catch (erro) {
       await falha('deteção pela API', erro);
     }
-    const achados = deps.defesa.correlacionar(daApi, doAtacante);
+    let achados: Achado[];
+    try {
+      achados = deps.defesa.correlacionar(daApi, doAtacante);
+    } catch (erro) {
+      // Sem correlação ficam só os achados da API: são os que trazem a regra a fechar.
+      log('correlacionar falhou, a usar só os achados da API:', mensagem(erro));
+      achados = daApi;
+    }
     const acionaveis = achados.filter((a) => deps.defesa.acaoPara(a));
     if (acionaveis.length === 0) {
       falar('defesa', 'dono', achados.length === 0 ? 'Não encontrei nada aberto a toda a internet.' : 'Há portas visíveis, mas nenhuma regra nossa para fechar.');
@@ -253,7 +289,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     if (opcoes.atacar) doAtacante = await faseAtacar().catch(async (e) => (await falha('reconhecimento', e), []));
     const resultados = await faseDefender(doAtacante);
     await Promise.all(resultados);
-    falar('chefe', 'dono', deps.chefe.resumir(deps.auditoria.ler(), deps.estado.listarPedidos()));
+    falar('chefe', 'dono', deps.chefe.resumir(lerAuditoria(), deps.estado.listarPedidos()));
   }
 
   function ligar(): void {
