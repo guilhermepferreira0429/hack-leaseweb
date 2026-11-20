@@ -42,6 +42,8 @@ export interface Dependencias {
     /** Mensagem com botões de escolha (ex.: destino Recommended / Self-hosted / Why?). Sem ele, escolhe-se por comando. */
     enviarComEscolhas?(agente: Agente, texto: string, opcoes: { texto: string; valor: string }[]): Promise<void>;
     aoEscolha?(cb: (valor: string, quem: string) => void): void;
+    /** Botão Undo do relatório (a defesa é que desfaz; o orquestrador só volta a pôr o achado como acionável). */
+    aoDesfazer?(cb: (pedidoId: string, quem: string) => void): void;
   };
   bus: { enviar(m: Mensagem): void };
   estado: {
@@ -639,14 +641,15 @@ ${resumo}`,
       const texto = await deps.migrador.planoDestino(servicosDoPlano, modo);
       modoDestino = modo;
       auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "dono", depois: { modo, texto } });
+      // Curto: o plano já está no grupo; aqui só a confirmação da escolha (e o orçamento, se houver).
+      const orcamento = texto?.match(/budget: about €[\d.,]+\/month/i)?.[0];
       falar(
         "migrador",
         "dono",
         (modo === "tudo-self-hosted"
-          ? "OK: everything self-hosted on your VM, no managed services."
-          : "OK: the recommended plan, with Leaseweb managed services where it makes sense (simulated in this demo: the data runs on the VM underneath).") +
-          (texto ? `\n${texto}` : "") +
-          "\nNow tap Approve plan to start.",
+          ? `OK: everything self-hosted on your VM.${texto ? ` ${texto}` : ""}`
+          : `OK: recommended plan (managed services simulated; data on the VM)${orcamento ? `. ${orcamento[0].toUpperCase()}${orcamento.slice(1)}` : ""}.`) +
+          " Now tap Approve plan.",
       );
     } catch (erro) {
       await falha("destination planner (owner's choice)", erro);
@@ -676,14 +679,9 @@ ${resumo}`,
     const nomes = servicos.map((s) => NOME_SERVICO[s]).join(", ");
     // Só entram os passos que o migrador sabe fazer (um serviço novo no analisar sem função fica de fora).
     const passos = servicos.filter((s) => executor(s));
-    falar(
-      "migrador",
-      "dono",
-      `I found ${servicos.length} AWS ${servicos.length === 1 ? "service" : "services"} in the app: ${nomes}.` +
-        (passos.length
-          ? " I ask for one OK for the whole plan and go one step at a time, with proof at each step."
-          : ""),
-    );
+    // Com passos, o pedido "Migrate to Leaseweb" já diz o que se encontrou: aqui só quando não há nada a migrar.
+    if (passos.length === 0)
+      falar("migrador", "dono", `I found ${servicos.length} AWS ${servicos.length === 1 ? "service" : "services"} in the app: ${nomes}. Nothing I can migrate yet.`);
     await mostrarPlanoInfra();
     await mostrarPlanoDestino(servicos);
     if (passos.length === 0) return;
@@ -691,7 +689,7 @@ ${resumo}`,
     // Um só "Aprovar plano": o pedido aprovado é o do primeiro passo; os outros nascem aprovados por ele.
     const titulo = `Migrate to Leaseweb: ${passos.map((s) => NOME_SERVICO[s]).join(", ")}`;
     const texto = deps.migrador.migrarCodigo
-      ? `${plano}\nAt the end I prepare a pull request so the app uses Leaseweb. The main branch only changes when someone merges it.`
+      ? `${plano}\nAt the end: a pull request so the app uses Leaseweb.`
       : plano;
     pensar("confirmacao");
     const pedidoPlano = await pedirMigracao(passos[0], titulo, texto, {
@@ -1203,25 +1201,26 @@ ${resumo}`,
       deps.chefe.resumir(doCiclo(), deps.estado.listarPedidos()),
     );
     pensar("relatorio");
+    // Com o PDF anexado, no grupo vai só o título e o resumo do certificado (o resto está no documento, sem repetir).
+    const comPdf = Boolean(deps.chefe.relatorioFicheiro && deps.telegram.enviarDocumento);
     if (deps.chefe.certificado) {
       try {
-        falar(
-          "chefe",
-          "dono",
-          deps.chefe.certificado(doCiclo(), deps.estado.listarPedidos()),
-        );
+        const cert = deps.chefe.certificado(doCiclo(), deps.estado.listarPedidos());
+        falar("chefe", "dono", comPdf ? certificadoCurto(cert) : cert);
       } catch (erro) {
         await falha("migration certificate", erro);
       }
     }
-    if (deps.chefe.relatorioFicheiro && deps.telegram.enviarDocumento) {
+    if (comPdf) {
       try {
-        const f = deps.chefe.relatorioFicheiro(doCiclo(), deps.estado.listarPedidos());
-        await deps.telegram.enviarDocumento("chefe", f.nome, f.conteudo, "Full incident & migration report (PDF).", f.tipo);
+        const f = deps.chefe.relatorioFicheiro!(doCiclo(), deps.estado.listarPedidos());
+        await deps.telegram.enviarDocumento!("chefe", f.nome, f.conteudo, "Full certificate and incident report (PDF).", f.tipo);
       } catch (erro) {
         await falha("report file", erro);
       }
     }
+    // Fim do ciclo: o painel mostra "Cycle complete" (o processo continua vivo para o /undo).
+    auditar({ pedidoId: "-", tipo: "ciclo-terminado", quem: "orquestrador" });
   }
 
   /** Se o dono não decidir a tempo, o modo noite da defesa aplica a medida temporária (só falhas críticas). */
@@ -1277,6 +1276,16 @@ ${resumo}`,
     } catch (erro) {
       void falha("ligar as mensagens do dono (aoMensagemDoDono)", erro);
     }
+    // Botão Undo do relatório: a defesa repõe a regra (ligarDesfazer); aqui o achado volta a ser acionável,
+    // para um /attack a seguir voltar a pedir Close (o mesmo que o /undo por comando faz).
+    try {
+      deps.telegram.aoDesfazer?.((id) => {
+        const reaberto = achadoDoPedido.get(id);
+        if (reaberto) achadosDoCiclo.delete(reaberto.id);
+      });
+    } catch (erro) {
+      void falha("ligar o botão Undo (aoDesfazer)", erro);
+    }
     // Botões da escolha de destino (Recommended / Self-hosted / Why?). O telegram.ts já só entrega dono/aprovadores.
     try {
       deps.telegram.aoEscolha?.((valor) => {
@@ -1296,6 +1305,18 @@ ${resumo}`,
   }
 
   return { ligar, correr, aoResponder, aoMensagemDoDono, escolherDestino, explicarDestino };
+}
+
+/** Versão curta do certificado para o grupo quando o PDF vai anexado: título, resumo e a nota da UE. */
+export function certificadoCurto(cert: string): string {
+  const linhas = cert.split("\n").map((l) => l.trim());
+  const titulo = linhas[0] ?? "";
+  const i = linhas.indexOf("SUMMARY");
+  const resumo = i >= 0 ? (linhas[i + 1] ?? "") : "";
+  const ue = linhas.some((l) => l.startsWith("No data left the EU.")) ? "No data left the EU." : "";
+  return [titulo, [resumo, ue].filter(Boolean).join(" "), "Full certificate and incident report in the PDF below."]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** Fala do atacante a partir dos achados (determinística; a voz com IA vem depois). */
