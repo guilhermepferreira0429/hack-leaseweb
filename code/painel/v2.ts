@@ -40,7 +40,19 @@ export function agenteV2(e: EventoAuditoria): AgenteV2 {
 
 // ---------- coluna 1: cadeia dos agentes ----------
 
-const TIPOS_PASSO = new Set(['pedido', 'aprovado', 'ignorado', 'feito', 'erro', 'falhou', 'reconhecimento', 'migracao-codigo', 'confirmacao-atacante', 'infra-no-ar', 'desfeito']);
+const TIPOS_PASSO = new Set(['pedido', 'aprovado', 'ignorado', 'feito', 'erro', 'falhou', 'reconhecimento', 'migracao-codigo', 'confirmacao-atacante', 'infra-no-ar', 'desfeito', 'ciclo-terminado']);
+
+/**
+ * O evento 'ciclo-terminado' (do orquestrador) do ciclo atual, se o houver: tem de vir depois do último 'infra-no-ar'
+ * e antes de um novo plano do migrador (senão é o fim do ciclo anterior).
+ */
+export function cicloTerminado(todos: EventoAuditoria[]): EventoAuditoria | undefined {
+  const i = todos.findLastIndex((e) => e.tipo === 'ciclo-terminado');
+  if (i < 0) return undefined;
+  const depois = todos.slice(i + 1);
+  if (depois.some((e) => e.tipo === 'infra-no-ar' || (e.tipo === 'pedido' && e.quem === 'migrador' && Array.isArray(obj(e.depois).passos)))) return undefined;
+  return todos[i];
+}
 
 export interface PassoCadeia {
   hora: string;
@@ -63,6 +75,7 @@ function mensagemPasso(e: EventoAuditoria): string | undefined {
     return d.url ? `PR opened: ${f} file(s), tests passing.` : f ? `Code change ready: ${f} file(s)${d.simulado ? ' (dry run)' : ''}.` : 'Nothing to change in the code.';
   }
   if (e.tipo === 'confirmacao-atacante') return d.chega ? 'Re-scan: the port still answers.' : 'Re-scan: the port no longer answers.';
+  if (e.tipo === 'ciclo-terminado') return 'Cycle complete ✓ Migrated, attacked, closed and verified. Report ready.';
   if (e.tipo === 'feito' && e.quem === 'migrador' && d.passo !== undefined && fraseIngles(e) === undefined) return `${String(d.passo)} migrated.`;
   return fraseIngles(e);
 }
@@ -219,6 +232,8 @@ export function paraLog(e: EventoAuditoria): LinhaLog[] {
       return [l(e.quem === 'migrador' ? `PR #${String(d.numero)} reverted` : 'undo · rule restored')];
     case 'confirmacao-atacante':
       return [l(d.chega ? 're-scan: still reachable' : 're-scan: no longer answers ✓', d.chega ? 'mau' : 'ok')];
+    case 'ciclo-terminado':
+      return [l('cycle complete ✓', 'ok')];
     case 'migracao-codigo': {
       const f = Array.isArray(d.ficheiros) ? d.ficheiros.length : 0;
       const linhas = [l(`scanning the app for AWS endpoints · ${f} file(s) to change`)];
@@ -253,14 +268,20 @@ const CSS = `body{padding:40px 48px;height:100vh;display:flex;flex-direction:col
 .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 14px;border-radius:999px;font:17px var(--mono);color:var(--atk);background:#FF8A7A22}
 .pill:before{content:'';width:10px;height:10px;border-radius:50%;background:currentColor}.fechada .pill{color:var(--def);background:#7DD3A822}
 .isco{font-size:19px;color:var(--muted)}
-.corpo{flex:1;display:grid;grid-template-columns:720px 1fr 500px;gap:24px;min-height:0}
+.fim{display:inline-flex;gap:8px;align-items:center;margin-left:14px;padding:4px 14px;border-radius:999px;font:600 15px var(--mono);letter-spacing:0;color:var(--def);background:#7DD3A82E;border:1px solid var(--def);vertical-align:middle}
+.corpo{flex:1;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,.95fr);gap:24px;min-height:0}
+.rolo{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;scrollbar-width:thin;scrollbar-color:#2C4A45 transparent}
+.rolo>*{flex-shrink:0}.rolo>.empurra{flex:1 0 0}
+.passo.novo{animation:entra .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes entra{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.passo.novo{animation:none}}
 section{background:var(--panel);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;overflow:hidden}
 .cab{display:flex;justify-content:space-between;font:15px var(--mono);letter-spacing:2px;color:var(--muted)}.cab span:last-child{color:var(--faint);letter-spacing:0}
 .mig{--c:var(--mig)}.atk{--c:var(--atk)}.def{--c:var(--def)}.chf{--c:var(--chf)}.ink{--c:var(--ink)}.code{--c:var(--code)}
 .agora{border:1px solid color-mix(in srgb,var(--c) 33%,transparent);background:color-mix(in srgb,var(--c) 8%,transparent);border-radius:14px;padding:14px 18px;display:flex;flex-direction:column;gap:6px}
 .agora .q{display:flex;gap:10px;align-items:center;font:700 14px var(--mono);letter-spacing:1px;color:var(--c)}.agora .q:before{content:'';width:10px;height:10px;border-radius:50%;background:var(--c)}
 .agora .t{font:400 27px/1.15 var(--serif)}
-.passos{display:flex;flex-direction:column;justify-content:flex-end;flex:1;min-height:0;overflow:hidden}
+.passos{padding-right:6px}
 .passo{display:flex;gap:14px}.trilho{width:14px;flex:none;display:flex;flex-direction:column;align-items:center;padding-top:5px}
 .trilho i{width:12px;height:12px;border-radius:50%;background:var(--c)}.trilho b{flex:1;width:2px;background:#2C4A45;margin-top:2px}
 .conteudo{flex:1;padding:0 0 10px;display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -270,9 +291,9 @@ section{background:var(--panel);border-radius:18px;padding:22px;display:flex;fle
 .msg{font-size:18px}.acoes{display:flex;gap:10px;align-items:center;font:14px var(--mono);padding-top:2px}
 .botao{border:1px solid var(--c);color:var(--c);border-radius:8px;padding:1px 10px}.res.ok{color:var(--ok)}.res.mau{color:var(--muted)}
 .cartoes{display:flex;flex-direction:column;gap:10px}
-.srv{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
-.srv .linha{display:flex;justify-content:space-between;align-items:center;font-size:21px}.srv .nome{display:flex;gap:10px}.srv .nome b{font-weight:600}.srv .nome i{font-style:normal;color:var(--faint)}
-.srv .det{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font:15px var(--mono)}.srv .det small{font-size:13px;color:var(--faint);white-space:nowrap;flex:none}
+.srv{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:10px 16px;display:flex;flex-direction:column;gap:6px}
+.srv .linha{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:19px}.srv .nome{display:flex;flex-wrap:wrap;column-gap:10px;min-width:0}.srv .est{flex:none;white-space:nowrap}.srv .nome b{font-weight:600}.srv .nome i{font-style:normal;color:var(--faint)}
+.srv .det{display:flex;flex-direction:column;gap:4px;font:15px var(--mono)}.srv .det small{font-size:13px;color:var(--faint)}
 .est{display:inline-flex;gap:6px;align-items:center;padding:4px 12px;border-radius:999px;font:14px var(--mono)}
 .done .est{color:var(--def);background:#7DD3A822}.done .det span{color:var(--ok)}
 .migrating{border-color:#8DB8FF66;opacity:.75}.migrating .est{color:var(--mig);background:#8DB8FF22}.migrating .est:before{content:'';width:8px;height:8px;border-radius:50%;background:var(--mig)}
@@ -281,7 +302,7 @@ section{background:var(--panel);border-radius:18px;padding:22px;display:flex;fle
 @keyframes anda{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
 .queued{opacity:.5}.queued .est{color:var(--faint);background:#5E767022}.queued .nome span,.queued .nome b{color:var(--muted)}.queued .det span{color:var(--faint)}
 .failed{border-color:#FF8A7A66}.failed .est{color:var(--atk);background:#FF8A7A22}.failed .det span{color:var(--bad)}
-.espaco{flex:1}
+.servs{gap:10px;padding-right:4px}.servs .vitima{margin-top:auto}
 .vitima{background:#7DD3A812;border:1px solid var(--def);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
 .vitima.aberta{background:#FF8A7A12;border-color:var(--atk)}
 .vitima .rot{font:14px var(--mono);color:var(--muted);letter-spacing:1px}.vitima .porta{display:flex;gap:14px;align-items:center}
@@ -289,9 +310,11 @@ section{background:var(--panel);border-radius:18px;padding:22px;display:flex;fle
 .p-open{color:var(--atk);background:#FF8A7A1F;border:1px solid #FF8A7A66}.p-open.antes{opacity:.7}
 .p-closed{color:var(--def);background:#7DD3A82E}.p-closing{color:#F5B942;background:#F5B94222}.p-reopened{color:var(--atk);background:#FF8A7A22}
 .vitima .nota{color:var(--def);font-size:18px}.vitima .janela{font:14px var(--mono);color:var(--muted)}
-.abas{display:flex;gap:8px}.aba{font:13px var(--mono);letter-spacing:1px;padding:4px 12px;border-radius:8px;color:var(--faint);border:1px solid var(--line)}
-.aba.on{color:var(--bg);background:var(--c);border-color:var(--c)}
-.term{flex:1;min-height:0;background:#07100E;border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:flex-end;gap:7px;overflow:hidden;font:15px/1.35 var(--mono)}
+.abas{display:flex;flex-wrap:wrap;gap:8px}.aba{font:13px var(--mono);letter-spacing:1px;padding:4px 12px;border-radius:8px;color:var(--faint);border:1px solid var(--line);background:transparent;cursor:pointer}
+.aba:hover{color:var(--c);border-color:var(--c)}.aba.on{color:var(--bg);background:var(--c);border-color:var(--c)}.aba.todos{--c:var(--muted)}
+.aba.fixa{outline:2px solid var(--c);outline-offset:2px}
+.term{background:#07100E;border:1px solid var(--line);border-radius:14px;padding:16px;gap:7px;font:15px/1.35 var(--mono)}
+.term [hidden]{display:none}
 .ln{display:flex;gap:10px}.ln span{color:var(--faint);flex:none}.ln p{margin:0;color:var(--ink);overflow-wrap:anywhere}.ln.velha{opacity:.5}
 .ln p.ok{color:var(--ok)}.ln p.mau{color:var(--bad)}
 .troca{display:flex;gap:10px;align-items:center;font:13px var(--mono);color:var(--c);padding:4px 0}.troca:before{content:'';width:18px;height:1px;background:var(--c)}.troca:after{content:'';flex:1;height:1px;background:var(--line)}
@@ -305,7 +328,8 @@ section{background:var(--panel);border-radius:18px;padding:22px;display:flex;fle
 .modo button{padding:8px 13px;font:600 15px var(--sans);background:transparent;color:var(--faint);border:0;cursor:pointer}
 .modo button.on{background:var(--ink);color:var(--bg)}
 .bt.desc{background:var(--ink);color:var(--bg)}.bt.desf{background:transparent;color:var(--def);border:1px solid var(--def)}
-@media (max-width:1700px){body{height:auto;overflow:auto;padding:24px}.corpo{grid-template-columns:1fr 1fr}.corpo section:first-child{grid-column:1/-1}.seg{font-size:72px}}`;
+@media (max-width:1700px),(max-height:960px){body{padding:22px 28px;gap:14px}.marca h1{font-size:46px}.seg{font-size:76px}.agora .t{font-size:23px}.resid{padding:8px 16px}}
+@media (max-width:1100px){body{height:auto;overflow:auto}.corpo{grid-template-columns:1fr}section{max-height:80vh}}`;
 
 // Barra de residência de dados: de onde saíram (AWS) para onde ficam (LOCAL_DADOS), e a nota da UE (só quando o destino é da UE).
 function htmlResidencia(local: string): string {
@@ -325,7 +349,7 @@ function htmlCadeia(eventos: EventoAuditoria[]): string {
   const agora = pensar
     ? `<div class="agora ${COR[agenteV2(pensar)]}"><div class="q">${NOME[agenteV2(pensar)]} · THINKING NOW</div><div class="t">${escapar(obj(pensar.depois).texto)}</div></div>`
     : '';
-  const passos = cadeia(eventos).slice(-8);
+  const passos = cadeia(eventos);
   const html = passos
     .map((p, i) => {
       const ativo = i === passos.length - 1 ? ' ativo' : '';
@@ -339,7 +363,7 @@ function htmlCadeia(eventos: EventoAuditoria[]): string {
     })
     .join('');
   return `<section><div class="cab"><span>AGENT CHAIN</span><span>Telegram · Direção group</span></div>${agora}
-<div class="passos">${html || '<div class="msg" style="color:var(--faint)">No events yet.</div>'}</div></section>`;
+<div class="passos rolo" id="rolo-cadeia" data-chave="${escapar(passos[0]?.hora ?? '')}"><div class="empurra"></div>${html || '<div class="msg" style="color:var(--faint)">No events yet.</div>'}</div></section>`;
 }
 
 function htmlServicos(eventos: EventoAuditoria[], local: string, agora: Date): string {
@@ -350,7 +374,7 @@ function htmlServicos(eventos: EventoAuditoria[], local: string, agora: Date): s
       const rotulo = { done: c.checksumOk === false ? 'DONE ✗' : 'DONE ✓', migrating: 'MIGRATING', queued: 'QUEUED', failed: 'FAILED' }[c.estado];
       const det = { done: c.prova ?? '', migrating: 'copying…', queued: 'waiting', failed: 'failed · see logs' }[c.estado];
       return `<div class="srv ${c.estado}"><div class="linha"><div class="nome"><span>${de}</span><i>→</i><b>${para}</b></div><span class="est">${rotulo}</span></div>
-<div class="det"><span>${escapar(det)}</span><small>${rota}</small></div>${c.estado === 'migrating' ? '<div class="barra"><i></i></div>' : ''}</div>`;
+<div class="det"><span>${escapar(det)}</span><small class="rota">${rota}</small></div>${c.estado === 'migrating' ? '<div class="barra"><i></i></div>' : ''}</div>`;
     })
     .join('');
 
@@ -369,21 +393,24 @@ ${fechada ? '<div class="nota">Rule removed via Leaseweb API · inverse stored</
 ${exp ? `<div class="janela">open ${hora(exp.inicio)}${exp.fim ? `  →  closed ${hora(exp.fim)}` : ''}  ·  ${exp.segundos} s exposed</div>` : ''}</div>`;
   }
   return `<section><div class="cab"><span>SERVICES</span><span>AWS (simulated) → Leaseweb</span></div>
-<div class="cartoes">${cartoes || '<div class="msg" style="color:var(--faint)">Waiting for the migration plan.</div>'}</div><div class="espaco"></div>${vitima}</section>`;
+<div class="servs rolo" id="rolo-servicos"><div class="cartoes">${cartoes || '<div class="msg" style="color:var(--faint)">Waiting for the migration plan.</div>'}</div>${vitima}</div></section>`;
 }
 
 function htmlLogs(eventos: EventoAuditoria[]): string {
   const ultimo = eventos.findLast((e) => e.tipo !== 'pensar' && paraLog(e).length);
-  const linhas = logs(eventos).slice(-16);
-  const ativo = linhas.at(-1)?.agente;
-  const abas = (['migrador', 'atacante', 'defesa', 'codigo'] as AgenteV2[])
-    .map((a) => `<span class="aba ${COR[a]}${a === ativo ? ' on' : ''}">${NOME[a]}</span>`)
-    .join('');
+  const linhas = logs(eventos).slice(-300);
+  // O agente ativo é o último com tab; as linhas do chefe/orquestrador e do dono aparecem em todas as tabs.
+  const TABS: AgenteV2[] = ['migrador', 'atacante', 'defesa', 'codigo'];
+  const ativo = linhas.findLast((l) => TABS.includes(l.agente))?.agente;
+  // Tabs: por omissão seguem o agente ativo (filtram as linhas dele); um clique fixa essa tab (JS no fim da página).
+  const abas =
+    TABS.map((a) => `<button type="button" data-a="${a}" class="aba ${COR[a]}${a === ativo ? ' on' : ''}">${NOME[a]}</button>`)
+      .join('') + `<button type="button" data-a="todos" class="aba todos${ativo ? '' : ' on'}">ALL</button>`;
 
   let corpo = '';
   linhas.forEach((l, i) => {
     if (i > 0 && linhas[i - 1]!.agente !== l.agente) corpo += `<div class="troca ${COR[l.agente]}">handoff → ${NOME[l.agente]}</div>`;
-    corpo += `<div class="ln${l.agente !== ativo ? ' velha' : ''}"><span>${hora(l.hora)}</span><p class="${l.tom ?? ''}">${escapar(l.texto)}</p></div>`;
+    corpo += `<div class="ln${l.agente !== ativo ? ' velha' : ''}" data-a="${TABS.includes(l.agente) ? l.agente : 'todos'}"><span>${hora(l.hora)}</span><p class="${l.tom ?? ''}">${escapar(l.texto)}</p></div>`;
   });
 
   // Variante Code: o último passo é o migrador de código -> ficheiros do PR e o cartão do PR.
@@ -400,8 +427,8 @@ function htmlLogs(eventos: EventoAuditoria[]): string {
           : '');
   }
   return `<section><div class="cab"><span>LIVE LOGS</span><span>● streaming</span></div><div class="abas">${abas}</div>
-<div class="term">${corpo || '<div class="ln"><p style="color:var(--faint)">waiting for the first agent…</p></div>'}<div class="cursor">▍</div></div>${extra}
-<div class="dica">follows the active agent · switches on handoff</div></section>`;
+<div class="term rolo" id="rolo-logs" data-ativo="${ativo ?? 'todos'}"><div class="empurra"></div>${corpo || '<div class="ln"><p style="color:var(--faint)">waiting for the first agent…</p></div>'}<div class="cursor">▍</div></div>${extra}
+<div class="dica" id="dica-abas">follows the active agent · click a tab to pin it</div></section>`;
 }
 
 /**
@@ -442,8 +469,10 @@ export function renderizarV2(
     opcoes.token && fecho && (!pedidoFecho || pedidoFecho.estado === 'feito')
       ? `<form method="post" action="/desfazer" style="margin:0"><input type="hidden" name="id" value="${escapar(fecho.pedidoId)}"><input type="hidden" name="token" value="${escapar(opcoes.token)}"><button class="bt desf">↺ Undo last action</button></form>`
       : '';
+  const terminado = cicloTerminado(todos);
+  const fim = terminado ? `<span class="fim" id="ciclo-completo">Cycle complete ✓ ${hora(terminado.hora)}</span>` : '';
   return `${cabecalho('Migrate without being exposed', CSS).replace('<html lang="pt">', '<html lang="en">')}
-<div class="topo"><div class="marca"><div class="kicker">InfraHack · Leaseweb · live</div><h1>Migrate without being exposed</h1></div>${htmlRelogio(todos, agora)}</div>
+<div class="topo"><div class="marca"><div class="kicker">InfraHack · Leaseweb · live${fim}</div><h1>Migrate without being exposed</h1></div>${htmlRelogio(todos, agora)}</div>
 ${htmlResidencia(opcoes.local || 'Leaseweb')}
 <div class="corpo">${htmlCadeia(eventos)}${htmlServicos(eventos, opcoes.local || 'Leaseweb', agora)}${htmlLogs(eventos)}</div>
 <div class="rodape"><span>Everything comes from auditoria.jsonl and estado.json</span><div class="bts"><div class="modo" id="modo" title="Plain words for a non-technical owner, or the real tool names"><button data-m="simples">Simple</button><button data-m="tecnico">Technical</button></div><a class="bt desc" href="/relatorio.pdf" download>⤓ Download report (PDF)</a>${desfazer}${opcoes.token ? htmlControlos(opcoes.token, opcoes.aCorrer) : ''}</div></div>
@@ -453,6 +482,33 @@ if(r){const i=Date.parse(r.dataset.inicio),f=r.dataset.fim?Date.parse(r.dataset.
  if(!f)setInterval(()=>{seg.textContent=Math.round((Date.now()-i)/1000)+' s'},500);
  const q='/isco?json&desde='+encodeURIComponent(r.dataset.inicio)+(f?'&ate='+encodeURIComponent(r.dataset.fim):'');
  fetch(q).then(x=>x.ok?x.json():null).then(c=>{if(c)r.querySelector('.isco').textContent='meanwhile the honeypot got '+c.tentativas+' attempts'}).catch(()=>{});}
+// Coluna 1: só os passos novos (desde o último recarregamento) entram, devagar e um a um. A chave é o 1.º passo do ciclo.
+(()=>{const c=document.getElementById('rolo-cadeia');if(!c)return;const ps=[...c.querySelectorAll('.passo')];
+ let v={};try{v=JSON.parse(sessionStorage.getItem('painel-cadeia')||'{}')}catch{}
+ const visto=v.k===c.dataset.chave?Math.min(v.n||0,ps.length):0;
+ const novos=ps.slice(Math.max(visto,ps.length-8));
+ novos.forEach((p,i)=>{p.classList.add('novo');p.style.animationDelay=(i*0.45)+'s'});
+ sessionStorage.setItem('painel-cadeia',JSON.stringify({k:c.dataset.chave,n:ps.length}));})();
+// Coluna 3: tabs. Por omissão segue o agente ativo; um clique fixa a tab; clicar outra vez na fixa volta a seguir.
+const term=document.getElementById('rolo-logs');
+function filtrar(){if(!term)return;const fixa=sessionStorage.getItem('painel-aba');const a=fixa||term.dataset.ativo||'todos';
+ document.querySelectorAll('.aba').forEach(b=>{b.classList.toggle('on',b.dataset.a===a);b.classList.toggle('fixa',b.dataset.a===fixa)});
+ term.querySelectorAll('.ln[data-a]').forEach(l=>{l.hidden=a!=='todos'&&l.dataset.a!=='todos'&&l.dataset.a!==a;l.classList.toggle('velha',a==='todos'&&l.dataset.a!==term.dataset.ativo)});
+ term.querySelectorAll('.troca').forEach(t=>{t.hidden=a!=='todos'});
+ const d=document.getElementById('dica-abas');if(d)d.textContent=fixa?'pinned · click '+(fixa==='todos'?'ALL':'the tab')+' again to follow the active agent':'follows the active agent · click a tab to pin it';}
+document.querySelectorAll('.aba').forEach(b=>b.addEventListener('click',()=>{
+ if(sessionStorage.getItem('painel-aba')===b.dataset.a)sessionStorage.removeItem('painel-aba');else sessionStorage.setItem('painel-aba',b.dataset.a);
+ filtrar();if(term)term.scrollTop=term.scrollHeight;}));
+filtrar();
+// Scroll: cada coluna desce sozinha para o fim quando chega coisa nova, a não ser que a pessoa tenha subido.
+const rolos=[...document.querySelectorAll('.rolo[id]')];
+function posicionar(){rolos.forEach(el=>{const s=sessionStorage.getItem('painel-rolo-'+el.id);el.scrollTop=s===null?el.scrollHeight:Number(s)})}
+posicionar();
+rolos.forEach(el=>{const k='painel-rolo-'+el.id;
+ el.addEventListener('wheel',()=>{el.dataset.mexeu='1'},{passive:true});el.addEventListener('pointerdown',()=>{el.dataset.mexeu='1'},{passive:true});
+ el.addEventListener('scroll',()=>{if(!el.dataset.mexeu)return;if(el.scrollHeight-el.scrollTop-el.clientHeight<40)sessionStorage.removeItem(k);else sessionStorage.setItem(k,String(el.scrollTop))},{passive:true});});
+// As fontes e a página acabam de carregar depois: volta a pôr no fim quem não foi mexido.
+document.fonts&&document.fonts.ready.then(posicionar);addEventListener('load',posicionar);
 let ultimo='';
 setInterval(async()=>{try{const x=await fetch('/estado.json',{cache:'no-store'});const t=await x.text();if(ultimo&&t!==ultimo)location.reload();ultimo=t}catch{}},2000);
 // Toggle Simples/Técnico: no modo simples troca-se o jargão por palavras do dia a dia só no texto da coluna (.corpo).

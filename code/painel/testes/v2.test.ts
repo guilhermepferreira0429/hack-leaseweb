@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { after, describe, it } from 'node:test';
 import type { EventoAuditoria, Pedido } from '@mwbe/shared';
-import { cadeia, iniciarPainel, logs, renderizarV2, servicos } from '@mwbe/painel';
+import { cadeia, cicloTerminado, iniciarPainel, logs, renderizarV2, servicos } from '@mwbe/painel';
 
 const t = (s: number) => `2026-11-20T12:47:${String(s).padStart(2, '0')}Z`;
 const ev = (s: number, pedidoId: string, tipo: string, quem: string, extra: Partial<EventoAuditoria> = {}): EventoAuditoria =>
@@ -120,6 +120,29 @@ describe('painel v2: ecrã', () => {
     assert.match(html, /PR · Point the app to Leaseweb/);
     assert.match(html, /https:\/\/github\.com\/o\/r\/pull\/1/);
     assert.match(html, /class="aba code on">CODE/);
+  });
+
+  it('colunas com scroll próprio, tabs clicáveis e a rota do serviço por baixo dos números', () => {
+    const html = renderizarV2(pedidos, ciclo);
+    for (const id of ['rolo-cadeia', 'rolo-servicos', 'rolo-logs']) assert.match(html, new RegExp(`class="[^"]*rolo" id="${id}"`), id);
+    assert.match(html, /\.rolo\{[^}]*overflow-y:auto/);
+    for (const a of ['migrador', 'atacante', 'defesa', 'codigo', 'todos']) assert.match(html, new RegExp(`<button type="button" data-a="${a}" class="aba`), a);
+    assert.match(html, /id="rolo-logs" data-ativo="defesa"/);
+    assert.match(html, /class="ln[^"]*" data-a="migrador"/);
+    assert.match(html, /<span>17,478 rows · 4 tables · sha256 ✓<\/span><small class="rota">AWS \(sim\) → Leaseweb<\/small>/);
+    assert.ok(!html.includes('Cycle complete'), 'ainda não acabou');
+  });
+
+  it('"Cycle complete ✓" com a hora quando o ciclo tem o evento ciclo-terminado', () => {
+    const fim = ev(45, '-', 'ciclo-terminado', 'orquestrador');
+    const html = renderizarV2(pedidos, [...ciclo, fim]);
+    assert.match(html, /id="ciclo-completo">Cycle complete ✓ \d\d:\d\d:\d\d</);
+    assert.match(cadeia([...ciclo, fim]).at(-1)!.mensagem, /^Cycle complete ✓/);
+    assert.equal(logs([fim])[0]!.texto, '[chief] cycle complete ✓');
+    // O fim do ciclo anterior não conta quando já começou outro.
+    assert.equal(cicloTerminado([...ciclo, fim, ev(50, 'm9', 'pedido', 'migrador', { depois: { passos: ['s3'] } })]), undefined);
+    assert.equal(cicloTerminado([...ciclo, fim, ev(50, '-', 'infra-no-ar', 'orquestrador')]), undefined);
+    assert.equal(cicloTerminado([...ciclo, fim, ev(50, 'p1', 'desfeito', 'defesa')]), fim);
   });
 
   it('escapa o que vem da auditoria', () => {
