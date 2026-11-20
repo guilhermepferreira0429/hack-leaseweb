@@ -1,104 +1,102 @@
-# Mensagens da demo, passo a passo
+# Demo messages, step by step
 
-Para cada passo: quem fala, a linha **pensar** (painel), a **mensagem** (Telegram, grupo "Direção"), os **botões** e o **terminal** (o que o painel mostra a correr). As variáveis `{...}` vêm do estado e da auditoria. Se um valor não existir, escreve "não medido".
+Same text as `code/shared/mensagens.ts` (in English since 13:05). For each step: who speaks, the **thinking** line (dashboard), the **message** (Telegram, "Direção" group), the **buttons** and the **terminal** (what the dashboard shows running). The `{...}` variables come from the state and the audit log. A missing value is written as "not measured"; a yes/no is written as ✓ / ✗.
 
-## 0. Abertura (antes da demo)
+## 0. Opening (before the demo)
 
-- **Chefe** · pensar: "A preparar a equipa."
-- Mensagem: `Bom dia. Vamos tirar a app {app} da AWS e trazê-la para a Leaseweb, com segurança. Eu aviso em cada passo.`
+- **Chief** · thinking: "Getting the team ready."
+- Message: `Good morning. We are moving the {app} app from AWS to Leaseweb, safely. I will report at every step.`
 
-## 1. Decidir para onde migrar
+## 1. Decide where to migrate
 
-- **Migrador** · pensar: "A ler a app e a decidir onde fica cada serviço."
-- Terminal: `analisar exemplo-app` → lista de serviços encontrados.
-- Mensagem:
+- **Migrator** · thinking: "Reading the app and deciding where each service goes."
+- Terminal: `analisar exemplo-app` → list of services found.
+- Message (one line per service):
   ```
-  Encontrei {n_servicos} serviços da AWS na app: {lista_servicos}.
-  Proposta:
-  · {servico_1} → {destino_1} ({self_ou_gerido_1})
-  · {servico_2} → {destino_2} ({self_ou_gerido_2})
-  · {servico_3} → {destino_3} ({self_ou_gerido_3})
-  A VM tem {ram_livre} GB livres. {motivo_regra}
+  I found {n_servicos} AWS services in the app: {lista_servicos}.
+  Proposal:
+  · {servico} → {destino} ({self-hosted or managed})
+  The VM has {ram_livre} GB free. {motivo_regra}
   ```
-- Botões: `Aprovar plano` · `Ignorar` (um só "Aprovar plano" para os 5 serviços)
+- Buttons: `Approve plan` · `Ignore` (a single "Approve plan" for the 5 services)
 
-## 2. Confirmação
+## 2. Confirmation
 
-- **Chefe** · pensar: "À espera da aprovação."
-- Depois do toque: `Plano aprovado por {quem} às {hora}. @migrador, avança.`
-- **Nota:** é aqui que o júri pode aprovar (QR no ecrã do isco).
+- **Chief** · thinking: "Waiting for approval."
+- After the tap: `Plan approved by {quem} at {hora}. @migrador, go ahead.`
+- **Note:** this is where the jury can approve (QR code on the honeypot screen).
 
-## 3. Migrar
+## 3. Migrate
 
-- **Migrador** · pensar: "A copiar os dados e a comparar checksums."
-- Terminal: `migrar s3 → minio` · contagem a subir · `checksum ✓`
-- Mensagem:
+- **Migrator** · thinking: "Copying the data and comparing checksums."
+- Terminal: `migrar s3 → minio` · count going up · `checksum ✓` (and the same for each of the 5 services)
+- Message:
   ```
-  Migração concluída.
-  · Ficheiros: {n_objetos} copiados · checksum {ok_s3}
-  · Base de dados: {n_linhas} linhas · checksum {ok_bd}
-  · Testes da app: antes {ok_antes} · depois {ok_depois}
-  A infraestrutura nova está no ar. @atacante, a tua vez.
+  Migration complete.
+  · Files: {n_objetos} copied · checksum {ok_s3}
+  · Database: {n_linhas} rows · checksum {ok_bd}
+  · App tests: before {ok_antes} · after {ok_depois}
+  The new infrastructure is live. @atacante, your turn.
   ```
 
-## 4. Atacar
+## 4. Attack
 
-- **Atacante** · pensar: "A ver o que se vê de fora nas nossas máquinas."
-- Terminal: `ligação TCP às portas {portas} de {ip_vitima}` → `5432 aberta`
-- Mensagem:
+- **Attacker** · thinking: "Checking what our machines show to the outside."
+- Terminal: `TCP connection to ports {portas} of {ip_vitima}` → `5432 open`
+- Message:
   ```
-  Encontrei a base de dados nova aberta a toda a Internet (porta {porta}).
-  Gravidade: {gravidade}. Qualquer pessoa pode tentar entrar.
+  I found the new database open to the whole Internet (port {porta}).
+  Severity: {gravidade}. Anyone can try to get in.
   @defesa
   ```
 
-## 5. Defender
+## 5. Defend
 
-- **Defesa** · pensar: "A explicar o risco e a preparar o fecho reversível."
-- Mensagem (a IA pode reescrever as 2 primeiras frases; se falhar, fica este texto):
+- **Defender** · thinking: "Explaining the risk and preparing a reversible fix."
+- Message (the AI may rewrite the first 2 sentences; if it fails, this text stays):
   ```
-  A base de dados com os dados da empresa está aberta a toda a Internet.
-  Alguém de fora pode tentar adivinhar a palavra-passe e entrar.
-  Proponho fechar o acesso de fora e deixar só a vossa app. Guardo como voltar atrás.
+  The database with the company data is open to the whole Internet.
+  Someone outside could try to guess the password and get in.
+  I propose closing outside access and allowing only your app. I keep a way to undo it.
   ```
-- Botões: `Fechar` · `Ignorar`
-- Terminal depois do toque: `leaseweb: remover regra {regra_id} do grupo {sg}` → `estado: ACTIVE` → `nmap: filtered`
-- Mensagem depois:
+- Buttons: `Close` · `Ignore`
+- Terminal after the tap: `leaseweb: remove rule {regra_id} from group {sg}` → `state: ACTIVE` → `nmap: filtered` (the defender's check from outside; without the victim's IP it waits for the API)
+- Message after:
   ```
-  Fechado às {hora_fecho} e confirmado. Tempo exposto: {segundos} s.
-  Guardei como voltar atrás: /desfazer {pedido_id}
-  @atacante, confirma.
+  Closed at {hora_fecho} and confirmed. Time exposed: {segundos} s.
+  Undo saved: /desfazer {pedido_id}
+  @atacante, please confirm.
   ```
-- **Atacante:** `Confirmo. Já não chego lá.`
+- **Attacker:** `Confirmed. I can no longer reach it.`
 
-## 6. Migrar o código
+## 6. Migrate the code
 
-- **Migrador** · pensar: "A corrigir o código para apontar para a Leaseweb e fechar a causa."
-- Terminal: `encontrar usos AWS` → `{n_ficheiros} ficheiros` → `testes ✓` → `PR #{numero}`
-- Mensagem:
+- **Migrator** · thinking: "Fixing the code to point at Leaseweb and close the cause."
+- Terminal: `find AWS usages` → `{n_ficheiros} files` → `tests ✓` → `PR #{numero}`
+- Message:
   ```
-  Abri o PR #{numero}: {n_ficheiros} ficheiros alterados, testes a passar.
-  · A app passa a usar a Leaseweb em vez da AWS.
-  · Corrigi a configuração que deixava a base de dados aberta, para não voltar no próximo deploy.
+  I opened PR #{numero}: {n_ficheiros} files changed, tests passing.
+  · The app now uses Leaseweb instead of AWS.
+  · I fixed the configuration that left the database open, so it does not come back on the next deploy.
   ```
-- Botões: `Aprovar PR` · `Ignorar`. O "Aprovar PR" faz o merge no repo da app e `/desfazer` abre um PR que reverte. Só com `MIGRADOR_PR=real`; num ensaio o PR é simulado e não há botão.
+- Buttons: `Approve PR` · `Ignore`. "Approve PR" merges in the app's repo and `/desfazer` opens a PR that reverts it. Only with `MIGRADOR_PR=real`; in a rehearsal the PR is simulated and there is no button.
 
-## 7. Validar tudo
+## 7. Check everything
 
-- **Chefe** · pensar: "A confirmar que está tudo de pé."
-- Terminal: `testes da app` ✓ · `atacante: nova verificação` → nada aberto
-- Mensagem: `Validação final: testes ✓, nada exposto ✓, dados iguais ✓.`
+- **Chief** · thinking: "Checking that everything is up."
+- Terminal: `app tests` ✓ · `attacker: new check` → nothing open
+- Message: `Final check: tests ✓, nothing exposed ✓, data identical ✓.`
 
-## 8. Relatório
+## 8. Report
 
-- **Chefe** · pensar: "A escrever o certificado a partir da auditoria."
-- Mensagem: o certificado de `docs/certificado-migracao.md`, seguido de:
+- **Chief** · thinking: "Writing the certificate from the audit log."
+- Message: the certificate from `docs/certificado-migracao.md`, followed by:
   ```
-  Em {minutos} min saímos da AWS para a Leaseweb, fechámos {n_falhas} falha(s) e corrigimos a causa no código. Nada saiu da UE.
+  In {minutos} min we moved from AWS to Leaseweb, closed {n_falhas} issue(s) and fixed the cause in the code. Nothing left the EU.
   ```
 
-## Respostas fixas úteis
+## Useful fixed answers
 
-- Dono pergunta algo fora do estado: `Não tenho essa informação. Escreva /estado para ver o ponto da situação.`
-- Pedido ignorado: `Ok, fica como está. Fica registado que decidiu não fechar.`
-- Erro da API: `A Leaseweb não respondeu a tempo. Não mudei nada. Vou tentar outra vez.`
+- The owner asks something not in the state: `I don't have that information. Type /estado to see the current status.`
+- Request ignored: `OK, leaving it as it is. Your decision not to close it is logged.`
+- API error: `Leaseweb did not answer in time. I changed nothing. I will try again.`
