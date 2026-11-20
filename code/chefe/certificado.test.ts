@@ -83,6 +83,15 @@ describe('chefe/certificado', () => {
     assert.match(t, /20 ficheiros copiados/, 'o S3 continua a ser o primeiro passo');
   });
 
+  it('filas migradas (SQS -> RabbitMQ) aparecem com a contagem e o sha256', () => {
+    const fl: Pedido = { id: 'f1', titulo: 'Passar as filas', texto: '', acao: { tipo: 'migrar', passo: 'fila' }, estado: 'feito' };
+    const eventos = [...demo, ev('f1', 'feito', 49, { depois: { mensagens: 5, checksumsOk: true } })];
+    const t = certificado(eventos, [migrar, fl, fechar], 'Leaseweb, Amesterdão (NL)', new Date(em(50)));
+    assert.match(t, /Filas: 5 mensagens passadas do SQS para RabbitMQ, em Leaseweb, Amesterdão \(NL\); contagem e sha256 iguais\./);
+    const recusada = certificado(eventos, [migrar, { ...fl, estado: 'ignorado' }, fechar], undefined, new Date(em(50)));
+    assert.doesNotMatch(recusada, /Filas:/, 'sem aprovação não se diz que as filas passaram');
+  });
+
   it('migração não aprovada', () => {
     assert.match(certificado([], [{ ...migrar, estado: 'ignorado' }]), /Migração: não aprovada/);
   });

@@ -35,7 +35,10 @@ function linhaMigracao(pedidos: Pedido[], eventos: EventoAuditoria[]): string | 
   const pg = doPasso(pedidos, 'postgres');
   const provaPg = pg?.estado === 'feito' ? (eventos.filter((e) => e.pedidoId === pg.id && e.tipo === 'feito').at(-1)?.depois as { tabelas?: number } | undefined) : undefined;
   const base = provaPg ? ` Base de dados copiada${typeof provaPg.tabelas === 'number' ? ` (${plural(provaPg.tabelas, 'tabela', 'tabelas')})` : ''}, também com checksums iguais.` : '';
-  return `Migração concluída: ${n}checksums iguais e testes a passar dos dois lados.${base}`;
+  const fl = doPasso(pedidos, 'fila');
+  const provaFila = fl?.estado === 'feito' ? (eventos.filter((e) => e.pedidoId === fl.id && e.tipo === 'feito').at(-1)?.depois as { mensagens?: number } | undefined) : undefined;
+  const filas = provaFila ? ` Filas passadas para RabbitMQ${typeof provaFila.mensagens === 'number' ? ` (${plural(provaFila.mensagens, 'mensagem', 'mensagens')})` : ''}, sem perder mensagens.` : '';
+  return `Migração concluída: ${n}checksums iguais e testes a passar dos dois lados.${base}${filas}`;
 }
 
 function linhaDefesa(pedidos: Pedido[], eventos: EventoAuditoria[]): string {

@@ -60,6 +60,13 @@ export function certificado(eventos: EventoAuditoria[], pedidos: Pedido[], local
     linhas.push(`Base de dados: ${quanto} copiadas para PostgreSQL${localDados ? `, em ${localDados}` : ''}; contagem e sha256 ${provaPg.checksumsOk ? 'iguais' : 'DIFERENTES'} em cada tabela.`);
   }
 
+  const fl = doPasso(pedidos, 'fila');
+  const provaFila = fl && (eventos.filter((e) => e.pedidoId === fl.id && e.tipo === 'feito').at(-1)?.depois as { mensagens?: number; checksumsOk?: boolean } | undefined);
+  if (fl?.estado === 'feito' && provaFila) {
+    const quanto = typeof provaFila.mensagens === 'number' ? `${provaFila.mensagens} ${provaFila.mensagens === 1 ? 'mensagem passada' : 'mensagens passadas'}` : 'Mensagens passadas';
+    linhas.push(`Filas: ${quanto} do SQS para RabbitMQ${localDados ? `, em ${localDados}` : ''}; contagem e sha256 ${provaFila.checksumsOk ? 'iguais' : 'DIFERENTES'}.`);
+  }
+
   const recon = eventos.filter((e) => e.tipo === 'reconhecimento').at(-1)?.depois as Reconhecimento | undefined;
   if (recon?.portas?.length) {
     const lista = recon.portas.slice(0, 4).map((p) => `${p.servico ?? 'serviço'} ${p.porta} (${p.alvo})`).join(', ');

@@ -341,6 +341,49 @@ describe('orquestrador', () => {
     assert.equal(erro.falas.at(-1)?.de, 'chefe');
   });
 
+  it('filas (SQS -> RabbitMQ): terceira aprovação, prova por sha256; recusa ou erro não travam o resto', async () => {
+    const t = montar({}, { atacar: false });
+    t.deps.migrador.migrarPostgres = async () => ({ tabelas: 1, linhas: 20, checksumsOk: true });
+    let copias = 0;
+    t.deps.migrador.migrarFila = async () => (copias++, { mensagens: 5, iguais: true });
+    await t.orq.correr();
+    assert.equal(copias, 1);
+    const passos = t.pedidosEnviados.filter((p) => p.pedido.acao.tipo === 'migrar').map((p) => (p.pedido.acao as { passo: string }).passo);
+    assert.deepEqual(passos, ['s3', 'postgres', 'fila']);
+    assert.ok(t.falas.some((f) => /Filas: 5 mensagens passadas para o RabbitMQ, checksums iguais, testes a passar com o RabbitMQ/.test(f.texto)));
+    const fl = t.pedidosEnviados.find((p) => (p.pedido.acao as { passo?: string }).passo === 'fila')!.pedido;
+    assert.equal(t.pedidos.get(fl.id)?.estado, 'feito');
+    assert.deepEqual(t.eventos.findLast((e) => e.pedidoId === fl.id)?.depois, { mensagens: 5, checksumsOk: true, testes: { antes: true, depois: true } });
+
+    // Sem migrarFila ligado (sem --com-fila), não se pergunta.
+    const sem = montar({}, { atacar: false });
+    await sem.orq.correr();
+    assert.ok(!sem.pedidosEnviados.some((p) => (p.pedido.acao as { passo?: string }).passo === 'fila'));
+
+    const recusa = montar({ decisao: (p) => ((p.acao as { passo?: string }).passo === 'fila' ? 'ignorar' : 'aprovar') }, { atacar: false });
+    let tocou = false;
+    recusa.deps.migrador.migrarFila = async () => ((tocou = true), { mensagens: 1, iguais: true });
+    await recusa.orq.correr();
+    assert.equal(tocou, false, 'sem OK não se mexe nas filas');
+    assert.equal(recusa.corrigidos.length, 1, 'a defesa segue');
+
+    const diferente = montar({}, { atacar: false });
+    diferente.deps.migrador.migrarFila = async () => ({ mensagens: 5, iguais: false });
+    await diferente.orq.correr();
+    const flD = diferente.pedidosEnviados.find((p) => (p.pedido.acao as { passo?: string }).passo === 'fila')!.pedido;
+    assert.equal(diferente.pedidos.get(flD.id)?.estado, 'aprovado', 'checksums diferentes não contam como feito');
+    assert.ok(diferente.falas.some((f) => /checksums DIFERENTES/.test(f.texto)));
+
+    const erro = montar({}, { atacar: false });
+    erro.deps.migrador.migrarFila = async () => {
+      throw new Error('RabbitMQ não responde em 127.0.0.1:5672');
+    };
+    await erro.orq.correr();
+    assert.ok(erro.notificacoes.some((n) => /migração das filas/.test(n)));
+    assert.equal(erro.corrigidos.length, 1, 'a defesa segue');
+    assert.equal(erro.falas.at(-1)?.de, 'chefe');
+  });
+
   it('voz dos agentes: responde quem foi chamado, com o estado; no grupo sem menção cala-se', async () => {
     const t = montar({}, { migrar: false, atacar: false });
     const chamadas: { agente: string; pergunta: string; estado: string }[] = [];
