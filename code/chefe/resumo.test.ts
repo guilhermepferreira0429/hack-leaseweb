@@ -31,14 +31,14 @@ describe('chefe/resumir', () => {
     const eventos = [ev('m1', 'pedido', 0), ev('m1', 'feito', 5, { objetos: 12, checksumsOk: true }), ev('a1', 'pedido', 10), ev('a1', 'aprovado', 30), fecho];
     const texto = resumir(eventos, [migrar('feito'), fechar('a1', 'feito')]);
     assert.match(texto, /Migração concluída: 12 ficheiros, checksums iguais/);
-    assert.match(texto, /1 falha encontrada e fechada em 40 segundos\./);
+    assert.match(texto, /1 falha encontrada e fechada 40 segundos depois de a defesa a pedir\./);
     assert.match(texto, /inverso guardado/);
   });
 
   it('várias falhas com estados diferentes e erros', () => {
     const eventos = [ev('a1', 'pedido', 0), ev('a1', 'feito', 65), ev('-', 'erro', 70)];
     const texto = resumir(eventos, [fechar('a1', 'feito'), fechar('a2', 'ignorado'), fechar('a3', 'pendente')]);
-    assert.match(texto, /3 falhas encontradas: 1 fechada \(a mais lenta em 1 min 5 s\), 1 ignorada pelo dono, 1 por decidir\./);
+    assert.match(texto, /3 falhas encontradas: 1 fechada \(a mais lenta 1 min 5 s depois do pedido\), 1 ignorada pelo dono, 1 por decidir\./);
     assert.match(texto, /Houve 1 problema pelo caminho/);
   });
 
@@ -53,6 +53,13 @@ describe('chefe/resumir', () => {
     const texto = resumir([noite, ev('a1', 'feito', 25)], [fechar('a1', 'feito')]);
     assert.match(texto, /Uma falha foi fechada pelo modo noite, sem resposta do dono: só os IPs conhecidos entram, e \/desfazer repõe\./);
     assert.doesNotMatch(resumir([ev('a1', 'aprovado', 20), ev('a1', 'feito', 25)], [fechar('a1', 'feito')]), /modo noite/);
+  });
+
+  it('migração com segredos e cache (OpenBao e Valkey)', () => {
+    const sg: Pedido = { id: 's1', titulo: 'segredos', texto: '', acao: { tipo: 'migrar', passo: 'segredos' }, estado: 'feito' };
+    const ch: Pedido = { id: 'c1', titulo: 'cache', texto: '', acao: { tipo: 'migrar', passo: 'cache' }, estado: 'feito' };
+    const texto = resumir([ev('m1', 'feito', 5, { objetos: 3 }), ev('s1', 'feito', 9, { segredos: 16 }), ev('c1', 'feito', 9, { chaves: 594 })], [migrar('feito'), sg, ch]);
+    assert.match(texto, /Segredos passados para o OpenBao \(16 segredos\), sem nunca aparecerem em texto\. Cache passada para o Valkey \(594 chaves\)\./);
   });
 
   it('migração com filas', () => {

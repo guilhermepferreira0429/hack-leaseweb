@@ -8,7 +8,7 @@ Para o migrador decidir onde fica cada serviço. Os agentes de código montam o 
 2. **Leaseweb primeiro.** Se a Leaseweb tiver o serviço gerido, é essa a escolha. Outro fornecedor europeu só quando a Leaseweb não o tiver.
 3. **Só fornecedores com sede e dados na UE.**
 4. **Preços só da tabela abaixo,** com a data em que foram vistos. Se um preço tiver mais de 30 dias, o agente diz "preço a confirmar".
-5. **O dono decide no fim:** "recomendado" ou "tudo self-hosted".
+5. **O dono decide no fim:** "Aprovar plano" ou "Ignorar". Os botões "Tudo self-hosted" e "Porquê?" ficaram de fora.
 
 ## Entradas do decisor
 
@@ -30,8 +30,8 @@ Para o migrador decidir onde fica cada serviço. Os agentes de código montam o 
 | ElastiCache | Valkey | dados em RAM × 1,5 | baixo | |
 | DynamoDB | ScyllaDB (Alternator) | 2 GB | dados × 2 | Pesado para VMs pequenas |
 | DocumentDB | MongoDB / FerretDB | 1 GB | dados × 1,5 | |
-| SQS / SNS | NATS | 256 MB | baixo | |
-| SQS (AMQP) | RabbitMQ | 512 MB | baixo | |
+| SNS | NATS (fase seguinte) | 256 MB | baixo | |
+| SQS | RabbitMQ | 512 MB | baixo | |
 | MSK (Kafka) | Kafka / Redpanda | 2 GB | alto | Raramente vale a pena self-hosted numa PME |
 | Secrets Manager | OpenBao | 256 MB | baixo | Crítico: perder isto é perder tudo |
 | ECR | Harbor | 2 GB | imagens × 1,2 | |
@@ -92,7 +92,7 @@ Preços sem IVA. "A confirmar" = o serviço existe mas não encontrámos o preç
 | ElastiCache (Redis) | Scaleway | RED1-MICRO (2 vCPU, 2 GB) | desde € 0,048/h | scaleway.com/fr/tarifs/managed-databases |
 | DocumentDB (MongoDB) | Scaleway | MGDB-PLAY2-NANO (2 vCPU, 4 GB) | € 0,1077/h + armazenamento | scaleway.com/en/pricing/managed-databases-pricing |
 | SQS | Scaleway | Queues (SQS compatível) | € 0,01/GB | scaleway.com/en/pricing/managed-databases-pricing |
-| SQS / SNS (NATS) | Scaleway | NATS | € 0,01/GB; persistência cerca de € 0,14/GB/mês | idem |
+| SNS (NATS) | Scaleway | NATS | € 0,01/GB; persistência cerca de € 0,14/GB/mês | idem |
 | MSK (Kafka) | OVHcloud / Scaleway | Kafka gerido | A confirmar | ovhcloud.com (choosing right database); scaleway.com |
 | CloudWatch Logs | Scaleway | Cockpit, logs custom | € 0,35/GB ingerido | scaleway.com/en/pricing/managed-services |
 | SES | Scaleway | Transactional Email (por destinatário) | A confirmar | scaleway.com/transactional-email-tem |
@@ -133,7 +133,7 @@ Preços sem IVA. "A confirmar" = o serviço existe mas não encontrámos o preç
 
 ## Mensagem no Telegram (modelo)
 
-> **Migrador:** A tua VM tem {ram} GB de RAM livres. O {serviços_self} ficam nela. A base de dados {nome} é crítica e tem dados pessoais: proponho {fornecedor} {plano}, cerca de € {preço}/mês (preço visto a {data}). Porquê: {regra}. [Aprovar recomendado] [Tudo self-hosted] [Porquê?]
+> **Migrador:** A tua VM tem {ram} GB de RAM livres. O {serviços_self} ficam nela. A base de dados {nome} é crítica e tem dados pessoais: proponho {fornecedor} {plano}, cerca de € {preço}/mês (preço visto a {data}). Porquê: {regra}. [Aprovar plano] [Ignorar]
 
 `{regra}` é o texto da regra que ganhou, escrito pela IA em português simples.
 

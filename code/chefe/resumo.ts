@@ -20,8 +20,9 @@ function tempoAteFechar(pedidoId: string, eventos: EventoAuditoria[]): number | 
   return Date.parse(fim.hora) - Date.parse(inicio.hora);
 }
 
-const doPasso = (pedidos: Pedido[], passo: 's3' | 'postgres' | 'fila') =>
-  pedidos.find((p) => p.acao.tipo === 'migrar' && p.acao.passo === passo);
+// O último do ciclo: num processo que corre várias vezes, o primeiro seria de um ensaio antigo.
+const doPasso = (pedidos: Pedido[], passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache') =>
+  pedidos.findLast((p) => p.acao.tipo === 'migrar' && p.acao.passo === passo);
 
 function linhaMigracao(pedidos: Pedido[], eventos: EventoAuditoria[]): string | undefined {
   const m = doPasso(pedidos, 's3');
@@ -38,7 +39,13 @@ function linhaMigracao(pedidos: Pedido[], eventos: EventoAuditoria[]): string | 
   const fl = doPasso(pedidos, 'fila');
   const provaFila = fl?.estado === 'feito' ? (eventos.filter((e) => e.pedidoId === fl.id && e.tipo === 'feito').at(-1)?.depois as { mensagens?: number } | undefined) : undefined;
   const filas = provaFila ? ` Filas passadas para RabbitMQ${typeof provaFila.mensagens === 'number' ? ` (${plural(provaFila.mensagens, 'mensagem', 'mensagens')})` : ''}, sem perder mensagens.` : '';
-  return `Migração concluída: ${n}checksums iguais e testes a passar dos dois lados.${base}${filas}`;
+  const sg = doPasso(pedidos, 'segredos');
+  const provaSg = sg?.estado === 'feito' ? (eventos.filter((e) => e.pedidoId === sg.id && e.tipo === 'feito').at(-1)?.depois as { segredos?: number } | undefined) : undefined;
+  const segredos = provaSg ? ` Segredos passados para o OpenBao${typeof provaSg.segredos === 'number' ? ` (${plural(provaSg.segredos, 'segredo', 'segredos')})` : ''}, sem nunca aparecerem em texto.` : '';
+  const ch = doPasso(pedidos, 'cache');
+  const provaCh = ch?.estado === 'feito' ? (eventos.filter((e) => e.pedidoId === ch.id && e.tipo === 'feito').at(-1)?.depois as { chaves?: number } | undefined) : undefined;
+  const cache = provaCh ? ` Cache passada para o Valkey${typeof provaCh.chaves === 'number' ? ` (${plural(provaCh.chaves, 'chave', 'chaves')})` : ''}.` : '';
+  return `Migração concluída: ${n}checksums iguais e testes a passar dos dois lados.${base}${filas}${segredos}${cache}`;
 }
 
 /** O modo noite não é uma pessoa: o resumo diz quantas falhas fechou sem resposta do dono. */
@@ -64,10 +71,11 @@ function linhaDefesa(pedidos: Pedido[], eventos: EventoAuditoria[]): string {
   const maisLento = tempos.length > 0 ? Math.max(...tempos) : undefined;
 
   if (falhas.length === 1 && feitos.length === 1) {
-    return `1 falha encontrada e fechada${maisLento !== undefined ? ` em ${duracao(maisLento)}` : ''}.`;
+    // Do pedido da defesa ao fecho confirmado. A exposição total (infra no ar → fecho) está no certificado.
+    return `1 falha encontrada e fechada${maisLento !== undefined ? ` ${duracao(maisLento)} depois de a defesa a pedir` : ''}.`;
   }
   const partes = [
-    feitos.length && `${feitos.length} ${feitos.length === 1 ? 'fechada' : 'fechadas'}${maisLento !== undefined ? ` (a mais lenta em ${duracao(maisLento)})` : ''}`,
+    feitos.length && `${feitos.length} ${feitos.length === 1 ? 'fechada' : 'fechadas'}${maisLento !== undefined ? ` (a mais lenta ${duracao(maisLento)} depois do pedido)` : ''}`,
     desfeitos.length && `${desfeitos.length} ${desfeitos.length === 1 ? 'desfeita' : 'desfeitas'} pelo dono`,
     ignorados.length && `${ignorados.length} ${ignorados.length === 1 ? 'ignorada' : 'ignoradas'} pelo dono`,
     pendentes.length && `${pendentes.length} por decidir`,

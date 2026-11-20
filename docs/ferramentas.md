@@ -16,10 +16,10 @@ Regra: nada de nível B ou C começa antes de todo o nível A funcionar ponta a 
 | RDS PostgreSQL | PostgreSQL | `pg_dump`/`pg_restore`; contagem de linhas por tabela e checksum por tabela | **B** |
 | SQS | RabbitMQ | Mensagens enviadas = recebidas; testes da app passam | **B** |
 | ElastiCache Redis | Valkey | Chaves e TTL iguais por amostragem | **B** |
-| Secrets Manager / Parameter Store | OpenBao | Segredos migrados sem nunca aparecerem em texto no log; a app arranca | B |
+| Secrets Manager / Parameter Store | OpenBao | Segredos migrados sem nunca aparecerem em texto no log; a app arranca | **B** |
 | RDS MySQL | MariaDB | Contagens e checksums por tabela | C |
 | DynamoDB | ScyllaDB (Alternator, API compatível) | Contagem e amostragem de itens | C |
-| SNS | NATS | Subscrições e entrega de mensagens | C |
+| SNS | NATS (fase seguinte) | Subscrições e entrega de mensagens | C |
 | SES | Postal | Envio de teste a uma caixa nossa | C |
 | ECR | Harbor | Imagens com o mesmo digest | C |
 | CloudWatch Logs | Loki + Grafana | Os logs chegam e pesquisam-se | C |
@@ -41,7 +41,7 @@ Antes de migrar, o migrador decide **onde fica cada serviço**, e explica porqu�
 - **Serviço gerido pago, europeu:** quando não há RAM ou disco que chegue, ou o serviço é crítico e precisa de alta disponibilidade e backups geridos.
 - **Leaseweb primeiro:** se a Leaseweb tiver o serviço gerido, é essa a escolha. Outro fornecedor europeu só quando a Leaseweb não o tiver.
 
-Exemplo da mensagem: "A tua VM tem 8 GB de RAM. O MinIO e o RabbitMQ ficam nela. A base de dados das encomendas é crítica: proponho um Postgres gerido europeu, com backups diários. Custo estimado: …. [Aprovar] [Tudo self-hosted]"
+Exemplo da mensagem: "A tua VM tem 8 GB de RAM. O MinIO e o RabbitMQ ficam nela. A base de dados das encomendas é crítica: proponho um Postgres gerido europeu, com backups diários. Custo estimado: …. [Aprovar plano] [Ignorar]"
 
 Como decide:
 
@@ -51,7 +51,7 @@ Como decide:
 | Peça | Nível |
 |---|---|
 | Recomendar o destino de cada serviço com regras + explicação da IA no Telegram | **B** |
-| O dono escolhe entre "recomendado" e "tudo self-hosted" | **B** |
+| O dono aprova o plano ("Aprovar plano") ou ignora. Os botões "Tudo self-hosted" e "Porquê?" ficaram de fora | **B** |
 | Criar e configurar os serviços geridos pelas APIs dos fornecedores europeus | C |
 | Comparar custos atualizados entre fornecedores | C |
 
@@ -64,7 +64,7 @@ Migrar a infraestrutura sem mudar o código deixa a app a apontar para a AWS. O 
 | S3 → MinIO / Object Storage da Leaseweb | Só configuração: `endpoint`, credenciais e `forcePathStyle` no cliente S3. O resto do código fica igual (API compatível) | Baixa | **A** |
 | Variáveis de ambiente e `.env` | Troca URLs e nomes de serviços AWS pelos novos; segredos nunca vão para o PR | Baixa | **A** |
 | RDS Postgres → Postgres | Só a connection string | Baixa | **B** |
-| SQS → NATS | Troca o cliente: `SendMessage`/`ReceiveMessage` passam a `publish`/`subscribe`. Reescrita real, com testes antes e depois | Média | **B** |
+| SQS → RabbitMQ | Troca a configuração da fila: `FILA_TIPO=rabbitmq` e `RABBITMQ_URL`; as chaves do SQS deixam de ser precisas | Média | **B** |
 | DynamoDB → ScyllaDB Alternator | Só o endpoint (API compatível) | Baixa | C |
 | Lambda → Serverless Functions / contentor | Reempacotar a função | Alta | C |
 
@@ -73,8 +73,8 @@ Como funciona:
 1. **Encontrar:** procura no código os clientes da AWS (`@aws-sdk/*`, `boto3`, variáveis `AWS_*`) e a configuração.
 2. **Propor:** a IA escreve a alteração; regras fixas validam que só mudam os ficheiros e linhas esperados.
 3. **Provar:** correr os testes da app com o código novo contra o destino novo. Se falharem, o PR não é proposto.
-4. **Aprovar:** o Migrador manda no Telegram "PR com 3 ficheiros alterados, testes a passar. [Aprovar] [Ver diff]".
-5. **Liga com a defesa:** se a falha encontrada pelo atacante vier da configuração (por exemplo, uma regra aberta num ficheiro de infraestrutura), a defesa fecha na API e o migrador abre o PR que corrige a causa, para não voltar no próximo deploy.
+4. **Aprovar:** o Migrador manda no Telegram "PR com 3 ficheiros alterados, testes a passar. [Aprovar PR] [Ignorar]". O "Aprovar PR" faz o merge no repo da app; `/desfazer` abre um PR que reverte. Só com `MIGRADOR_PR=real`; por omissão é um ensaio.
+5. **Liga com a defesa:** se a falha encontrada pelo atacante vier da configuração (por exemplo, uma regra aberta no Terraform), a defesa fecha na API e o migrador abre o PR que corrige a causa, para não voltar no próximo deploy. Feito: o PR abre no repo público `hack-leaseweb-exemplo-app`, ramo `migracao/leaseweb-<hora>`, e corrige a regra do Terraform.
 
 Regra: o código só muda por PR. Nunca há push direto para o ramo principal.
 
@@ -82,7 +82,8 @@ Regra: o código só muda por PR. Nunca há push direto para o ramo principal.
 
 | Ferramenta | O que procura | Nível |
 |---|---|---|
-| `nmap` às portas sensíveis | Bases de dados, Redis, Elasticsearch, RDP abertos a toda a Internet | **A** |
+| Ligação TCP às portas sensíveis | Bases de dados, Redis, Elasticsearch, RDP abertos a toda a Internet | **A** |
+| Senhas SSH, limitado | Login SSH por senha fraca: no máximo 20 tentativas, um só alvo da allowlist, só com `/atacar`; para na primeira entrada | **B** |
 | Leitura dos security groups pela API | Regras com `0.0.0.0/0` ou `::/0` | **A** |
 | Bucket do MinIO público | Política de leitura anónima depois da migração | **B** |
 | Credenciais por defeito | Postgres, Redis, MinIO e painéis com a senha de fábrica (só tentativa de login, sem mexer em dados) | **B** |
