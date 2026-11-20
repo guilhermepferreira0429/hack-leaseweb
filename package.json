@@ -24,6 +24,7 @@
     "dev:atacante": "tsx code/atacante/cli.ts",
     "dev:defesa": "tsx code/defesa/cli.ts",
     "dev:exemplo": "tsx code/exemplo-app/cli.ts",
+    "seed": "tsx code/exemplo-app/seed/semear.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "tsx --test \"code/**/*.test.ts\"",
     "infra:up": "docker compose -f env/docker-compose.yml --env-file .env up -d",
