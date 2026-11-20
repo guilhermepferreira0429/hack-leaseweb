@@ -139,6 +139,9 @@ export function aprovadoPor(eventos: EventoAuditoria[], pedidoId: string): strin
   return 'dono · Telegram';
 }
 
+/** O checksum de um passo: sem campo conta como igual (eventos antigos); sem passo, undefined. */
+const checksumOk = (d: Obj | undefined): boolean | undefined => (d ? d.checksumsOk !== false : undefined);
+
 /** Os números das provas e da infraestrutura, tirados do ciclo atual. */
 export function provas(eventos: EventoAuditoria[]) {
   const migr = eventos.filter((e) => e.quem === 'migrador' && e.tipo === 'feito').map((e) => obj(e.depois));
@@ -169,6 +172,14 @@ export function provas(eventos: EventoAuditoria[]) {
     chaves: cache?.chaves as number | undefined,
     /** Quantos passos da migração têm prova neste ciclo. */
     passosMigrados: passos.length,
+    /** Checksum de cada passo (undefined = o passo não correu). Para o certificado não misturar passos. */
+    checksumPorPasso: {
+      s3: checksumOk(s3),
+      postgres: checksumOk(pg),
+      fila: checksumOk(fila),
+      segredos: checksumOk(seg),
+      cache: checksumOk(cache),
+    },
     atacou: Boolean(recon),
     nmapAntes: verif('antes'),
     nmapDepois: verif('depois'),

@@ -20,6 +20,10 @@ const CSS = `body{padding:48px 16px;color:#15171C}main{max-width:900px;margin:0 
 
 const kv = (k: string, v: string) => `<div class="kv"><span>${escapar(k)}</span><span>${v}</span></div>`;
 
+/** Uma linha de prova com o checksum do próprio passo (nunca o de outro). */
+const prova = (ok: boolean | undefined, texto: string) =>
+  `<span class="${ok ? 'ok' : 'bad'}">${texto} · checksum ${ok ? 'igual ✓' : 'DIFERENTE ✗'}</span>`;
+
 export function renderizarCertificado(pedidos: Pedido[], todos: EventoAuditoria[], localDados?: string, agora = new Date()): string {
   const eventos = cicloAtual(todos);
   const p = provas(eventos);
@@ -27,7 +31,8 @@ export function renderizarCertificado(pedidos: Pedido[], todos: EventoAuditoria[
   const portas = portasDoCiclo(eventos);
   const fechadas = portas.filter((x) => x.estado === 'fechada');
   const abertas = portas.filter((x) => x.estado !== 'fechada');
-  const migrou = p.objetos !== undefined || p.linhas !== undefined;
+  const migrou = p.passosMigrados > 0;
+  const c = p.checksumPorPasso;
   const tudoBem = migrou && p.checksums === true && abertas.length === 0;
   const onde = escapar(localDados || 'Leaseweb Public Cloud');
   const yyyymmdd = agora.toISOString().slice(0, 10).replace(/-/g, '');
@@ -36,6 +41,9 @@ export function renderizarCertificado(pedidos: Pedido[], todos: EventoAuditoria[
   const servicos = [
     p.objetos !== undefined ? kv('S3 → MinIO', `${onde} · self-hosted`) : '',
     p.linhas !== undefined ? kv('RDS Postgres → Postgres', `${onde} · self-hosted`) : '',
+    p.mensagens !== undefined ? kv('SQS → RabbitMQ', `${onde} · self-hosted`) : '',
+    p.segredos !== undefined ? kv('Secrets Manager / SSM → OpenBao', `${onde} · self-hosted`) : '',
+    p.chaves !== undefined ? kv('ElastiCache Redis → Valkey', `${onde} · self-hosted`) : '',
   ].join('');
 
   const falhas = portas
@@ -57,8 +65,11 @@ export function renderizarCertificado(pedidos: Pedido[], todos: EventoAuditoria[
 <div class="resumo">Gerado a partir do registo de auditoria deste ciclo: o que foi copiado, a prova de que nada se perdeu, o que o atacante encontrou, o que a defesa fechou, quem aprovou e como voltar atrás.</div>
 ${servicos ? `<div class="sec"><h2><small>01</small>Onde estão os dados</h2><hr>${servicos}</div>` : ''}
 <div class="sec"><h2><small>02</small>Prova de que nada se perdeu</h2><hr>
-${p.objetos !== undefined ? kv('Ficheiros', `<span class="${p.checksums ? 'ok' : 'bad'}">${numero(p.objetos)} copiados · checksum ${p.checksums ? 'igual ✓' : 'DIFERENTE ✗'}</span>`) : kv('Ficheiros', '—')}
-${p.linhas !== undefined ? kv('Base de dados', `<span class="ok">${numero(p.linhas)} linhas em ${p.tabelas} tabelas · checksum igual ✓</span>`) : ''}
+${p.objetos !== undefined ? kv('Ficheiros', prova(c.s3, `${numero(p.objetos)} copiados`)) : kv('Ficheiros', '—')}
+${p.linhas !== undefined ? kv('Base de dados', prova(c.postgres, `${numero(p.linhas)} linhas em ${p.tabelas} tabelas`)) : ''}
+${p.mensagens !== undefined ? kv('Fila', prova(c.fila, `${numero(p.mensagens)} mensagens`)) : ''}
+${p.segredos !== undefined ? kv('Segredos', prova(c.segredos, `${numero(p.segredos)} segredos (só a contagem)`)) : ''}
+${p.chaves !== undefined ? kv('Cache', prova(c.cache, `${numero(p.chaves)} chaves`)) : ''}
 ${kv('Testes da app', p.testesAntes === undefined ? '—' : `<span class="${p.testesAntes && p.testesDepois ? 'ok' : 'bad'}">antes ${p.testesAntes ? '✓' : '✗'} · depois ${p.testesDepois ? '✓' : '✗'}</span>`)}</div>
 <div class="sec"><h2><small>03</small>Segurança depois da migração</h2><hr>
 ${kv('Encontrado', portas.length ? `<span class="bad">${portas.length} ${portas.length === 1 ? 'falha' : 'falhas'}</span>` : p.atacou ? '<span class="ok">nada aberto</span>' : '—')}
