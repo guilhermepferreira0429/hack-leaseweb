@@ -178,6 +178,43 @@ export function descodificarBotao(dados: string): { decisao: Decisao; pedidoId: 
   return m ? { decisao: m[1] as Decisao, pedidoId: m[2]! } : undefined;
 }
 
+// ---------- desfazer por botão ----------
+// Aditivo ao contrato: callback_data = "desfazer:<pedidoId>". Não entra em Decisao (shared/tipos.ts):
+// chega por aoDesfazer, não por aoResponder. O comando /desfazer <pedidoId> continua a funcionar.
+
+export function codificarDesfazer(pedidoId: string): string {
+  return `desfazer:${pedidoId}`;
+}
+
+export function descodificarDesfazer(dados: string): string | undefined {
+  return dados.match(/^desfazer:([A-Za-z0-9._:-]{1,60})$/)?.[1];
+}
+
+export type BotaoDesfazer = { texto: string; pedidoId: string };
+
+/** Botões ainda ativos de cada mensagem com Desfazer (chave: chatId:messageId). */
+const botoesDesfazer = new Map<string, BotaoDesfazer[]>();
+
+function tecladoDesfazer(botoes: BotaoDesfazer[]): { inline_keyboard: { text: string; callback_data: string }[][] } {
+  // Um botão por linha: os rótulos são longos ("Desfazer bloqueio do IP").
+  return { inline_keyboard: botoes.map((b) => [{ text: b.texto.slice(0, 60), callback_data: codificarDesfazer(b.pedidoId) }]) };
+}
+
+/** Mensagem com um botão "Desfazer …" por passo (ex.: o relatório do incidente, shared/relatorio.ts). */
+export async function enviarComDesfazer(agente: Agente, texto: string, botoes: BotaoDesfazer[]): Promise<void> {
+  const m = await enviarTexto(agente, texto, botoes.length ? tecladoDesfazer(botoes) : undefined);
+  if (botoes.length) botoesDesfazer.set(`${m.chat.id}:${m.message_id}`, [...botoes]);
+}
+
+type CbDesfazer = (pedidoId: string, quem: string) => void;
+const cbsDesfazer: CbDesfazer[] = [];
+
+/** Botão "Desfazer" carregado por um aprovador. A defesa liga isto a desfazer(pedidoId). */
+export function aoDesfazer(cb: CbDesfazer): void {
+  cbsDesfazer.push(cb);
+  iniciarPolling();
+}
+
 export function podeAprovar(id: string | number): boolean {
   return cfg().aprovadores.includes(String(id));
 }
@@ -262,6 +299,30 @@ async function ciclo(token: string, agente: Agente, sinal: AbortSignal): Promise
 async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: Update): Promise<void> {
   const q = u.callback_query;
   if (q) {
+    const aDesfazer = q.data ? descodificarDesfazer(q.data) : undefined;
+    if (aDesfazer) {
+      if (!podeAprovar(q.from.id)) {
+        console.warn(`[telegram] desfazer de ${q.from.id} ignorado (não está em TELEGRAM_APROVADORES).`);
+        await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'Sem permissão.', show_alert: true });
+        return;
+      }
+      await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'A desfazer…' });
+      // Tira só este botão: os outros passos continuam a poder desfazer-se. Um segundo toque não faz nada.
+      if (q.message) {
+        const chave = `${q.message.chat.id}:${q.message.message_id}`;
+        const antes = botoesDesfazer.get(chave);
+        if (antes && !antes.some((b) => b.pedidoId === aDesfazer)) return;
+        const resto = (antes ?? []).filter((b) => b.pedidoId !== aDesfazer);
+        botoesDesfazer.set(chave, resto);
+        await chamar(token, 'editMessageReplyMarkup', {
+          chat_id: q.message.chat.id,
+          message_id: q.message.message_id,
+          reply_markup: tecladoDesfazer(resto),
+        }).catch(() => {});
+      }
+      for (const cb of cbsDesfazer) cb(aDesfazer, String(q.from.id));
+      return;
+    }
     const botao = q.data ? descodificarBotao(q.data) : undefined;
     if (!botao) {
       await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'Botão desconhecido.' });
