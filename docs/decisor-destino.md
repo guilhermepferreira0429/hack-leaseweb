@@ -22,13 +22,25 @@ Para o migrador decidir onde fica cada serviço. Os agentes de código montam o 
 
 ## Recursos mínimos para self-hosted (valores de referência do decisor)
 
-| Serviço | RAM mínima | Disco | Notas |
-|---|---|---|---|
-| MinIO | 1 GB | dados × 1,2 | |
-| PostgreSQL | 1 GB (2 GB recomendado) | dados × 1,5 | Backups por nossa conta |
-| NATS | 256 MB | baixo | |
-| RabbitMQ | 512 MB | baixo | |
-| Valkey (Redis) | dados em RAM × 1,5 | baixo | |
+| Serviço (AWS) | Alternativa aberta | RAM mínima | Disco | Notas |
+|---|---|---|---|---|
+| S3 | MinIO | 1 GB | dados × 1,2 | |
+| RDS PostgreSQL | PostgreSQL | 1 GB (2 GB recomendado) | dados × 1,5 | Backups por nossa conta |
+| RDS MySQL | MariaDB | 1 GB | dados × 1,5 | |
+| ElastiCache | Valkey | dados em RAM × 1,5 | baixo | |
+| DynamoDB | ScyllaDB (Alternator) | 2 GB | dados × 2 | Pesado para VMs pequenas |
+| DocumentDB | MongoDB / FerretDB | 1 GB | dados × 1,5 | |
+| SQS / SNS | NATS | 256 MB | baixo | |
+| SQS (AMQP) | RabbitMQ | 512 MB | baixo | |
+| MSK (Kafka) | Kafka / Redpanda | 2 GB | alto | Raramente vale a pena self-hosted numa PME |
+| Secrets Manager | OpenBao | 256 MB | baixo | Crítico: perder isto é perder tudo |
+| ECR | Harbor | 2 GB | imagens × 1,2 | |
+| CloudWatch Logs | Loki + Grafana | 1 GB | logs × retenção | |
+| Cognito | Keycloak | 1 GB | baixo | |
+| SES | Postal | 1 GB | baixo | Entregabilidade difícil em self-hosted |
+| Route 53 | PowerDNS | 256 MB | baixo | |
+| ELB | HAProxy / Caddy | 256 MB | baixo | |
+| EKS | k3s | 2 GB | médio | |
 
 Estes valores são regras de bolso do decisor, não medições. Margem: deixar sempre 25% da RAM da VM livre.
 
@@ -47,39 +59,52 @@ Para escolher o gerido:
 
 ## Tabela de preços (vista a 20/11/2026)
 
-Preços sem IVA. Confirmar sempre na página do fornecedor antes de mostrar a um cliente real.
+Preços sem IVA. "A confirmar" = o serviço existe mas não encontrámos o preço publicado. O decisor só mostra preços com data; os "a confirmar" aparecem como "preço a confirmar".
 
-### Armazenamento de objetos (S3 compatível)
+### O que a Leaseweb tem (escolha preferida)
 
-| Fornecedor | Produto | Preço | Fonte |
+| Serviço | Produto Leaseweb | Preço | Fonte |
 |---|---|---|---|
-| **Leaseweb** | Object Storage, on demand | € 0,01733/GB/mês (0 a 50 TB) | leaseweb.com/en/products-services/object-storage |
-| **Leaseweb** | Object Storage, com compromisso (desde 500 GB) | € 0,01485/GB/mês (até 50 TB) | leaseweb.com/object-storage |
-| **Leaseweb** | Tráfego de saída | € 0,0022/GB (0 a 10 TB/mês); entrada grátis | european-alternatives.eu/product/leaseweb-object-storage |
-| Exoscale | Object Storage Standard | € 0,0184/GB/mês | exoscale.com/object-storage/classes |
+| VM | Public Cloud LSW.C3.LARGE (2 vCPU, 3 GB) | € 0,0395/h, € 26,02/mês | leaseweb.com/products-services/cloud/public-cloud/pricing |
+| VM | Public Cloud LSW.M3.LARGE (2 vCPU, 7 GB) | € 0,0447/h, € 29,44/mês | idem |
+| VM | Public Cloud LSW.R3.LARGE (2 vCPU, 15,25 GB) | € 0,0555/h, € 36,49/mês | idem |
+| Disco | Network SSD (até 5K IOPS) | € 0,0800/GB/mês | idem |
+| Tráfego | 1 TB/mês grátis partilhado; entrada grátis | — | idem |
+| Objetos (S3) | Object Storage on demand | € 0,01733/GB/mês (0 a 50 TB) | leaseweb.com/en/products-services/object-storage |
+| Objetos (S3) | Object Storage com compromisso (desde 500 GB) | € 0,01485/GB/mês | leaseweb.com/object-storage |
+| Balanceador (ELB) | Load balancer como serviço (HAProxy), corre numa instância | Preço da instância escolhida | kb.leaseweb.com (load balancer of Public Cloud) |
+| Kubernetes (EKS) | Managed Kubernetes | Gestão sem custo extra; base € 21,60/mês; vCPU € 0,0038/h, RAM € 0,0019/GB/h | leaseweb.com/en/configure/vc/product/entityKey/KUBERNETES/2001 |
+| CDN (CloudFront) | Leaseweb CDN | A confirmar (listagens de terceiros dão desde cerca de 0,01 $/GB) | Confirmar com a Leaseweb |
+| Bases de dados geridas | **Não encontrámos** na Public Cloud | — | Confirmar no dia com a Leaseweb |
 
-Decisão: **a Leaseweb tem armazenamento de objetos gerido**, por isso o S3 vai para lá (gerido) ou para MinIO na VM (self-hosted).
+### Serviços geridos europeus quando a Leaseweb não tem
 
-### PostgreSQL gerido
+| Serviço (AWS) | Fornecedor | Plano | Preço | Fonte |
+|---|---|---|---|---|
+| RDS PostgreSQL / MySQL | Scaleway | DB-DEV-S (2 vCPU, 2 GB) | € 0,0156/h (cerca de € 11/mês) | scaleway.com/en/pricing/managed-databases-pricing |
+| RDS PostgreSQL | UpCloud | 1 nó, 2 GB, 25 GB, backups 24 h | € 30/mês | upcloud.com/docs/products/managed-postgresql/pricing |
+| RDS PostgreSQL | OVHcloud | Essential db1-7 (2 vCPU, 7 GB, 50 GB) | 0,17 $/h | sparecores.com/database/ovh/postgresql-essential-db1-7 |
+| Backups de BD | Scaleway | Backups/snapshots | € 0,03/GB/mês | scaleway.com (managed databases pricing) |
+| ElastiCache (Redis) | Scaleway | RED1-MICRO (2 vCPU, 2 GB) | desde € 0,048/h | scaleway.com/fr/tarifs/managed-databases |
+| DocumentDB (MongoDB) | Scaleway | MGDB-PLAY2-NANO (2 vCPU, 4 GB) | € 0,1077/h + armazenamento | scaleway.com/en/pricing/managed-databases-pricing |
+| SQS | Scaleway | Queues (SQS compatível) | € 0,01/GB | scaleway.com/en/pricing/managed-databases-pricing |
+| SQS / SNS (NATS) | Scaleway | NATS | € 0,01/GB; persistência cerca de € 0,14/GB/mês | idem |
+| MSK (Kafka) | OVHcloud / Scaleway | Kafka gerido | A confirmar | ovhcloud.com (choosing right database); scaleway.com |
+| CloudWatch Logs | Scaleway | Cockpit, logs custom | € 0,35/GB ingerido | scaleway.com/en/pricing/managed-services |
+| SES | Scaleway | Transactional Email (por destinatário) | A confirmar | scaleway.com/transactional-email-tem |
+| Secrets Manager | Scaleway | Secret Manager | A confirmar | scaleway.com/en/docs/secret-manager/faq |
+| ECR | Scaleway | Container Registry (paga-se o armazenado; entrada grátis) | A confirmar | scaleway.com/en/pricing/containers |
+| ELB | OVHcloud | Load Balancer | 6,94 $/mês | pricingsaas.com/companies/ovhcloud.publiccloud |
+| S3 (comparação) | Exoscale | Object Storage Standard | € 0,0184/GB/mês | exoscale.com/object-storage/classes |
+| S3 (comparação) | OVHcloud | Object Storage Standard | 8,3 $/TiB/mês | pricingsaas.com/companies/ovhcloud.publiccloud |
 
-| Fornecedor | Plano | Preço | Fonte |
-|---|---|---|---|
-| **Leaseweb** | Não encontrámos PostgreSQL gerido na Public Cloud | — | Confirmar no dia com a Leaseweb |
-| Scaleway | DB-DEV-S (2 vCPU, 2 GB) | € 0,0156/hora (cerca de € 11/mês) | scaleway.com/en/pricing/managed-databases-pricing |
-| UpCloud | 1 nó, 2 GB, 25 GB, backups 24 h | € 30/mês | upcloud.com/docs/products/managed-postgresql/pricing |
-| OVHcloud | Essential db1-7 (2 vCPU, 7 GB, 50 GB) | 0,17 USD/hora | sparecores.com/database/ovh/postgresql-essential-db1-7 |
+### Como o decisor usa isto
 
-Decisão: como a Leaseweb não tem PostgreSQL gerido (a confirmar), uma base de dados crítica vai para o gerido europeu mais barato da tabela. **No pitch, dizer "a Leaseweb ainda não tem base de dados gerida; aí recomendamos um parceiro europeu" só se a Leaseweb o confirmar.** Alternativa segura: recomendar PostgreSQL self-hosted na Leaseweb com backups para o Object Storage da Leaseweb.
-
-### Kubernetes gerido
-
-| Fornecedor | Produto | Preço | Fonte |
-|---|---|---|---|
-| **Leaseweb** | Managed Kubernetes | Gestão sem custo extra; paga-se os nós | leaseweb.com (página Managed Kubernetes) |
-
-### Instâncias para self-hosted
-
-Preço da VM da Leaseweb: **preencher no dia** a partir do portal (tipo de instância usado e preço/hora).
+- Serviço que a **Leaseweb tem gerido** (objetos, Kubernetes, balanceador) → Leaseweb.
+- Serviço que a Leaseweb **não tem gerido** (bases de dados, Redis, filas, logs, email, segredos):
+  - não crítico e cabe na VM → **self-hosted na Leaseweb** (tabela de recursos acima);
+  - crítico ou não cabe → **o gerido europeu mais barato desta tabela**, com o preço e a data.
+- Preço "a confirmar" → mostrar o fornecedor, dizer "preço a confirmar" e não fazer contas.
 
 ## Mensagem no Telegram (modelo)
 
