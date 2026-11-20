@@ -57,6 +57,8 @@ export type Simulacao = {
   texto: string;
   vms: { servico: string; type: string; custoMes: number; discoGb: number }[];
   portal: { servicoAws: string; plano: string }[];
+  /** Orçamento: soma do custo mensal das VMs dedicadas (só os preços de lista da tabela, com data). Sem AWS: não se inventa poupança. */
+  custoMesTotal: number;
 };
 
 export function simularProvisionamento(decisoes: Decisao[], opcoes: OpcoesSimulacao = {}): Simulacao {
@@ -134,16 +136,25 @@ export function simularProvisionamento(decisoes: Decisao[], opcoes: OpcoesSimula
     );
   }
 
+  // Orçamento: só a soma dos preços de lista das VMs dedicadas (com data). Sem preços da AWS, não se calcula poupança.
+  const custoMesTotal = Math.round(vms.reduce((s, v) => s + v.custoMes, 0) * 100) / 100;
+  const dataPreco = PRECOS_VISTOS_EM.split('-').reverse().join('/');
+  const orcamento =
+    custoMesTotal > 0
+      ? `Estimated Leaseweb cost for ${vms.length === 1 ? 'this VM' : 'these VMs'}: about €${formatarNumero(custoMesTotal)}/month (list prices, ${dataPreco}).`
+      : '';
+
   const passos = chamadas.map((c, i) => `${i + 1}. ${c.metodo} ${c.caminho}: ${c.resumo}`);
   const texto = [
     'DRY-RUN: nothing was created.',
     linhas.length > 0 ? 'Leaseweb option:' : 'No Leaseweb option to suggest for these services.',
     ...linhas,
+    ...(orcamento ? [orcamento] : []),
     ...(candidatos.length > 0 ? ['A dedicated VM is not high availability, and backups are on us.'] : []),
     ...(passos.length > 0 ? ['API calls I would make (not sent):', ...passos] : []),
     'Instance types and prices to be confirmed with GET /instanceTypes.',
   ].join('\n');
-  return { chamadas, texto, vms, portal };
+  return { chamadas, texto, vms, portal, custoMesTotal };
 }
 
 function juntar(itens: string[]): string {
@@ -171,6 +182,11 @@ export function resumoSimulacao(sim: Simulacao): string {
   }
   if (sim.portal.length > 0)
     linhas.push(`Plus ${juntar(sim.portal.map((p) => `Leaseweb ${p.plano} for ${p.servicoAws}`))}, ordered in the portal.`);
-  linhas.push('Nothing was created.');
+  // Orçamento na última linha (mantém o resumo em ≤3 linhas): a escolha mostra o custo mensal, sem inventar poupança.
+  linhas.push(
+    sim.custoMesTotal > 0
+      ? `Nothing was created. Estimated budget: about €${formatarNumero(sim.custoMesTotal)}/month (Leaseweb list prices, ${PRECOS_VISTOS_EM.split('-').reverse().join('/')}).`
+      : 'Nothing was created.',
+  );
   return linhas.join('\n');
 }

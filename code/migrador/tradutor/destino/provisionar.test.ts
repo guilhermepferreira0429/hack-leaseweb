@@ -101,7 +101,7 @@ describe('resumoSimulacao (versão curta para o Telegram)', () => {
     const sim = simularProvisionamento(decidir([{ servico: 'postgres', nome: 'encomendas', dadosGb: 5 }, { servico: 'segredos', nome: 'db' }]));
     assert.equal(
       resumoSimulacao(sim),
-      'DRY-RUN: I would create 4 resources on Leaseweb via API (lsw.c3.large in Amsterdam for PostgreSQL and OpenBao, about €30.02/month each).\nNothing was created.',
+      'DRY-RUN: I would create 4 resources on Leaseweb via API (lsw.c3.large in Amsterdam for PostgreSQL and OpenBao, about €30.02/month each).\nNothing was created. Estimated budget: about €60.04/month (Leaseweb list prices, 20/11/2026).',
     );
   });
 
@@ -112,7 +112,7 @@ describe('resumoSimulacao (versão curta para o Telegram)', () => {
     const r = resumoSimulacao(sim);
     assert.ok(r.split('\n').length <= 3);
     assert.match(r, /^DRY-RUN: I would create 4 resources on Leaseweb via API \(in Amsterdam: lsw\.c3\.large for PostgreSQL \(about €30\.02\/month\) and lsw\.r3\.large for Valkey \(about €40\.49\/month\)\)\./);
-    assert.match(r, /\nPlus Leaseweb Object Storage on demand for S3, ordered in the portal\.\nNothing was created\.$/);
+    assert.match(r, /\nPlus Leaseweb Object Storage on demand for S3, ordered in the portal\.\nNothing was created\. Estimated budget: about €70\.51\/month \(Leaseweb list prices, 20\/11\/2026\)\.$/);
   });
 
   it('sem nada a criar: diz que é dry-run e que nada foi criado', () => {
