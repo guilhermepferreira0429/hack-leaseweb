@@ -117,7 +117,7 @@ describe('painel v2: ecrã', () => {
     });
     const html = renderizarV2(pedidos, [...ciclo, codigo]);
     assert.match(html, /leaseweb\.env\.example<\/b> · changed/);
-    assert.match(html, /PR · Point the app to Leaseweb/);
+    assert.match(html, /PR #1 · Point the app to Leaseweb/);
     assert.match(html, /https:\/\/github\.com\/o\/r\/pull\/1/);
     assert.match(html, /class="aba code on">CODE/);
   });

@@ -793,7 +793,7 @@ describe("orquestrador", () => {
     });
     assert.ok(
       t.falas.some((f) =>
-        /PR #7 approved and merged into the app repo main branch at \d\d:\d\d\. To undo: \/desfazer/.test(
+        /PR #7 approved and merged into the app repo main branch at \d\d:\d\d\. To undo: \/undo/.test(
           f.texto,
         ),
       ),

@@ -31,6 +31,12 @@ export type AgenteV2 = 'migrador' | 'atacante' | 'defesa' | 'chefe' | 'dono' | '
 const NOME: Record<AgenteV2, string> = { migrador: 'MIGRATOR', atacante: 'ATTACKER', defesa: 'DEFENSE', chefe: 'CHIEF', dono: 'OWNER', codigo: 'CODE' };
 const COR: Record<AgenteV2, string> = { migrador: 'mig', atacante: 'atk', defesa: 'def', chefe: 'chf', dono: 'ink', codigo: 'code' };
 
+/** Número do PR a partir do URL do GitHub (…/pull/4). */
+function numeroDoPr(url: string): number | undefined {
+  const m = url.match(/\/pull\/(\d+)/);
+  return m ? Number(m[1]) : undefined;
+}
+
 export function agenteV2(e: EventoAuditoria): AgenteV2 {
   const d = obj(e.depois);
   if (e.tipo === 'migracao-codigo' || (e.quem === 'migrador' && d.numero !== undefined)) return 'codigo';
@@ -238,7 +244,10 @@ export function paraLog(e: EventoAuditoria): LinhaLog[] {
       const f = Array.isArray(d.ficheiros) ? d.ficheiros.length : 0;
       const linhas = [l(`scanning the app for AWS endpoints · ${f} file(s) to change`)];
       if (d.ramo) linhas.push(l(`branch ${String(d.ramo)}`));
-      if (d.url) linhas.push(l(`PR opened on GitHub`, 'ok'));
+      // O PR só se abre com os testes da app a passar (o orquestrador só chama o migrador de código nesse caso).
+      if (d.url || d.simulado) linhas.push(l('tests passing ✓', 'ok'));
+      if (d.url && d.ramo) linhas.push(l(`$ git push ${String(d.ramo)}`));
+      if (d.url) linhas.push(l(`PR #${numeroDoPr(String(d.url)) ?? "?"} opened on GitHub`, 'ok'));
       return linhas;
     }
     case 'falhou':
@@ -322,6 +331,7 @@ section{background:var(--panel);border-radius:18px;padding:22px;display:flex;fle
 .fich{border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--muted)}.fich b{color:var(--ink);font-weight:400}
 .pr{border:1px solid var(--code);background:#C4A7FF14;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
 .pr b{font:400 24px var(--serif)}.pr a{color:var(--code);font:14px var(--mono);overflow-wrap:anywhere}
+.estado-pr{font:600 15px var(--mono);color:var(--code)}.estado-pr.ok{color:var(--def)}.estado-pr.mau{color:var(--atk)}
 .rodape{display:flex;justify-content:space-between;align-items:center;gap:16px;font:15px var(--mono);color:var(--faint)}
 .rodape .bts{display:flex;gap:12px;align-items:center}.bt{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;font:600 17px var(--sans);text-decoration:none;cursor:pointer;border:0}
 .modo{display:inline-flex;border:1px solid var(--faint);border-radius:10px;overflow:hidden;margin-right:4px}
@@ -413,17 +423,28 @@ function htmlLogs(eventos: EventoAuditoria[]): string {
     corpo += `<div class="ln${l.agente !== ativo ? ' velha' : ''}" data-a="${TABS.includes(l.agente) ? l.agente : 'todos'}"><span>${hora(l.hora)}</span><p class="${l.tom ?? ''}">${escapar(l.texto)}</p></div>`;
   });
 
-  // Variante Code: o último passo é o migrador de código -> ficheiros do PR e o cartão do PR.
+  // Variante Code: o cartão do PR fica até ao fim do ciclo (já não desaparece com o evento seguinte) e mostra o
+  // estado ao vivo: à espera do Approve PR no Telegram -> Merged ✓ -> Reverted. Os ficheiros, só quando o código é o último.
   let extra = '';
-  if (ultimo?.tipo === 'migracao-codigo') {
-    const d = obj(ultimo.depois);
+  const codigo = eventos.findLast((e) => e.tipo === 'migracao-codigo');
+  if (codigo) {
+    const d = obj(codigo.depois);
     const ficheiros = Array.isArray(d.ficheiros) ? (d.ficheiros as string[]) : [];
+    const numero = d.url ? numeroDoPr(String(d.url)) : undefined;
+    const depois = eventos.filter((e) => e.hora >= codigo.hora && e.quem === 'migrador' && numero !== undefined && obj(e.depois).numero === numero);
+    const revertido = depois.some((e) => e.tipo === 'desfeito');
+    const juntado = depois.some((e) => e.tipo === 'feito');
+    const estadoPr = revertido
+      ? '<span class="estado-pr mau">↺ Reverted (a revert PR was opened)</span>'
+      : juntado
+        ? '<span class="estado-pr ok">✓ Merged into main</span>'
+        : '<span class="estado-pr">● Waiting for Approve PR in Telegram</span>';
     extra =
-      ficheiros.map((f) => `<div class="fich"><b>${escapar(f)}</b> · changed</div>`).join('') +
+      (ultimo?.tipo === 'migracao-codigo' ? ficheiros.map((f) => `<div class="fich"><b>${escapar(f)}</b> · changed</div>`).join('') : '') +
       (d.url
-        ? `<div class="pr"><b>PR · Point the app to Leaseweb</b><span class="dica">${ficheiros.length} file(s) · tests ✓</span><a href="${escapar(d.url)}">${escapar(d.url)}</a></div>`
+        ? `<div class="pr"><b>PR${numero ? ` #${numero}` : ''} · Point the app to Leaseweb</b><span class="dica">${ficheiros.length} file(s) · tests ✓</span>${estadoPr}<a href="${escapar(String(d.url))}" target="_blank" rel="noopener">${escapar(String(d.url))}</a></div>`
         : d.simulado
-          ? `<div class="pr"><b>PR (dry run)</b><span class="dica">${ficheiros.length} file(s) · ${escapar(d.ramo ?? '')}</span></div>`
+          ? `<div class="pr"><b>PR (dry run)</b><span class="dica">${ficheiros.length} file(s) · ${escapar(String(d.ramo ?? ''))}</span></div>`
           : '');
   }
   return `<section><div class="cab"><span>LIVE LOGS</span><span>● streaming</span></div><div class="abas">${abas}</div>

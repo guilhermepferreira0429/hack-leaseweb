@@ -841,7 +841,7 @@ ${resumo}`,
         r.causas
           ? "Includes the fix for the rule that left the database open."
           : "",
-        `If you approve, I merge it into the main branch of the app repo. To undo, /desfazer opens a PR that reverts it.`,
+        `If you approve, I merge it into the main branch of the app repo. To undo, /undo opens a PR that reverts it.`,
         r.pr?.url ?? "",
       ]
         .filter(Boolean)
@@ -885,7 +885,7 @@ ${resumo}`,
       falar(
         "migrador",
         "dono",
-        `PR #${numero} approved and merged into the app repo main branch at ${horaCurta()}. To undo: /desfazer ${pedido.id}`,
+        `PR #${numero} approved and merged into the app repo main branch at ${horaCurta()}. To undo: /undo ${pedido.id}`,
       );
       return "feito";
     } catch (erro) {
