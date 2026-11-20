@@ -7,8 +7,9 @@ const HORA = (iso: string) =>
   new Date(iso).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' });
 const DATA = (iso: string) => new Date(iso).toLocaleDateString('pt-PT', { timeZone: 'Europe/Lisbon' });
 
-const doPasso = (pedidos: Pedido[], passo: 's3' | 'postgres' | 'fila') =>
-  pedidos.find((p) => p.acao.tipo === 'migrar' && p.acao.passo === passo);
+// O último do ciclo: num processo que corre várias vezes, o primeiro seria de um ensaio antigo.
+const doPasso = (pedidos: Pedido[], passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache') =>
+  pedidos.findLast((p) => p.acao.tipo === 'migrar' && p.acao.passo === passo);
 
 export interface Exposicao {
   /** Quando a infraestrutura nova ficou no ar (evento 'infra-no-ar' do orquestrador). */
@@ -65,6 +66,20 @@ export function certificado(eventos: EventoAuditoria[], pedidos: Pedido[], local
   if (fl?.estado === 'feito' && provaFila) {
     const quanto = typeof provaFila.mensagens === 'number' ? `${provaFila.mensagens} ${provaFila.mensagens === 1 ? 'mensagem passada' : 'mensagens passadas'}` : 'Mensagens passadas';
     linhas.push(`Filas: ${quanto} do SQS para RabbitMQ${localDados ? `, em ${localDados}` : ''}; contagem e sha256 ${provaFila.checksumsOk ? 'iguais' : 'DIFERENTES'}.`);
+  }
+
+  const sg = doPasso(pedidos, 'segredos');
+  const provaSg = sg && (eventos.filter((e) => e.pedidoId === sg.id && e.tipo === 'feito').at(-1)?.depois as { segredos?: number; checksumsOk?: boolean } | undefined);
+  if (sg?.estado === 'feito' && provaSg) {
+    const quanto = typeof provaSg.segredos === 'number' ? `${provaSg.segredos} ${provaSg.segredos === 1 ? 'segredo passado' : 'segredos passados'}` : 'Segredos passados';
+    linhas.push(`Segredos: ${quanto} do Secrets Manager e do Parameter Store para o OpenBao${localDados ? `, em ${localDados}` : ''}; contagem e sha256 ${provaSg.checksumsOk ? 'iguais' : 'DIFERENTES'}, sem nunca mostrar um valor.`);
+  }
+
+  const ch = doPasso(pedidos, 'cache');
+  const provaCh = ch && (eventos.filter((e) => e.pedidoId === ch.id && e.tipo === 'feito').at(-1)?.depois as { chaves?: number; checksumsOk?: boolean } | undefined);
+  if (ch?.estado === 'feito' && provaCh) {
+    const quanto = typeof provaCh.chaves === 'number' ? `${provaCh.chaves} ${provaCh.chaves === 1 ? 'chave copiada' : 'chaves copiadas'}` : 'Chaves copiadas';
+    linhas.push(`Cache: ${quanto} do ElastiCache para o Valkey${localDados ? `, em ${localDados}` : ''}; tipo, valor e TTL com sha256 ${provaCh.checksumsOk ? 'iguais' : 'DIFERENTES'}.`);
   }
 
   const recon = eventos.filter((e) => e.tipo === 'reconhecimento').at(-1)?.depois as Reconhecimento | undefined;

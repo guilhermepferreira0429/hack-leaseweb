@@ -99,6 +99,15 @@ describe('chefe/certificado', () => {
     assert.doesNotMatch(t, /aprovado por uma pessoa/);
   });
 
+  it('segredos e cache aparecem com a prova, sem valores', () => {
+    const sg: Pedido = { id: 's1', titulo: 'segredos', texto: '', acao: { tipo: 'migrar', passo: 'segredos' }, estado: 'feito' };
+    const ch: Pedido = { id: 'c1', titulo: 'cache', texto: '', acao: { tipo: 'migrar', passo: 'cache' }, estado: 'feito' };
+    const eventos = [...demo, ev('s1', 'feito', 47, { depois: { segredos: 16, checksumsOk: true } }), ev('c1', 'feito', 47, { depois: { chaves: 594, checksumsOk: true } })];
+    const t = certificado(eventos, [migrar, sg, ch, fechar], 'Leaseweb, Frankfurt (DE)', new Date(em(50)));
+    assert.match(t, /Segredos: 16 segredos passados do Secrets Manager e do Parameter Store para o OpenBao, em Leaseweb, Frankfurt \(DE\); contagem e sha256 iguais, sem nunca mostrar um valor\./);
+    assert.match(t, /Cache: 594 chaves copiadas do ElastiCache para o Valkey, em Leaseweb, Frankfurt \(DE\); tipo, valor e TTL com sha256 iguais\./);
+  });
+
   it('migração não aprovada', () => {
     assert.match(certificado([], [{ ...migrar, estado: 'ignorado' }]), /Migração: não aprovada/);
   });

@@ -106,7 +106,7 @@ export interface Dependencias {
     ): Promise<string>;
   };
   /** Relatório do incidente no grupo "Direção" (shared/relatorio.ts), um por achado tratado no ciclo. Opcional. */
-  relatorio?: { publicar(achadoId: string): Promise<unknown> };
+  relatorio?: { publicar(achadoId: string, eventos: EventoAuditoria[]): Promise<unknown> };
   chefe: {
     resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
     estadoAtual(pedidos: Pedido[]): string;
@@ -970,7 +970,8 @@ ${resumo}`,
     if (!deps.relatorio) return;
     for (const achadoId of achadosDoCiclo) {
       try {
-        await deps.relatorio.publicar(achadoId);
+        // Só os eventos deste ciclo: com os ensaios anteriores, o relatório somava fechos e tempos de outras corridas.
+        await deps.relatorio.publicar(achadoId, doCiclo());
       } catch (erro) {
         await falha(`relatório do incidente ${achadoId}`, erro);
       }

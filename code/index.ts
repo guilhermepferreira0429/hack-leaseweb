@@ -151,7 +151,12 @@ async function main(): Promise<void> {
       // Relatório do incidente (David) no grupo "Direção", com um Desfazer por passo. Na --consola não há grupo.
       relatorio: consola
         ? undefined
-        : { publicar: (achadoId) => relatorio.publicarRelatorio(achadoId) },
+        : {
+            publicar: async (achadoId, eventos) => {
+              const r = relatorio.montarRelatorio(achadoId, eventos);
+              await telegram.enviarComDesfazer("defesa", r.texto, r.botoes);
+            },
+          },
       voz: {
         responder: (agente, pergunta, estadoTexto) =>
           responderComoAgente(agente, pergunta, estadoTexto),
@@ -197,6 +202,8 @@ async function main(): Promise<void> {
   if (args.has("--uma-vez")) {
     consola?.fechar();
     painel.close();
+    // Sem isto o long polling continua e o processo fica a "roubar" os updates dos bots ao próximo orquestrador.
+    if (!consola) telegram.pararPolling();
     return;
   }
   console.log(

@@ -670,6 +670,16 @@ describe("orquestrador", () => {
     assert.equal(tocou, false);
   });
 
+  it('relatório do incidente só com os eventos deste ciclo (a auditoria tem os ensaios do dia)', async () => {
+    const antigo: EventoAuditoria = { hora: '2000-01-01T00:00:00.000Z', pedidoId: 'velho', tipo: 'feito', quem: 'defesa' };
+    const t = montar({ historico: [antigo] });
+    let recebidos: EventoAuditoria[] = [];
+    t.deps.relatorio = { publicar: async (_id, eventos) => void (recebidos = eventos) };
+    await t.orq.correr();
+    assert.ok(recebidos.length > 0);
+    assert.ok(!recebidos.some((e) => e.pedidoId === 'velho'), 'o fecho de um ensaio anterior não entra no relatório');
+  });
+
   it("migrador de código: no mesmo plano, depois dos testes; sem PR diz porquê; um erro não trava", async () => {
     const t = montar({}, { atacar: false });
     const chamadas: [string, boolean][] = [];
@@ -822,7 +832,8 @@ describe("orquestrador", () => {
     const publicados: string[] = [];
     const falasNoMomento: number[] = [];
     t.deps.relatorio = {
-      publicar: async (id) => {
+      publicar: async (id, eventos) => {
+        assert.ok(eventos.every((e) => !(e as { antigo?: boolean }).antigo), 'só eventos deste ciclo');
         publicados.push(id);
         falasNoMomento.push(t.falas.length);
       },
