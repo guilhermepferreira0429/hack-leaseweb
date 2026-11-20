@@ -10,7 +10,7 @@ import { carregarEnv } from '@mwbe/shared';
 import { carregarAllowlist, filtrarAlvos } from './alvos';
 import { executarExtras } from './extras';
 import { mainForcaBruta } from './index';
-import { PORTAS_ALVO, verificarPortas } from './reconhecimento';
+import { portasDoAmbiente, verificarPortas } from './reconhecimento';
 import { varrerSegredos } from './segredos';
 
 const RAIZ_REPO = fileURLToPath(new URL('../../', import.meta.url));
@@ -78,7 +78,7 @@ async function main(): Promise<number> {
   for (const alvo of recusados) console.error(`[atacante] recusado (fora da allowlist): ${alvo}`);
   if (permitidos.length === 0) return 1;
 
-  console.log(`[atacante] portas testadas: ${PORTAS_ALVO.join(', ')}`);
+  console.log(`[atacante] portas testadas: ${portasDoAmbiente().join(', ')}`);
   let abertas = 0;
   for (const alvo of permitidos) {
     console.log(`[atacante] ${alvo}`);

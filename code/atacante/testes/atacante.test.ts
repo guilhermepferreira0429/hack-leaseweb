@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { AlvoRecusadoError, carregarAllowlist } from '../alvos';
-import { PORTAS_ALVO, paraAchado, reconhecer, verificarPortas } from '../reconhecimento';
+import { PORTAS_ALVO, paraAchado, portasDoAmbiente, reconhecer, verificarPortas } from '../reconhecimento';
 import { executarForcaBruta, lerWordlist } from '../index';
 
 const ALLOW = carregarAllowlist('203.0.113.10');
@@ -55,6 +55,15 @@ describe('atacante/reconhecimento', () => {
       assert.equal(achado.servico, servico, `serviço da porta ${porta}`);
       assert.equal(achado.severidade, 'alta', `gravidade da porta ${porta}`);
     }
+  });
+
+  it('ATACANTE_IGNORAR_PORTAS tira portas da verificação (ex.: 22 só aberta aos nossos IPs)', () => {
+    const sem22 = portasDoAmbiente('22');
+    assert.ok(!sem22.includes(22));
+    assert.ok(sem22.includes(5432));
+    assert.deepEqual(portasDoAmbiente(''), PORTAS_ALVO);
+    // Entradas inválidas não rebentam nem alargam a lista; a vírgula final é tolerada.
+    assert.ok(!portasDoAmbiente(' 22 , abc, 70000, -1, 0,').includes(22));
   });
 
   it('recusa o alvo fora da allowlist antes de qualquer ligação', async () => {

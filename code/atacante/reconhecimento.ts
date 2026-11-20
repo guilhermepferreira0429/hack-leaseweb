@@ -49,6 +49,23 @@ function allowlistDoAmbiente(): ReadonlySet<string> {
   return carregarAllowlist(process.env.ALVOS_PERMITIDOS);
 }
 
+/**
+ * Portas a ignorar no reconhecimento (ATACANTE_IGNORAR_PORTAS, separada por vírgulas).
+ * Serve para portas que só respondem aos nossos IPs (a 22 da vítima): vistas do cérebro
+ * parecem abertas ao mundo, e o achado daria uma frase falsa no grupo. Entradas inválidas
+ * são ignoradas; sem a variável, verificam-se todas as PORTAS_ALVO.
+ */
+export function portasDoAmbiente(valorEnv: string | undefined = undefined): readonly number[] {
+  carregarEnv();
+  const ignoradas = new Set(
+    (valorEnv ?? process.env.ATACANTE_IGNORAR_PORTAS ?? '')
+      .split(',')
+      .map((v) => Number(v.trim()))
+      .filter((n) => Number.isInteger(n) && n > 0 && n <= 65535),
+  );
+  return ignoradas.size ? PORTAS_ALVO.filter((p) => !ignoradas.has(p)) : PORTAS_ALVO;
+}
+
 /** Uma ligação TCP, curta, sem enviar nada. Erro ou timeout contam como "fechada". */
 function testarPorta(alvo: string, porta: number, timeoutMs: number): Promise<boolean> {
   return new Promise((concluir) => {
@@ -69,13 +86,13 @@ function testarPorta(alvo: string, porta: number, timeoutMs: number): Promise<bo
 }
 
 /**
- * Verifica as PORTAS_ALVO de um alvo. A allowlist é conferida antes de cada ligação:
- * um alvo fora dela lança AlvoRecusadoError e nada é contactado.
+ * Verifica as portas do alvo (por omissão, PORTAS_ALVO menos as ignoradas no .env).
+ * A allowlist é conferida antes de cada ligação: um alvo fora dela lança AlvoRecusadoError e nada é contactado.
  */
 export async function verificarPortas(
   alvo: string,
   allowlist: ReadonlySet<string> = allowlistDoAmbiente(),
-  portas: readonly number[] = PORTAS_ALVO,
+  portas: readonly number[] = portasDoAmbiente(),
 ): Promise<PortaTestada[]> {
   const endereco = alvo.trim();
   garantirPermitido(endereco, allowlist);
@@ -111,7 +128,7 @@ export function paraAchado(porta: PortaTestada): Achado {
 export async function reconhecer(
   alvos: string[],
   allowlist: ReadonlySet<string> = allowlistDoAmbiente(),
-  portas: readonly number[] = PORTAS_ALVO,
+  portas: readonly number[] = portasDoAmbiente(),
 ): Promise<Achado[]> {
   // Primeiro valida todos: se um alvo não estiver na lista, nada é contactado.
   for (const alvo of alvos) garantirPermitido(alvo, allowlist);
