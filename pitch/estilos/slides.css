@@ -529,3 +529,80 @@
 .pilha > * {
   grid-area: 1 / 1;
 }
+
+/* ---------- camadas (como funciona) ---------- */
+.camadas {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.camada {
+  display: flex;
+  align-items: baseline;
+  gap: 32px;
+  font-size: 30px;
+  font-weight: 600;
+}
+.camada .rotulo {
+  width: 420px;
+  flex: none;
+}
+.camada .mono {
+  font-size: 26px;
+  font-weight: 400;
+}
+
+/* ---------- o que vem a seguir ---------- */
+.proximos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+}
+.proximo-item {
+  border-top: 4px solid var(--lilas);
+  padding-top: 28px;
+}
+.proximo-item .t {
+  font-size: 48px;
+  font-weight: 700;
+}
+.proximo-item .d {
+  font-size: 30px;
+  color: var(--muted);
+  margin-top: 14px;
+  line-height: 1.3;
+}
+
+/* ---------- certificado ---------- */
+.certificado {
+  background: var(--fundo-2);
+  border-radius: 20px;
+  padding: 36px 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.cert-cab {
+  display: flex;
+  justify-content: space-between;
+  font-size: 26px;
+  color: var(--verde);
+}
+.cert-grelha {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px 40px;
+}
+.cert-grelha div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cert-grelha b {
+  font-size: 30px;
+}
+.cert-grelha span {
+  font-size: 22px;
+  color: var(--muted);
+  line-height: 1.3;
+}

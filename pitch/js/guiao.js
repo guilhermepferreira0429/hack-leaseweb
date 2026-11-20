@@ -8,7 +8,7 @@
   abertura: {
     parte: '1. A entrada',
     quem: 'Guilherme',
-    segundos: 20,
+    segundos: 17,
     falas: [
       { passo: 0, palco: 'O slide já está no ecrã quando o júri se senta. Esperar pelo sinal. Sem "olá, somos a equipa X".' },
       { passo: 0, texto: 'This machine went online on Leaseweb at eight this morning. Since then: {n} attempts to break in. Nobody told anyone it exists.' },
@@ -29,7 +29,7 @@
   soberania: {
     parte: '3. A tese',
     quem: 'Guilherme',
-    segundos: 15,
+    segundos: 12,
     falas: [
       { passo: 0, texto: 'Being European is not enough.' },
       { passo: 1, texto: 'Being secure is not enough.' },
@@ -43,7 +43,7 @@
   problema: {
     parte: '4. O problema',
     quem: 'Guilherme',
-    segundos: 15,
+    segundos: 13,
     falas: [
       { passo: 0, texto: "And here's the catch: half of companies need more than a day to close a critical gap they already know about." },
       { passo: 1, texto: "Migration is exactly when those gaps open. You'll see us close one in seconds." },
@@ -63,7 +63,7 @@
   demo: {
     parte: '6. A prova (demo ao vivo)',
     quem: 'David narra · Enio conduz',
-    segundos: 125,
+    segundos: 130,
     falas: [
       { passo: 0, palco: 'Enio: tecla D abre o painel por cima do slide; D outra vez volta à lista de passos. Enio não fala. David narra o que se vê, nunca lê o ecrã.' },
       { passo: 0, texto: 'This little app runs on AWS. We simulate the AWS side; everything on Leaseweb is real.' },
@@ -78,7 +78,7 @@
       { passo: 6, espera: 5, texto: "Closed. And so it doesn't come back on the next deploy, the code migrator opens a pull request that fixes the cause." },
       { passo: 7, espera: 5, texto: "The app's tests run again. The attacker confirms: it can't get in any more." },
       { passo: 8, palco: 'O MOMENTO WOW. O telemóvel vibra com o certificado. Silêncio de 2 s. Levantar o telemóvel para o júri.' },
-      { passo: 8, espera: 6, texto: 'And the owner gets this: a migration report, ready for an audit.' },
+      { passo: 8, espera: 6, texto: 'And the owner gets this: a migration certificate. Where every piece of data now lives, proof nothing was lost, what was attacked, and who closed it.' },
       { passo: 8, palco: 'Se um passo não aparecer em 10 s: "We recorded this at two-thirty, just in case." Tecla V. Não depurar em palco.' },
     ],
   },
@@ -86,7 +86,7 @@
   tracao: {
     parte: '7. A tração',
     quem: 'Guilherme',
-    segundos: 15,
+    segundos: 13,
     falas: [
       { passo: 0, palco: 'Antes de falar: confirmar X, T e N no ecrã (tecla E se faltar algum).' },
       { passo: 0, texto: '{x} minutes, from a hyperscaler to European infrastructure: secured, fixed and on the record. Exposed for {t} seconds, not a day. {testes} automated tests. All built today.' },
@@ -98,7 +98,7 @@
     quem: 'Enio Carlos',
     segundos: 15,
     falas: [
-      { passo: 0, texto: 'Under the hood: four agents on one internal bus. Two real Leaseweb API calls do the work: revoke closes the rule, authorize puts it back. Every change is read back.' },
+      { passo: 0, texto: "Two layers. Your server runs open, self-hosted services in place of AWS. The provider's API handles the firewall: on Leaseweb, revoke closes a port in about three seconds, measured today, and authorize puts it back." },
     ],
   },
 
@@ -111,10 +111,20 @@
     ],
   },
 
-  mercado: {
-    parte: '10. O mercado',
+  'a-seguir': {
+    parte: '10. O que vem a seguir',
     quem: 'Guilherme',
-    segundos: 15,
+    segundos: 10,
+    falas: [
+      { passo: 0, palco: 'Dizer que ainda não está feito. Hostinger e OVHcloud não funcionam hoje: não dar a entender que sim.' },
+      { passo: 0, texto: 'Next, not built yet: the same flow for other providers, or your own machine over SSH, and reports shaped for NIS2 and DORA.' },
+    ],
+  },
+
+  mercado: {
+    parte: '11. O mercado',
+    quem: 'Guilherme',
+    segundos: 13,
     falas: [
       { passo: 0, texto: "Is there demand? Leaseweb's survey: seventy-three percent would pay more for independence." },
       { passo: 1, texto: "In the Netherlands, eighty-one. The demand is there. What's missing is a safe way out." },
@@ -122,9 +132,9 @@
   },
 
   fecho: {
-    parte: '11. O pedido outra vez e o fecho',
+    parte: '12. O pedido outra vez e o fecho',
     quem: 'Guilherme',
-    segundos: 20,
+    segundos: 17,
     falas: [
       { passo: 0, texto: 'So, our ask: make this the safe way in to Leaseweb. Customers arrive already secure.' },
       { passo: 0, texto: 'Sovereignty without security just moves the problem. This lets businesses leave on their own terms, safely. It is open source, and ready to continue. Thank you.' },

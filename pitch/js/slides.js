@@ -103,7 +103,7 @@
           ['Defend', 'explain, approve, close'],
           ['Fix the cause', 'a pull request'],
           ['Validate', 'tests and attacker'],
-          ['Report', 'to the phone'],
+          ['Certificate', 'audit-ready, to the phone'],
         ];
         return `
         <div class="demo">
@@ -157,9 +157,9 @@
               .map(([t, d, c]) => `<div class="no ${c}"><div class="t">${t}</div><div class="d">${d}</div></div>`)
               .join('<span class="seta">→</span>')}
           </div>
-          <div class="chamadas">
-            <div><b class="verde">POST</b> /securityGroups/{id}/revokeFirewallRules <span class="muted">· closes the rule</span></div>
-            <div><b class="lilas">POST</b> /securityGroups/{id}/authorizeFirewallRules <span class="muted">· puts it back</span></div>
+          <div class="camadas">
+            <div class="camada"><span class="rotulo">YOUR SERVER · SELF-HOSTED</span><span>MinIO · PostgreSQL · RabbitMQ · OpenBao · Valkey</span></div>
+            <div class="camada"><span class="rotulo verde">PROVIDER API · LEASEWEB TODAY</span><span class="mono"><b class="verde">revoke</b>FirewallRules closes in ~3 s · <b class="lilas">authorize</b>FirewallRules puts it back</span></div>
           </div>
         </div>`,
     },
@@ -177,6 +177,21 @@
             <li>Model runs in the EU</li>
             <li>Attacker only touches our machines</li>
           </ul>
+        </div>`,
+    },
+    {
+      id: 'a-seguir',
+      titulo: 'O que vem a seguir',
+      passos: 0,
+      html: () => `
+        <div class="centro-v">
+          ${rotulo('NEXT · NOT BUILT YET', 'lilas')}
+          <div class="titulo">Same flow. Any provider.</div>
+          <div class="proximos">
+            <div class="proximo-item"><div class="t">More providers</div><div class="d">Hostinger, OVHcloud: one adapter each, same operations</div></div>
+            <div class="proximo-item"><div class="t">Your own machine</div><div class="d">over SSH, everything self-hosted, host firewall</div></div>
+            <div class="proximo-item"><div class="t">Regulated reports</div><div class="d">the record shaped for NIS2 and DORA notifications</div></div>
+          </div>
         </div>`,
     },
     {
@@ -221,18 +236,18 @@
       ...anexo('A1', 'Real calls to the Leaseweb API', `
         <div class="codigo">
           <div><b class="verde">POST</b> /securityGroups/{id}/revokeFirewallRules <span class="muted">→ 202</span></div>
-          <div><b class="lilas">GET&nbsp;</b> /securityGroups/{id}/firewallRules <span class="muted">until the rule is gone</span></div>
+          <div class="muted">&nbsp;&nbsp;&nbsp;&nbsp; port filtered from outside in ~3 s · rule DELETING in the API ~39 s</div>
           <div><b class="verde">POST</b> /securityGroups/{id}/authorizeFirewallRules <span class="muted">→ 202</span></div>
-          <div><b class="lilas">GET&nbsp;</b> /securityGroups/{id}/firewallRules <span class="muted">until ACTIVE</span></div>
+          <div class="muted">&nbsp;&nbsp;&nbsp;&nbsp; CREATING → ACTIVE in ~7 s</div>
         </div>
-        <div class="destaque verde">Every change is read back. A failure is audited and reported.</div>
-        <div class="mono muted">Base: api.leaseweb.com/publicCloud/v1 · header X-LSW-Auth</div>`),
+        <div class="destaque verde">Measured today. We confirm the close from outside, with nmap, not just the API.</div>
+        <div class="mono muted">api.leaseweb.com/publicCloud/v1 · Frankfurt (eu-central-1) · the account's Default group starts open to all ports</div>`),
     },
     {
       id: 'a-migra',
       ...anexo('A2', 'What migrates today', `
         <div class="tabela-migra">
-          ${[['S3', 'MinIO'], ['SQS', 'RabbitMQ'], ['RDS', 'PostgreSQL'], ['ElastiCache', 'Valkey']]
+          ${[['S3', 'MinIO'], ['SQS', 'RabbitMQ'], ['RDS', 'PostgreSQL'], ['ElastiCache', 'Valkey'], ['Secrets Manager', 'OpenBao']]
             .map(([a, b]) => `<div class="de">${a}</div><div class="seta verde">→</div><div class="para">${b}</div>`)
             .join('')}
           <div class="de">Lambda · IAM</div><div class="seta lilas">→</div><div class="para lilas">flagged: needs redesign</div>
@@ -287,6 +302,22 @@
           <div class="caixa cheia">${rotulo('WITH US', 'verde')}<div>Migrated, with proof</div><div>Doors closed as they open</div><div>Customers arrive secure</div></div>
         </div>
         <div class="mono lilas">Independent · Privately owned · Sovereign-by-design</div>`),
+    },
+    {
+      id: 'a-certificado',
+      ...anexo('A8', 'The migration certificate', `
+        <div class="certificado">
+          <div class="cert-cab"><span class="mono">CERT-YYYYMMDD-HHMM</span><span class="muted">Leaseweb Public Cloud · Frankfurt</span></div>
+          <div class="cert-grelha">
+            <div><b>1 · Where the data lives</b><span>each AWS service → its new home, provider and country</span></div>
+            <div><b>2 · Nothing lost</b><span>files and rows copied, checksums before and after, app tests</span></div>
+            <div><b>3 · What was attacked</b><span>what the attacker found, and when</span></div>
+            <div><b>4 · What was closed</b><span>who approved, at what time, exposure in seconds</span></div>
+            <div><b>5 · How to undo</b><span>every action with its stored inverse</span></div>
+            <div><b>Summary</b><span>three sentences by the AI, from these facts only</span></div>
+          </div>
+        </div>
+        <div class="mono muted">An audit-ready record, not an official certification. Every field comes from the logs.</div>`),
     },
   ].map((a) => ({ ...a, passos: 0, anexo: true }));
 
