@@ -20,7 +20,7 @@ Para cada passo: quem fala, a linha **pensar** (painel), a **mensagem** (Telegra
   · {servico_3} → {destino_3} ({self_ou_gerido_3})
   A VM tem {ram_livre} GB livres. {motivo_regra}
   ```
-- Botões: `Aprovar plano` · `Tudo self-hosted` · `Porquê?`
+- Botões: `Aprovar plano` · `Ignorar` (um só "Aprovar plano" para os 5 serviços)
 
 ## 2. Confirmação
 
@@ -44,7 +44,7 @@ Para cada passo: quem fala, a linha **pensar** (painel), a **mensagem** (Telegra
 ## 4. Atacar
 
 - **Atacante** · pensar: "A ver o que se vê de fora nas nossas máquinas."
-- Terminal: `nmap -Pn -p {portas} {ip_vitima}` → `5432/tcp open`
+- Terminal: `ligação TCP às portas {portas} de {ip_vitima}` → `5432 aberta`
 - Mensagem:
   ```
   Encontrei a base de dados nova aberta a toda a Internet (porta {porta}).
@@ -81,7 +81,7 @@ Para cada passo: quem fala, a linha **pensar** (painel), a **mensagem** (Telegra
   · A app passa a usar a Leaseweb em vez da AWS.
   · Corrigi a configuração que deixava a base de dados aberta, para não voltar no próximo deploy.
   ```
-- Botões: `Aprovar PR` · `Ver alterações`
+- Botões: `Aprovar PR` · `Ignorar`. O "Aprovar PR" faz o merge no repo da app e `/desfazer` abre um PR que reverte. Só com `MIGRADOR_PR=real`; num ensaio o PR é simulado e não há botão.
 
 ## 7. Validar tudo
 

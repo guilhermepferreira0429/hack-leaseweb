@@ -4,7 +4,7 @@ Ver também `agentes-telegram.md`: 4 bots (chefe, migrador, atacante, defesa) nu
 
 Long polling, sem webhook: não precisa de domínio nem HTTPS público.
 
-## Montagem (Carlos, 09:30, cerca de 15 min)
+## Montagem (David, 09:30, cerca de 15 min)
 
 1. No Telegram, falar com `@BotFather` → `/newbot` quatro vezes (chefe, migrador, atacante, defesa) → guardar os tokens em `TELEGRAM_TOKEN_*`. Em cada um, `/setprivacy` → Disable.
    Criar o grupo "Direção", adicionar os 4 bots e o dono.

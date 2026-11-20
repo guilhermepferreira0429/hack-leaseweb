@@ -62,19 +62,24 @@ Tudo no **cérebro**, em contentores separados, definidos em `env/docker-compose
 
 | Contentor | Faz de | Porta (só 127.0.0.1) |
 |---|---|---|
-| `localstack` | "AWS" simulada: S3 e SQS (a origem) | 4566 |
-| `postgres` | Base de dados da `exemplo-app` (faz de RDS) | 5433 |
+| `localstack` | "AWS" simulada: S3, SQS, Secrets Manager e SSM (a origem) | 4566 |
+| `postgres` | Base de dados da `exemplo-app` (faz de RDS, a origem) | 5433 |
+| `postgres-destino` | Destino do RDS na Leaseweb | 5434 |
 | `minio` | Destino do S3 na Leaseweb | 9000 e consola 9001 |
+| `rabbitmq` | Destino da fila SQS na Leaseweb | 5672 e consola 15672 |
+| `redis-origem` | Faz de ElastiCache Redis (a origem) | 6380 |
+| `valkey` | Destino do ElastiCache na Leaseweb | 6381 |
+| `openbao` | Destino dos segredos (Secrets Manager e SSM) na Leaseweb | 8200 |
 
 ```bash
 # no cérebro, na raiz do repo, com o .env preenchido
-npm run infra:up      # sobe os 3 contentores
+npm run infra:up      # sobe os 8 contentores
 docker compose -f env/docker-compose.yml ps
 npm run infra:down    # desliga
 ```
 
 - Tudo ligado só a `127.0.0.1`: o cérebro não expõe nada por engano.
-- A **vítima é sempre outra VM**, com o seu próprio security group: é a porta dela que o atacante encontra e a defesa fecha pela API. Não pode ser o cérebro, porque um `nmap` da própria máquina a si mesma não passa pelo security group.
+- A **vítima é sempre outra VM**, com o seu próprio security group: é a porta dela que o atacante encontra e a defesa fecha pela API. Não pode ser o cérebro, porque uma ligação da própria máquina a si mesma não passa pelo security group.
 - Se a VM da organização sobrar, pode ficar com o `localstack` (a "AWS"), para se ver a passagem de uma máquina para outra.
 - No pitch: "simulámos a AWS com o LocalStack".
 
@@ -83,10 +88,11 @@ npm run infra:down    # desliga
 ```
             ┌─────────────── cérebro ───────────────┐
  "AWS"      │                                       │
- LocalStack │  migrador ──► MinIO / Postgres         │
- (S3,SQS)   │     │ plano + "aprovar?" ─────────────────► Telegram (dono)
+ LocalStack │  migrador ──► MinIO / Postgres /       │
+ + Redis    │     │   RabbitMQ / OpenBao / Valkey      │
+            │     │ plano + "Aprovar plano" ──────────────► Telegram (dono)
             │     ▼ concluído                        │        │ Aprovar / Fechar
-            │  atacante ──► nmap só aos ALVOS ───────────► vítima
+            │  atacante ──► ligação TCP só aos ALVOS ────► vítima
             │     │ achados                          │        │
             │     ▼                                  │        │
             │  defesa ──► LLM (TensorX/sference)     │        │
@@ -94,6 +100,7 @@ npm run infra:down    # desliga
             │     ▼ aprovado                         │
             │  API Leaseweb: remove regra, volta a ler │
             │  nmap: filtered · auditoria.jsonl      │
+            │  migrador ──► PR que corrige a causa   │
             │  painel: linha do tempo + Desfazer     │
             └───────────────────────────────────────┘
 ```
@@ -106,14 +113,20 @@ Os agentes falam entre si por um bus interno (`shared/bus.ts`). O Telegram é s�
 
 ```
 code/
-  shared/      tipos.ts, bus.ts, leaseweb.ts, llm.ts, telegram.ts, auditoria.ts, estado.ts
-  chefe/       resumo.ts (coordena e resume)
-  migrador/    analisar.ts, migrar-dados.ts, verificar.ts
-  atacante/    alvos.ts, reconhecimento.ts
-  defesa/      detetar.ts, explicar.ts, aprovar.ts, corrigir.ts, desfazer.ts
-  painel/      servidor.ts (/, /isco, /estado.json)
-  exemplo-app/ app pequena com S3, Postgres e fila, com testes
-  index.ts     orquestrador
+  shared/      tipos.ts, bus.ts, leaseweb.ts, llm.ts, telegram.ts, auditoria.ts, estado.ts,
+               voz.ts (voz dos agentes), mensagens.ts (textos fixos da demo), relatorio.ts
+  chefe/       resumo.ts, certificado.ts (coordena, resume e escreve o certificado)
+  migrador/    analisar.ts, migrar-dados.ts (S3), migrar-postgres.ts, migrar-fila.ts,
+               migrar-segredos.ts, migrar-cache.ts, verificar.ts
+    tradutor/  Terraform -> plano Leaseweb, decisor de destino, correção do Terraform
+    codigo/    encontra os usos da AWS na app e abre o PR que corrige a causa
+  atacante/    alvos.ts, reconhecimento.ts (ligação TCP), index.ts (passo de senhas SSH),
+               credenciais.ts, segredos.ts, extras.ts
+  defesa/      detetar.ts, explicar.ts, aprovar.ts, corrigir.ts, desfazer.ts, modo-noite.ts,
+               verificar-porta.ts (nmap)
+  painel/      servidor.ts (/, /isco, /estado.json), linha-tempo.ts, certificado.ts
+  exemplo-app/ app pequena que usa serviços da AWS, com dados de exemplo e testes
+  index.ts     orquestrador (liga os módulos); orquestrador.ts (a lógica)
 ```
 
 ## Portas sensíveis
