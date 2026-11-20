@@ -404,8 +404,36 @@ function htmlLogs(eventos: EventoAuditoria[]): string {
 <div class="dica">follows the active agent · switches on handoff</div></section>`;
 }
 
-/** O ecrã v2. `token` liga o botão Undo (PAINEL_TOKEN); `local` é onde ficam os dados (LOCAL_DADOS). */
-export function renderizarV2(pedidos: Pedido[], todos: EventoAuditoria[], opcoes: { token?: string; local?: string; agora?: Date } = {}): string {
+/**
+ * Pedido vindo da própria máquina (ou por túnel SSH, que chega como 127.0.0.1). Só esta vista tem os botões e o
+ * token: com o painel aberto ao mundo (PAINEL_HOST=0.0.0.0), quem abre a página de fora não leva o token.
+ */
+export function pedidoLocal(req: IncomingMessage): boolean {
+  const ip = req.socket.remoteAddress ?? '';
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+
+/** Botões Start (POST /iniciar) e Reset (POST /limpar), com o token, como o Undo. */
+function htmlControlos(token: string, aCorrer?: 'demo' | 'reset'): string {
+  const form = (acao: string, rotulo: string, classe: string, desligado: boolean) =>
+    `<form method="post" action="${acao}" style="margin:0"><input type="hidden" name="token" value="${escapar(token)}"><button class="bt ${classe}"${desligado ? ' disabled' : ''}>${rotulo}</button></form>`;
+  const estadoTexto = aCorrer === 'demo' ? '● Running…' : aCorrer === 'reset' ? '● Resetting…' : '';
+  return (
+    (estadoTexto ? `<span class="desc">${estadoTexto}</span>` : '') +
+    form('/iniciar', '▶ Start', 'desc', Boolean(aCorrer)) +
+    form('/limpar', '⟲ Reset', 'desf', aCorrer === 'reset')
+  );
+}
+
+/**
+ * O ecrã v2. `token` liga os botões Undo, Start e Reset (PAINEL_TOKEN; só na vista local);
+ * `local` é onde ficam os dados (LOCAL_DADOS); `aCorrer` mostra se há uma corrida ou um reset a decorrer.
+ */
+export function renderizarV2(
+  pedidos: Pedido[],
+  todos: EventoAuditoria[],
+  opcoes: { token?: string; local?: string; agora?: Date; aCorrer?: 'demo' | 'reset' } = {},
+): string {
   const agora = opcoes.agora ?? new Date();
   const eventos = cicloAtual(todos);
   const fecho = provas(eventos).ultimoFecho;
@@ -418,7 +446,7 @@ export function renderizarV2(pedidos: Pedido[], todos: EventoAuditoria[], opcoes
 <div class="topo"><div class="marca"><div class="kicker">InfraHack · Leaseweb · live</div><h1>Migrate without being exposed</h1></div>${htmlRelogio(todos, agora)}</div>
 ${htmlResidencia(opcoes.local || 'Leaseweb')}
 <div class="corpo">${htmlCadeia(eventos)}${htmlServicos(eventos, opcoes.local || 'Leaseweb', agora)}${htmlLogs(eventos)}</div>
-<div class="rodape"><span>Everything comes from auditoria.jsonl and estado.json</span><div class="bts"><div class="modo" id="modo" title="Plain words for a non-technical owner, or the real tool names"><button data-m="simples">Simple</button><button data-m="tecnico">Technical</button></div><a class="bt desc" href="/relatorio.pdf" download>⤓ Download report (PDF)</a>${desfazer}</div></div>
+<div class="rodape"><span>Everything comes from auditoria.jsonl and estado.json</span><div class="bts"><div class="modo" id="modo" title="Plain words for a non-technical owner, or the real tool names"><button data-m="simples">Simple</button><button data-m="tecnico">Technical</button></div><a class="bt desc" href="/relatorio.pdf" download>⤓ Download report (PDF)</a>${desfazer}${opcoes.token ? htmlControlos(opcoes.token, opcoes.aCorrer) : ''}</div></div>
 <script>
 const r=document.querySelector('.relogio[data-inicio]');
 if(r){const i=Date.parse(r.dataset.inicio),f=r.dataset.fim?Date.parse(r.dataset.fim):0,seg=r.querySelector('.seg');
@@ -442,11 +470,13 @@ document.querySelectorAll('#modo button').forEach(b=>b.addEventListener('click',
 </script></body></html>`;
 }
 
-export async function paginaV2(req: IncomingMessage, res: ServerResponse): Promise<void> {
+export async function paginaV2(req: IncomingMessage, res: ServerResponse, extra: { aCorrer?: 'demo' | 'reset' } = {}): Promise<void> {
   carregarEnv();
+  // O token (e com ele os botões) só vai para a vista local: de fora, a página é só para ver.
+  const token = pedidoLocal(req) ? (process.env.PAINEL_TOKEN ?? '') : '';
   res
     .writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-    .end(renderizarV2(estado.listarPedidos(), auditoria.ler(), { token: process.env.PAINEL_TOKEN ?? '', local: process.env.LOCAL_DADOS || undefined }));
+    .end(renderizarV2(estado.listarPedidos(), auditoria.ler(), { token, local: process.env.LOCAL_DADOS || undefined, aCorrer: extra.aCorrer }));
 }
 
 /** GET /relatorio.pdf: o relatório A4 do chefe (certificado + incidentes) do ciclo atual, em PDF, como ficheiro. */

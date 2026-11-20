@@ -7,6 +7,7 @@
 //   npm run dev -- --sem-fila           salta o passo SQS -> RabbitMQ (se o contentor rabbitmq não estiver no ar)
 //   npm run dev -- --sem-segredos       salta o passo Secrets Manager/SSM -> OpenBao
 //   npm run dev -- --sem-cache          salta o passo ElastiCache Redis -> Valkey
+//   npm run dev -- --sem-painel         sem painel próprio (a corrida lançada pelo Start do painel)
 // A lógica está em orquestrador.ts; aqui só se ligam os módulos reais.
 import { existsSync, readFileSync, statfsSync } from "node:fs";
 import { availableParallelism, freemem } from "node:os";
@@ -123,11 +124,14 @@ async function main(): Promise<void> {
   const canal = consola ?? { telegram, bus };
 
   const porta = Number(process.env.PORT ?? 3000);
-  const painel = iniciarPainel(porta, {
-    desfazer: (id) => defesa.desfazer(id, canal.telegram.notificar),
-  });
+  // --sem-painel: a corrida lançada pelo botão Start do painel (o painel é outro processo e lê a auditoria).
+  const painel = args.has("--sem-painel")
+    ? undefined
+    : iniciarPainel(porta, {
+        desfazer: (id) => defesa.desfazer(id, canal.telegram.notificar),
+      });
   // Um painel que já esteja a correr na mesma porta não pode matar a demo: avisa e segue sem este painel.
-  painel.on("error", (erro: NodeJS.ErrnoException) => {
+  painel?.on("error", (erro: NodeJS.ErrnoException) => {
     if (erro.code === "EADDRINUSE") {
       console.warn(`[orquestrador] a porta ${porta} já está ocupada (outro painel?). A demo segue sem este painel; usa PORT=<outra>.`);
     } else {
@@ -239,7 +243,7 @@ async function main(): Promise<void> {
 
   if (args.has("--uma-vez")) {
     consola?.fechar();
-    painel.close();
+    painel?.close();
     // Sem isto o long polling continua e o processo fica a "roubar" os updates dos bots ao próximo orquestrador.
     if (!consola) telegram.pararPolling();
     return;
