@@ -1,6 +1,8 @@
 // Painel HTTP no cérebro. Por omissão escuta só em 127.0.0.1 (ver por túnel: ssh -L 3000:localhost:3000 ...).
 // Abrir de fora só de propósito: PAINEL_HOST=0.0.0.0 com o security group fechado ao nosso IP.
-//   GET  /             linha do tempo: migrar -> atacar -> aprovar -> fechar, relógio de exposição, botão Desfazer
+//   GET  /             ecrã da demo v2 (inglês): cadeia dos agentes, serviços, logs ao vivo, relógio, Undo e Download
+//   GET  /v1           o ecrã anterior (linha do tempo), mantido como recurso
+//   GET  /relatorio.html  o relatório A4 do ciclo (certificado + incidentes) como ficheiro para descarregar
 //   GET  /isco         contador de tentativas de entrada na VM isco (abertura do pitch); ?json para números
 //   GET  /palco        o ecrã para o júri (inglês, uma tela, números grandes)
 //   GET  /certificado  certificado de migração (ecrã e impressão)
@@ -13,6 +15,7 @@ import { paginaCertificado } from './certificado';
 import { paginaIsco } from './isco';
 import { paginaPalco } from './palco';
 import { paginaLinhaTempo, estadoJson } from './linha-tempo';
+import { paginaRelatorio, paginaV2 } from './v2';
 
 type Rota = (req: IncomingMessage, res: ServerResponse) => Promise<void>;
 
@@ -23,7 +26,9 @@ export interface OpcoesPainel {
 }
 
 const ROTAS: Record<string, Rota> = {
-  '/': paginaLinhaTempo,
+  '/': paginaV2,
+  '/v1': paginaLinhaTempo,
+  '/relatorio.html': paginaRelatorio,
   '/isco': paginaIsco,
   '/estado.json': estadoJson,
   '/certificado': paginaCertificado,
