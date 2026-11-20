@@ -87,7 +87,7 @@ Tap **Approve plan**. The Chief confirms:
 The approval covers the five copy steps; they are not asked one by one. The dashboard moves to the migration
 phase.
 
-![The jury screen at /palco](docs/media/painel-palco.png)
+![The jury screen at /palco](media/painel-palco.png)
 
 _The `/palco` screen during a run._
 
@@ -131,7 +131,7 @@ explanation is used.
 
 The Attacker waits for the decision between rounds. That is why the SSH step usually appears after the close.
 
-![The attack and the detection](docs/media/attack-detection.png)
+![The attack and the detection](media/attack-detection.png)
 
 _The attack-to-detection moment._
 
@@ -160,7 +160,7 @@ available. `/certificado` already has the close in section 3.
 If the close cannot be confirmed, the Defender says so and nothing is marked as done. Do not approve a second
 time; check the dashboard and the API state.
 
-![The dashboard after the close](docs/media/painel-timeline.png)
+![The dashboard after the close](media/painel-timeline.png)
 
 _The engineering view at `/` after the close: stopped clock, proofs and Undo._
 
