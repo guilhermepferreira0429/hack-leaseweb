@@ -5,6 +5,6 @@ dist/
 .env
 .env.*
 !.env.example
-auditoria.jsonl
+auditoria*.jsonl*
 docs/material/design/images/worten.pt/*
 docs/material/design/fonts/worten.pt/*
