@@ -69,7 +69,7 @@ que encontrou (reconhecimento, SSH, extras) e a defesa deteta e pede aprovação
 1. `⚔️ Ataque iniciado contra <alvo>`
 2. `👁️ Reconhecimento: …` — ligações TCP às 13 portas sensíveis de `PORTAS_ALVO` (SSH, bases de dados,
    Redis, Elasticsearch, RDP, …); `ATACANTE_IGNORAR_PORTAS` tira portas. Só ao alvo permitido.
-3. `✅/❌ SSH: …` — adivinhação de palavra-passe limitada: no máximo 20 tentativas, pausa de 800 ms, para na
+3. `✅/❌ SSH: …` — adivinhação de palavra-passe limitada: no máximo 5 tentativas, pausa de 800 ms, para na
    primeira entrada. A palavra-passe nunca é publicada; só o utilizador e o número de tentativas.
 4. `🧪 Extras: …` — só com `ATACANTE_EXTRAS=1`: TLS/cabeçalhos, credenciais de fábrica, bucket público e
    segredos no código da app de exemplo. Tudo de leitura.
