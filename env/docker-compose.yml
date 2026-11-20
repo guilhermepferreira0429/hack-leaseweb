@@ -2,6 +2,8 @@
 #   LocalStack (S3, SQS)   -> a origem
 #   Postgres               -> base de dados da exemplo-app (faz de RDS)
 #   MinIO                  -> destino do S3 na Leaseweb
+#   Postgres-destino       -> destino do RDS na Leaseweb
+#   RabbitMQ               -> destino da fila SQS na Leaseweb
 # npm run infra:up   (lê o .env da raiz)
 # Tudo ligado só a 127.0.0.1: a única porta aberta de propósito na demo é a da VM vítima.
 services:
@@ -46,6 +48,16 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?definir no .env}
     volumes:
       - minio:/data
+
+  # Destino da fila SQS na Leaseweb (nível B). Nunca guest/guest: é a credencial de fábrica que o atacante testa.
+  rabbitmq:
+    image: rabbitmq:4.1.8-management
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?definir no .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?definir no .env}
 
 volumes:
   minio:
