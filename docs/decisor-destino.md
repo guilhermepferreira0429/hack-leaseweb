@@ -74,7 +74,7 @@ Preços sem IVA. "A confirmar" = o serviço existe mas não encontrámos o preç
 | Objetos (S3) | Object Storage com compromisso (desde 500 GB) | € 0,01485/GB/mês | leaseweb.com/object-storage |
 | Balanceador (ELB) | Load balancer como serviço (HAProxy), corre numa instância | Preço da instância escolhida | kb.leaseweb.com (load balancer of Public Cloud) |
 | Kubernetes (EKS) | Managed Kubernetes | Gestão sem custo extra; base € 21,60/mês; vCPU € 0,0038/h, RAM € 0,0019/GB/h | leaseweb.com/en/configure/vc/product/entityKey/KUBERNETES/2001 |
-| CDN (CloudFront) | Leaseweb CDN | A confirmar (listagens de terceiros dão desde cerca de 0,01 $/GB) | Confirmar com a Leaseweb |
+| CDN (CloudFront) | Leaseweb CDN | A confirmar com a Leaseweb (listagens de terceiros dão cerca de 0,01 $/GB; plano pay-as-you-go antigo a € 49/mês com 2 TB) | Confirmar com a Leaseweb |
 | Bases de dados geridas | **Não encontrámos** na Public Cloud | — | Confirmar no dia com a Leaseweb |
 
 ### Serviços geridos europeus quando a Leaseweb não tem
@@ -95,6 +95,15 @@ Preços sem IVA. "A confirmar" = o serviço existe mas não encontrámos o preç
 | Secrets Manager | Scaleway | Secret Manager | A confirmar | scaleway.com/en/docs/secret-manager/faq |
 | ECR | Scaleway | Container Registry (paga-se o armazenado; entrada grátis) | A confirmar | scaleway.com/en/pricing/containers |
 | ELB | OVHcloud | Load Balancer | 6,94 $/mês | pricingsaas.com/companies/ovhcloud.publiccloud |
+| CloudFront (CDN) | **Bunny.net** (Eslovénia) | Standard, Europa e América do Norte | 0,01 $/GB; mínimo 1 $/mês | bunny.net/pricing |
+| CloudFront (CDN) | Gcore (Luxemburgo) | Free: 1 TB/mês incluído | 0 €; excedente 0,030 €/GB | whtop.com/plans/gcore.com/119338 |
+| CloudFront (CDN) | Gcore (Luxemburgo) | Start: 1,5 TB incluídos | 35 €/mês; excedente 0,023 €/GB | whtop.com/plans/gcore.com/88673 |
+| Route 53 (DNS) | Bunny.net | Bunny DNS | Incluído (grátis) | bitdoze.com/bunny-net-review |
+| S3 + CDN (ficheiros estáticos) | Bunny.net | Bunny Storage, 1 região | 0,01 $/GB/mês | bitdoze.com/bunny-net-review |
+| Lambda | Scaleway | Serverless Functions | € 0,15 por 1M pedidos após 1M grátis; € 0,50 por 100k GB-s após 400k GB-s grátis | scaleway.com/en/pricing/serverless |
+| Fargate / App Runner | Scaleway | Serverless Containers | Memória € 0,10 por 100k GB-s; vCPU € 1,0 por 100k vCPU-s (com free tier) | scaleway.com/fr/tarifs/serverless |
+| Cognito | Clever Cloud (França) | Keycloak as a Service | desde € 47/mês | clever-cloud.com (PDF Keycloak as a Service, jul/2026) |
+| Cognito | Cloud-IAM (França) | Keycloak gerido; grátis até 100 utilizadores (sem SLA, alojado na AWS) | Pagos a confirmar | europeanpurpose.com/tool/cloud-iam |
 | S3 (comparação) | Exoscale | Object Storage Standard | € 0,0184/GB/mês | exoscale.com/object-storage/classes |
 | S3 (comparação) | OVHcloud | Object Storage Standard | 8,3 $/TiB/mês | pricingsaas.com/companies/ovhcloud.publiccloud |
 
@@ -105,6 +114,8 @@ Preços sem IVA. "A confirmar" = o serviço existe mas não encontrámos o preç
   - não crítico e cabe na VM → **self-hosted na Leaseweb** (tabela de recursos acima);
   - crítico ou não cabe → **o gerido europeu mais barato desta tabela**, com o preço e a data.
 - Preço "a confirmar" → mostrar o fornecedor, dizer "preço a confirmar" e não fazer contas.
+- **CDN:** a Leaseweb tem CDN, por isso é a primeira escolha; se o preço não estiver confirmado, mostrar a Bunny.net como alternativa europeia com preço.
+- **Identidade (Cognito):** self-hosted Keycloak só se houver quem o mantenha; senão Keycloak gerido europeu. Cuidado: o plano grátis da Cloud-IAM corre na AWS, por isso não serve para soberania.
 
 ## Mensagem no Telegram (modelo)
 
