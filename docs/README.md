@@ -10,7 +10,7 @@ Ordem de leitura:
 6. `ferramentas.md`: catálogo de ferramentas por níveis.
 7. `agentes-telegram.md`: falar com os agentes no Telegram.
 8. `leaseweb-api.md` e `telegram.md`: integrações.
-9. `demo.md` e `pitch.md`: o que se mostra.
+9. `demo.md`: o guião da demo. O plano do pitch está em `notas-equipa/pitch.md` (interno).
 10. `riscos.md`.
 11. `decisor-destino.md`: regras e preços para o migrador decidir self-hosted ou gerido europeu.
 12. `perguntas-juri.md`: perguntas difíceis e respostas de 20 segundos, para treinar.
