@@ -326,7 +326,7 @@
   background: #0e1733;
   border: 2px solid var(--linha);
   border-radius: 36px;
-  padding: 24px;
+  padding: 20px;
   box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.7);
 }
 .tl-cab {
@@ -359,12 +359,12 @@
 .tl-conversa {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 .tl-msg {
   background: var(--fundo-2);
   border-radius: 6px 20px 20px 20px;
-  padding: 14px 20px;
+  padding: 12px 18px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -389,6 +389,9 @@
 .tl-msg b {
   font-size: 18px;
 }
+.tl-msg span {
+  white-space: pre-line;
+}
 .tl-botao {
   align-self: flex-start;
   margin-top: 8px;
@@ -399,6 +402,14 @@
   border: 2px solid var(--verde);
   border-radius: 10px;
   padding: 4px 14px;
+}
+.tl-botoes {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.tl-botoes .tl-botao {
+  margin-top: 0;
 }
 
 /* ---------- demo: barra de progresso e passo atual a respirar ---------- */

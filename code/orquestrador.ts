@@ -68,6 +68,11 @@ export interface Dependencias {
     iniciarAtaque?(opcoes: {
       alvo?: string;
       log?: (texto: string) => void;
+      /** A defesa reage entre rondas (reconhecimento/extras) antes da tentativa seguinte. */
+      aoRonda?: (ronda: {
+        nome: "reconhecimento" | "extras";
+        achados: Achado[];
+      }) => Promise<void> | void;
     }): Promise<unknown>;
   };
   migrador: {
@@ -177,6 +182,13 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   const achadosDoCiclo = new Set<string>();
   /** Temporizadores do modo noite, por pedido da defesa. Saem quando o dono decide. */
   const noite = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Ataque lançado ao aprovar o plano: corre em paralelo com a migração. */
+  let ataqueDoPlano: Promise<unknown> | undefined;
+  /** Resultados da defesa que correu entre rondas do ataque. */
+  const resultadosDuranteAtaque: Promise<Resultado>[] = [];
+  /** Achados que o atacante encontrou nas rondas (a porta pode já estar fechada quando o ciclo segue). */
+  const achadosDuranteAtaque: Achado[] = [];
+  let pensouAtacar = false;
 
   const hora = () => agora().toISOString();
   const horaCurta = () =>
@@ -324,11 +336,41 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     if (pedido.acao.tipo === "migrar") {
       concluir(pedidoId, "aprovado");
       // Plano aprovado: o atacante começa já, enquanto o migrador copia (o fluxo vê-se seguido no grupo).
+      // Entre rondas, a defesa deteta e pede aprovação; o atacante só continua depois de a defesa agir.
       if (opcoes.atacar && deps.atacante.iniciarAtaque) {
-        void deps.atacante
+        ataqueDoPlano = deps.atacante
           .iniciarAtaque({
             alvo: opcoes.alvos[0],
             log: (texto) => log("atacante:", texto),
+            aoRonda: async (ronda) => {
+              if (ronda.achados.length === 0) return;
+              if (!pensouAtacar) {
+                pensar("atacar");
+                pensouAtacar = true;
+              }
+              // O atacante anuncia o que encontrou; a defesa responde já a seguir (no grupo).
+              falar("atacante", "dono", textoAtacante(ronda.achados));
+              achadosDuranteAtaque.push(...ronda.achados);
+              if (ronda.nome === "reconhecimento")
+                auditar({
+                  pedidoId: "-",
+                  tipo: "reconhecimento",
+                  quem: "atacante",
+                  depois: {
+                    alvos: opcoes.alvos,
+                    achados: ronda.achados.length,
+                    portas: ronda.achados.map((a) => ({
+                      alvo: a.alvo,
+                      porta: a.porta,
+                      servico: a.servico,
+                    })),
+                  },
+                });
+              const resultados = await faseDefender(ronda.achados);
+              resultadosDuranteAtaque.push(...resultados);
+              // O atacante espera pela decisão do dono: a tentativa e o fecho ficam lado a lado no grupo.
+              await comLimite(Promise.all(resultados));
+            },
           })
           .catch((erro) =>
             log(
@@ -924,7 +966,7 @@ ${resumo}`,
     return pedido;
   }
 
-  async function faseAtacar(): Promise<Achado[]> {
+  async function faseAtacar(falarTexto = true): Promise<Achado[]> {
     pensar("atacar");
     const achados = await deps.atacante.reconhecer(opcoes.alvos);
     auditar({
@@ -941,7 +983,8 @@ ${resumo}`,
         })),
       },
     });
-    falar("atacante", "defesa", textoAtacante(achados));
+    // Com a defesa já a ter reagido entre rondas, "não encontrei portas" seria enganador.
+    if (falarTexto) falar("atacante", "defesa", textoAtacante(achados));
     return achados;
   }
 
@@ -963,7 +1006,9 @@ ${resumo}`,
       log("correlacionar falhou, a usar só os achados da API:", mensagem(erro));
       achados = daApi;
     }
-    const acionaveis = achados.filter((a) => deps.defesa.acaoPara(a));
+    const acionaveis = achados.filter(
+      (a) => deps.defesa.acaoPara(a) && !achadosDoCiclo.has(a.id),
+    );
     if (acionaveis.length === 0) {
       falar(
         "defesa",
@@ -1006,16 +1051,26 @@ ${resumo}`,
       );
       await faseMigrar().catch((e) => falha("migração", e));
     }
+    // Se o ataque foi lançado ao aprovar o plano, esperar por ele antes de resumir.
+    if (ataqueDoPlano) await ataqueDoPlano;
     // Daqui em diante a infraestrutura nova conta como "no ar": é o início do relógio de exposição (ideia wow 2).
     auditar({ pedidoId: "-", tipo: "infra-no-ar", quem: "orquestrador" });
     let doAtacante: Achado[] = [];
-    if (opcoes.atacar)
-      doAtacante = await faseAtacar().catch(
-        async (e) => (await falha("reconhecimento", e), []),
-      );
-    const resultados = await faseDefender(doAtacante);
+    if (opcoes.atacar) {
+      if (resultadosDuranteAtaque.length > 0) {
+        // O atacante já encontrou e a defesa já reagiu na ronda; não se repete o reconhecimento.
+        doAtacante = achadosDuranteAtaque;
+      } else {
+        doAtacante = await faseAtacar().catch(
+          async (e) => (await falha("reconhecimento", e), []),
+        );
+      }
+    }
+    const resultados =
+      resultadosDuranteAtaque.length > 0 ? [] : await faseDefender(doAtacante);
+    const todosOsResultados = [...resultadosDuranteAtaque, ...resultados];
     // Os pedidos sem resposta ficam "por decidir" no resumo; um Aprovar tardio ainda fecha (foi um humano).
-    if ((await comLimite(Promise.all(resultados))) === "sem-resposta")
+    if ((await comLimite(Promise.all(todosOsResultados))) === "sem-resposta")
       log("há pedidos sem resposta; resumo na mesma");
     if (codigoPorFazer) {
       const { planoId, testesOk } = codigoPorFazer;
@@ -1095,18 +1150,14 @@ ${resumo}`,
   function ligar(): void {
     try {
       deps.telegram.aoResponder((id, decisao, quem) => {
-        aoResponder(id, decisao, quem).catch((e) =>
-          falha("owner answer", e),
-        );
+        aoResponder(id, decisao, quem).catch((e) => falha("owner answer", e));
       });
     } catch (erro) {
       void falha("ligar as respostas do dono (aoResponder)", erro);
     }
     try {
       deps.telegram.aoMensagemDoDono((agente, texto) => {
-        aoMensagemDoDono(agente, texto).catch((e) =>
-          falha("owner message", e),
-        );
+        aoMensagemDoDono(agente, texto).catch((e) => falha("owner message", e));
       });
     } catch (erro) {
       void falha("ligar as mensagens do dono (aoMensagemDoDono)", erro);

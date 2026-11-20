@@ -112,11 +112,11 @@
       passos: 0,
       html: () => {
         const msgs = [
-          ['Migrator', '', 'Found S3, Postgres and SQS. Plan: MinIO, PostgreSQL and RabbitMQ, on your server.', 'Approve plan'],
-          ['Attacker', 'lilas', 'The new database answers anyone on the internet. Port 5432. High. @defense', ''],
-          ['Defense', 'verde', 'Your customer database is open to the whole internet. I propose closing it to outside access.', 'Close'],
-          ['Defense', 'verde', 'Closed and confirmed from outside. Undo is saved.', ''],
-          ['Chief', '', 'Migration complete and secure. Nothing left the EU.', ''],
+          ['Migrator', '', 'I found 3 AWS services in the app: S3, Postgres, SQS.\nProposal: MinIO, PostgreSQL and RabbitMQ, all self-hosted.', 'Approve plan'],
+          ['Attacker', 'lilas', 'The new database is open to the whole internet (port 5432).\nSeverity: high. Anyone can try to get in. @defesa', ''],
+          ['Defense', 'verde', 'Your customer database is open to the whole internet. Someone outside can guess the password and get in.\nI propose closing outside access. Undo is saved.', 'Close'],
+          ['Defense', 'verde', 'Closed and confirmed. Time exposed: T seconds.\nUndo saved: /desfazer', ''],
+          ['Chief', '', 'In X min we moved from AWS to Leaseweb, closed one issue and fixed the cause. Nothing left the EU.', ''],
         ];
         return `
         <div class="lado-a-lado para-quem">
@@ -133,7 +133,7 @@
                 <div class="tl-msg" style="--m:${i}">
                   <b class="${cor}">${quem}</b>
                   <span>${texto}</span>
-                  ${botao ? `<em class="tl-botao">${botao}</em>` : ''}
+                  ${botao ? `<span class="tl-botoes"><em class="tl-botao">${botao}</em><em class="tl-botao">Ignore</em></span>` : ''}
                 </div>`,
                 )
                 .join('')}
@@ -212,7 +212,7 @@
           </div>
           <div class="camadas">
             <div ${E(10, 'camada')}><span class="rotulo">YOUR SERVER · SELF-HOSTED</span><span>MinIO · PostgreSQL · RabbitMQ · OpenBao · Valkey</span></div>
-            <div ${E(11, 'camada')}><span class="rotulo verde">PROVIDER · LEASEWEB API</span><span class="mono"><b class="verde">revoke</b>FirewallRules closes in ~3 s · <b class="lilas">authorize</b>FirewallRules puts it back</span></div>
+            <div ${E(11, 'camada')}><span class="rotulo verde">PROVIDER · LEASEWEB API</span><span class="mono"><b class="verde">One call</b> closes a door. <b class="lilas">One call</b> opens it again. Seconds, measured today.</span></div>
           </div>
         </div>`,
     },
@@ -272,10 +272,10 @@
       passos: 0,
       html: () => `
         <div class="centro-v fecho">
-          <div ${E(0, 'sub lilas')}>Sovereignty without security just moves the problem.</div>
+          <div ${E(0, 'sub lilas')}>The safe way out of a hyperscaler.</div>
           <div class="frase-xxl">
-            <div ${E(2)}>Open source.</div>
-            <div ${E(4, 'verde sublinha')}>Ready to continue.</div>
+            <div ${E(2)}>Leave in minutes.</div>
+            <div ${E(4, 'verde sublinha')}>Close in seconds.</div>
           </div>
           <div ${E(8, 'pedido-final')}>${rotulo('OUR ASK', 'lilas')}<span>Make this the safe way in to Leaseweb.</span></div>
           <div ${E(10, 'equipa')}>${window.CONFIG.equipa.join(' · ')}</div>

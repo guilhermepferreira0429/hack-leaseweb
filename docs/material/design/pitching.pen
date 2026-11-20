@@ -628,6 +628,7 @@
                   "id": "QlyWo",
                   "name": "Node Migrator",
                   "width": "fill_container",
+                  "height": 190,
                   "cornerRadius": 16,
                   "stroke": "$line",
                   "strokeWidth": 2,
@@ -679,6 +680,7 @@
                   "id": "mgFgE",
                   "name": "Node Attacker",
                   "width": "fill_container",
+                  "height": 190,
                   "cornerRadius": 16,
                   "stroke": "$purple",
                   "strokeWidth": 2,
@@ -730,6 +732,7 @@
                   "id": "GrnyT",
                   "name": "Node Defense",
                   "width": "fill_container",
+                  "height": 190,
                   "cornerRadius": 16,
                   "stroke": "$green",
                   "strokeWidth": 2,
@@ -781,6 +784,7 @@
                   "id": "daVlm",
                   "name": "Node You",
                   "width": "fill_container",
+                  "height": 190,
                   "fill": "$bg-2",
                   "cornerRadius": 16,
                   "stroke": "$line",
@@ -833,6 +837,7 @@
                   "id": "k2nQQ4",
                   "name": "Node Leaseweb API",
                   "width": "fill_container",
+                  "height": 190,
                   "cornerRadius": 16,
                   "stroke": "$green",
                   "strokeWidth": 2,
@@ -936,9 +941,9 @@
                       "id": "nzgfP",
                       "name": "Text",
                       "fill": "$text",
-                      "content": "revokeFirewallRules closes in ~3 s · authorizeFirewallRules puts it back",
+                      "content": "One call closes a door. One call opens it again. Seconds, measured today.",
                       "fontFamily": "$font-mono",
-                      "fontSize": 28
+                      "fontSize": 26
                     }
                   ]
                 }
@@ -1481,7 +1486,7 @@
               "id": "s1g2nv",
               "name": "Thesis",
               "fill": "$purple",
-              "content": "Sovereignty without security just moves the problem.",
+              "content": "The safe way out of a hyperscaler.",
               "fontFamily": "$font-sans",
               "fontSize": 44,
               "fontWeight": "500"
@@ -1497,7 +1502,7 @@
                   "id": "ByPrV",
                   "name": "Line 1",
                   "fill": "$text",
-                  "content": "Open source.",
+                  "content": "Leave in minutes.",
                   "lineHeight": 1.02,
                   "fontFamily": "$font-sans",
                   "fontSize": 160,
@@ -1509,7 +1514,7 @@
                   "id": "bPGcD",
                   "name": "Line 2",
                   "fill": "$green",
-                  "content": "Ready to continue.",
+                  "content": "Close in seconds.",
                   "lineHeight": 1.02,
                   "fontFamily": "$font-sans",
                   "fontSize": 160,
@@ -1560,7 +1565,7 @@
                   "id": "Fif6P",
                   "name": "Team",
                   "fill": "$text",
-                  "content": "Guilherme · David · Enio Carlos",
+                  "content": "Guilherme Ferreira · David Vieira · Énio Carlos",
                   "fontFamily": "$font-sans",
                   "fontSize": 32,
                   "fontWeight": "600"

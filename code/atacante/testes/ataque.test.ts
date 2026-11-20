@@ -87,4 +87,23 @@ describe('atacante/iniciarAtaque', () => {
     assert.deepEqual(ordem, ['recon', 'ssh', 'extras', 'segredos']);
     assert.ok(mensagens.some((m) => m.startsWith('🧪 Extras:')));
   });
+
+  it('chama a defesa entre rondas, antes da tentativa seguinte', async () => {
+    const { deps, ordem } = preparar();
+    const rondas: string[] = [];
+    const r = await iniciarAtaque(
+      {
+        alvo: '203.0.113.10',
+        extras: true,
+        aoRonda: (ronda) => {
+          rondas.push(`${ronda.nome}:${ronda.achados.length}`);
+          ordem.push(`defesa-${ronda.nome}`);
+        },
+      },
+      deps,
+    );
+    assert.equal(r.estado, 'feito');
+    assert.deepEqual(rondas, ['reconhecimento:1', 'extras:0']);
+    assert.deepEqual(ordem, ['recon', 'defesa-reconhecimento', 'ssh', 'extras', 'defesa-extras', 'segredos']);
+  });
 });

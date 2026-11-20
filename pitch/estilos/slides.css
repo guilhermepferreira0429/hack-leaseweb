@@ -357,7 +357,7 @@
 /* ---------- como funciona ---------- */
 .fluxo {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 20px;
 }
 .no {
@@ -393,6 +393,10 @@
 .seta {
   font: 40px var(--mono);
   color: var(--muted);
+}
+.fluxo > .seta {
+  display: flex;
+  align-items: center;
 }
 .chamadas,
 .codigo {
