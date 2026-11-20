@@ -42,9 +42,19 @@ explicar(achado: Achado): Promise<string>   // 3 frases, timeout 20 s, recurso t
 ```
 
 ```ts
+// shared/bus.ts  (conversa entre agentes; não passa pelo Telegram)
+type Agente = 'chefe' | 'migrador' | 'atacante' | 'defesa';
+type Mensagem = { de: Agente; para: Agente | 'dono' | 'todos'; texto: string; pedido?: Pedido };
+enviar(m: Mensagem): void            // entrega internamente e publica no grupo pelo bot de 'de'
+aoReceber(a: Agente, cb: (m: Mensagem) => void): void
+```
+
+```ts
 // shared/telegram.ts  (long polling, sem webhook)
-pedirAprovacao(pedido: Pedido): Promise<void>        // mensagem com botões: "Aprovar" / "Ignorar"
+falar(agente: Agente, texto: string): Promise<void>  // publica no grupo com o bot desse agente
+pedirAprovacao(agente: Agente, pedido: Pedido): Promise<void>  // botões "Aprovar" / "Ignorar"
 aoResponder(cb: (pedidoId: string, decisao: 'aprovar' | 'ignorar', quem: string) => void): void
+aoMensagemDoDono(cb: (agente: Agente | null, texto: string) => void): void  // privado ou com menção
 notificar(texto: string): Promise<void>
 // comandos: /estado, /desfazer <pedidoId>
 ```

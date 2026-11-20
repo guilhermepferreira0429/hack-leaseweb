@@ -32,11 +32,14 @@ Se a conta Leaseweb falhar, a VM que a organização dá serve de cérebro.
 
 Um só processo Node no cérebro: um orquestrador chama os módulos e o painel lê o estado e a auditoria. Simples de pôr a correr e de mostrar.
 
+Os agentes falam entre si por um bus interno (`shared/bus.ts`). O Telegram é só o palco: cada agente tem o seu bot e publica a sua fala no grupo "Direção". Ver `agentes-telegram.md`.
+
 ## Pastas
 
 ```
 code/
-  shared/      tipos.ts, leaseweb.ts, llm.ts, telegram.ts, auditoria.ts, estado.ts
+  shared/      tipos.ts, bus.ts, leaseweb.ts, llm.ts, telegram.ts, auditoria.ts, estado.ts
+  chefe/       resumo.ts (coordena e resume)
   migrador/    analisar.ts, migrar-dados.ts, verificar.ts
   atacante/    alvos.ts, reconhecimento.ts
   defesa/      detetar.ts, explicar.ts, aprovar.ts, corrigir.ts, desfazer.ts
