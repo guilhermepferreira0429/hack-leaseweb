@@ -19,7 +19,7 @@ O dono não fala com um sistema: fala com uma equipa. Cada agente tem o seu bot 
 
 ## Exemplo da conversa no grupo (a demo)
 
-> **Migrador:** Encontrei 3 serviços AWS na app: S3, Postgres e SQS. Proponho MinIO, Postgres e NATS na Leaseweb. [Aprovar] [Ver plano]
+> **Migrador:** Encontrei 3 serviços AWS na app: S3, Postgres e SQS. Proponho MinIO, Postgres e RabbitMQ na Leaseweb. [Aprovar] [Ver plano]
 > *(dono aprova)*
 > **Migrador:** 1.204 ficheiros copiados, checksums iguais, testes a passar dos dois lados. @atacante, a infraestrutura nova está no ar.
 > **Atacante:** Recebido. A base de dados nova responde a qualquer pessoa na Internet, porta 5432. Gravidade alta. @defesa

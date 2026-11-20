@@ -14,7 +14,7 @@ Regra: nada de nível B ou C começa antes de todo o nível A funcionar ponta a 
 |---|---|---|---|
 | S3 | MinIO | Contagem de objetos e checksums iguais; testes da app passam | **A** |
 | RDS PostgreSQL | PostgreSQL | `pg_dump`/`pg_restore`; contagem de linhas por tabela e checksum por tabela | **B** |
-| SQS | RabbitMQ ou NATS | Mensagens enviadas = recebidas; testes da app passam | **B** |
+| SQS | RabbitMQ | Mensagens enviadas = recebidas; testes da app passam | **B** |
 | ElastiCache Redis | Valkey | Chaves e TTL iguais por amostragem | **B** |
 | Secrets Manager / Parameter Store | OpenBao | Segredos migrados sem nunca aparecerem em texto no log; a app arranca | B |
 | RDS MySQL | MariaDB | Contagens e checksums por tabela | C |
@@ -41,7 +41,7 @@ Antes de migrar, o migrador decide **onde fica cada serviço**, e explica porqu�
 - **Serviço gerido pago, europeu:** quando não há RAM ou disco que chegue, ou o serviço é crítico e precisa de alta disponibilidade e backups geridos.
 - **Leaseweb primeiro:** se a Leaseweb tiver o serviço gerido, é essa a escolha. Outro fornecedor europeu só quando a Leaseweb não o tiver.
 
-Exemplo da mensagem: "A tua VM tem 8 GB de RAM. O MinIO e o NATS ficam nela. A base de dados das encomendas é crítica: proponho um Postgres gerido europeu, com backups diários. Custo estimado: …. [Aprovar] [Tudo self-hosted]"
+Exemplo da mensagem: "A tua VM tem 8 GB de RAM. O MinIO e o RabbitMQ ficam nela. A base de dados das encomendas é crítica: proponho um Postgres gerido europeu, com backups diários. Custo estimado: …. [Aprovar] [Tudo self-hosted]"
 
 Como decide:
 
