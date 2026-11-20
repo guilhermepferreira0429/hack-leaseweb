@@ -47,9 +47,8 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the internals.
 _The four agents and the owner during the incident. See the
 [media shot list](docs/media/SHOTLIST.md)._
 
-[![Watch the demo](docs/media/demo-poster.png)](docs/media/demo.mp4)
+![The engineering dashboard and the team's Telegram group during one incident](docs/media/demo-poster.png)
 
-_60–90 second demo video. **In development** — recording to be added._
 
 ## Architecture
 
@@ -373,7 +372,7 @@ public and licensed under Apache 2.0.
 - [`docs/install.md`](docs/install.md): full setup from zero, including the brain VM, victim VM, bots and LLM.
 - [`docs/leaseweb-api.md`](docs/leaseweb-api.md): the API endpoints and what we measured.
 - [`docs/research/`](docs/research/README.md): the research behind the mapping, the detection rules and the numbers.
-- [`docs/media/SHOTLIST.md`](docs/media/SHOTLIST.md): the screenshots and video still to be captured.
+- [`docs/media/SHOTLIST.md`](docs/media/SHOTLIST.md): the project's screenshots.
 - [`docs/README.md`](docs/README.md): the full docs index, including the team's working notes.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md): how to run, change and test this repository.
 

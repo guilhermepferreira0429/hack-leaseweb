@@ -15,7 +15,7 @@ Portuguese and were written for the team, not for a reader coming to the project
    we use and what we measured against the real API.
 6. [`research/`](research/README.md): the research behind the service mapping, the detection rules and the numbers
    with sources.
-7. [`media/SHOTLIST.md`](media/SHOTLIST.md): the screenshots and the demo video, with the exact paths used in the
+7. [`media/SHOTLIST.md`](media/SHOTLIST.md): the project's screenshots, with the exact paths used in the
    docs.
 8. [`../CONTRIBUTING.md`](../CONTRIBUTING.md): how to run, change and test the repository.
 
