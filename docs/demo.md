@@ -25,6 +25,8 @@
 Os passos 3 e 4 mexem em lados diferentes, por isso a ordem entre eles não altera o resultado; o importante é ficar a origem cheia e o destino vazio antes de migrar. Uma corrida de cada vez: nunca preparar com um ensaio a meio.
 
 Depois: `npm run dev -- --consola --uma-vez` (ensaio) ou `npm run dev` (com Telegram). No fim, a prova independente: `npm run seed:comparar -- --destino` (10/10).
+
+Entre ensaios com "Aprovar PR": `bash env/repor-repo-app.sh --sim` repõe o repo público da app no estado inicial (fecha os PR, apaga os ramos `migracao/*` e volta o `main` ao commit com a regra 5432 aberta). Sem `--sim` só mostra o estado. E `npm run lsw:vitima -- reabrir` volta a abrir a 5432 da vítima.
 DynamoDB, SNS e CloudWatch Logs (`npm run seed:extra`) ficam só no plano; não correr na preparação da demo.
 Ver o painel do portátil: `ssh -L 3000:localhost:3000 ubuntu@<cérebro>` e abrir `http://localhost:3000`.
 
