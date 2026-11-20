@@ -7,6 +7,8 @@ import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { after, before, describe, it } from 'node:test';
 import { carregarEnvLocal } from '../adaptadores';
+import { criarCache, lerCache } from '../cache';
+import { carregarConfiguracao, criarSegredos } from '../segredos';
 import {
   apagarEncomenda,
   criarDependencias,
@@ -113,6 +115,64 @@ describe('exemplo-app (contrato igual em AWS e Leaseweb)', { skip: salto }, () =
     assert.deepEqual(emFalta, [], `faltam ${emFalta.length} de ${semeadas.length} faturas em ${deps.armazenamento.descricao}`);
     for (const e of semeadas) {
       assert.equal(sha256Hex(await deps.armazenamento.ler(e.faturaChave)), e.faturaSha256, `sha256 de ${e.faturaChave}`);
+    }
+  });
+});
+
+// Nível B: segredos (SEGREDOS_TIPO=aws|openbao) e cache (CACHE_TIPO=redis|valkey), no lado que as variáveis escolherem.
+// Saltados se esse serviço não estiver configurado no .env; em VERIFICACAO_ESTRITA, configurado e em baixo é falha.
+describe('exemplo-app: arranque com segredos e cache (nível B)', () => {
+  it('arranca com a configuração lida dos segredos, sem a mostrar', async (t) => {
+    let segredos;
+    try {
+      segredos = criarSegredos();
+    } catch (erro) {
+      t.skip(`segredos não configurados: ${erro instanceof Error ? erro.message : erro}`);
+      return;
+    }
+    try {
+      const cfg = await carregarConfiguracao(segredos);
+      // Só verificações booleanas: um assert.equal com o valor mostrá-lo-ia ao falhar.
+      assert.ok(cfg.fornecedor.length > 0 && cfg.endpoint.length > 0, 'fornecedor e endpoint presentes');
+      assert.ok(cfg.apiKey.length > 0, `apiKey presente (${segredos.descricao})`);
+    } catch (erro) {
+      if (!ESTRITA && erro instanceof Error && /não responde|não existe|Não consegui ler/.test(erro.message)) {
+        t.skip(`${segredos.descricao}: ${erro.message}`);
+        return;
+      }
+      throw erro;
+    } finally {
+      await segredos.fechar();
+    }
+  });
+
+  it('guarda e lê uma encomenda na cache, com TTL', async (t) => {
+    try {
+      lerCache();
+    } catch (erro) {
+      t.skip(`cache não configurada: ${erro instanceof Error ? erro.message : erro}`);
+      return;
+    }
+    let cache;
+    try {
+      cache = await criarCache();
+    } catch (erro) {
+      if (!ESTRITA) {
+        t.skip(`cache em baixo: ${erro instanceof Error ? erro.message : erro}`);
+        return;
+      }
+      throw erro;
+    }
+    const chave = `teste:encomenda:${randomUUID()}`;
+    try {
+      const valor = JSON.stringify({ id: chave, cliente: 'Café Central — Ç', totalCentimos: 1234 });
+      await cache.guardar(chave, valor, 60);
+      assert.equal(await cache.ler(chave), valor);
+      await cache.apagar(chave);
+      assert.equal(await cache.ler(chave), null);
+    } finally {
+      await cache.apagar(chave).catch(() => {});
+      await cache.fechar();
     }
   });
 });

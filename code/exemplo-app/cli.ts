@@ -1,7 +1,10 @@
-// npm run dev:exemplo [-- --semear 20]
+// npm run dev:exemplo [-- --semear 20 | --repor 20]
 // Corre a app contra o ambiente definido nas variáveis (LocalStack ou Leaseweb).
+// --repor N: só na origem ("AWS"). Apaga as encomendas semeadas (linha e fatura) e semeia N de novo,
+// para a base de dados e o S3 ficarem coerentes (ex.: depois de o LocalStack ser recriado).
 import { carregarEnvLocal } from './adaptadores';
 import {
+  apagarEncomenda,
   criarDependencias,
   fecharDependencias,
   listarEncomendas,
@@ -21,11 +24,24 @@ function argNumero(nome: string): number | undefined {
 
 async function main(): Promise<void> {
   carregarEnvLocal();
-  const quantidade = argNumero('--semear');
+  const repor = argNumero('--repor');
+  const quantidade = repor ?? argNumero('--semear');
+  if (repor) {
+    const env = process.env;
+    const destinoS3 = env.ARMAZENAMENTO_ENDPOINT?.trim() && env.ARMAZENAMENTO_ENDPOINT.trim() !== (env.LOCALSTACK_ENDPOINT?.trim() || 'http://127.0.0.1:4566');
+    const destinoPg = env.DATABASE_URL_DESTINO?.trim() && env.DATABASE_URL?.trim() === env.DATABASE_URL_DESTINO.trim();
+    if (destinoS3 || destinoPg) throw new Error('--repor só corre na origem (LocalStack e DATABASE_URL de origem)');
+  }
   const deps = criarDependencias();
   try {
     console.log(`[exemplo-app] armazenamento: ${deps.armazenamento.descricao}`);
     await prepararEsquema(deps);
+    if (repor) {
+      const antigas = (await listarEncomendas(deps)).filter((e) => !e.cliente.startsWith('teste-'));
+      // A fatura pode já não existir (LocalStack recriado): apagar no S3 uma chave em falta não falha.
+      for (const e of antigas) await apagarEncomenda(deps, e);
+      console.log(`[exemplo-app] apagadas ${antigas.length} encomendas semeadas antes`);
+    }
     if (quantidade) {
       const criadas = await semear(deps, quantidade);
       console.log(`[exemplo-app] semeadas ${criadas.length} encomendas com fatura`);
