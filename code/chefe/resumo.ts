@@ -41,6 +41,14 @@ function linhaMigracao(pedidos: Pedido[], eventos: EventoAuditoria[]): string | 
   return `Migração concluída: ${n}checksums iguais e testes a passar dos dois lados.${base}${filas}`;
 }
 
+/** O modo noite não é uma pessoa: o resumo diz quantas falhas fechou sem resposta do dono. */
+function linhaModoNoite(pedidos: Pedido[], eventos: EventoAuditoria[]): string | undefined {
+  const ids = new Set(eventos.filter((e) => e.tipo === 'aprovado' && e.quem === 'modo-noite').map((e) => e.pedidoId));
+  const n = pedidos.filter((p) => ids.has(p.id) && p.estado === 'feito').length;
+  if (n === 0) return undefined;
+  return `${n === 1 ? 'Uma falha foi fechada' : `${n} falhas foram fechadas`} pelo modo noite, sem resposta do dono: só os IPs conhecidos entram, e /desfazer repõe.`;
+}
+
 function linhaDefesa(pedidos: Pedido[], eventos: EventoAuditoria[]): string {
   const falhas = pedidos.filter((p) => p.acao.tipo === 'remover_regra');
   // Diz o que a defesa viu, não uma garantia. Se a deteção falhou, não viu nada: não se diz que está tudo fechado.
@@ -73,6 +81,7 @@ export function resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string {
   return [
     linhaMigracao(pedidos, eventos),
     linhaDefesa(pedidos, eventos),
+    linhaModoNoite(pedidos, eventos),
     erros > 0 ? `Houve ${plural(erros, 'problema', 'problemas')} pelo caminho; estão no painel.` : undefined,
     // Só se diz se for verdade: pelo menos um inverso registado na auditoria.
     eventos.some((e) => e.inverso) ? 'Cada alteração tem o inverso guardado na auditoria.' : undefined,

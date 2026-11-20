@@ -35,6 +35,11 @@ export interface Dependencias {
     corrigir(pedido: Pedido): Promise<void>;
     desfazer(pedidoId: string): Promise<void>;
     novoIdPedido(): string;
+    /**
+     * Modo noite (ideia wow 4): sem resposta do dono a uma falha crítica, medida temporária e reversível.
+     * Devolve true se aplicou; false se não era elegível (o pedido fica para o dono).
+     */
+    modoNoite?(pedido: Pedido): Promise<boolean>;
   };
   atacante: { reconhecer(alvos: string[]): Promise<Achado[]> };
   migrador: {
@@ -85,6 +90,8 @@ export interface Opcoes {
   donoId?: string;
   /** Quanto se espera pelas decisões do dono antes de seguir (por omissão ESPERA_DECISAO_MS = 10 min). */
   esperaDecisaoMs?: number;
+  /** Modo noite: ao fim deste tempo sem resposta, chama defesa.modoNoite. Sem valor, não há modo noite. */
+  modoNoiteMs?: number;
   agora?: () => Date;
   log?: (...args: unknown[]) => void;
 }
@@ -111,6 +118,8 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   const achadoDoPedido = new Map<string, Achado>();
   /** Achados com pedido da defesa neste ciclo: cada um leva um relatório do incidente no fim. */
   const achadosDoCiclo = new Set<string>();
+  /** Temporizadores do modo noite, por pedido da defesa. Saem quando o dono decide. */
+  const noite = new Map<string, ReturnType<typeof setTimeout>>();
 
   const hora = () => agora().toISOString();
   const horaCurta = () =>
@@ -203,6 +212,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       return;
     }
     const pedido = deps.estado.obterPedido(pedidoId);
+    pararModoNoite(pedidoId);
     if (!pedido || pedido.estado !== 'pendente') {
       log(`decisão para ${pedidoId} ignorada (${pedido ? `estado ${pedido.estado}` : 'pedido desconhecido'})`);
       return;
@@ -543,6 +553,7 @@ ${resumo}`);
         const pedido = await deps.defesa.tratar(achado);
         achadoDoPedido.set(pedido.id, achado);
         achadosDoCiclo.add(achado.id);
+        armarModoNoite(pedido);
         resultados.push(esperarResultado(pedido.id));
       } catch (erro) {
         await falha(`pedido para ${achado.alvo}:${achado.porta}`, erro);
@@ -572,6 +583,31 @@ ${resumo}`);
         await falha('certificado de migração', erro);
       }
     }
+  }
+
+  /** Se o dono não decidir a tempo, o modo noite da defesa aplica a medida temporária (só falhas críticas). */
+  function armarModoNoite(pedido: Pedido): void {
+    if (!deps.defesa.modoNoite || !opcoes.modoNoiteMs) return;
+    const t = setTimeout(() => {
+      noite.delete(pedido.id);
+      if (deps.estado.obterPedido(pedido.id)?.estado !== 'pendente') return;
+      deps.defesa
+        .modoNoite!(pedido)
+        .then((aplicou) => {
+          // O aviso ("Modo noite às HH:MM … /desfazer <id>") já vem da defesa.
+          if (aplicou) concluir(pedido.id, 'feito');
+        })
+        .catch((erro) => falha(`modo noite em "${pedido.titulo}"`, erro));
+    }, opcoes.modoNoiteMs);
+    // Não segura o processo (--uma-vez) só por causa deste temporizador.
+    t.unref?.();
+    noite.set(pedido.id, t);
+  }
+
+  function pararModoNoite(pedidoId: string): void {
+    const t = noite.get(pedidoId);
+    if (t) clearTimeout(t);
+    noite.delete(pedidoId);
   }
 
   /** Um relatório por achado tratado neste ciclo. Uma falha num não impede os outros nem o resumo. */

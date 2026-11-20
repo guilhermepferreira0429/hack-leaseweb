@@ -92,6 +92,13 @@ describe('chefe/certificado', () => {
     assert.doesNotMatch(recusada, /Filas:/, 'sem aprovação não se diz que as filas passaram');
   });
 
+  it('modo noite: o fecho não diz "aprovado por uma pessoa"', () => {
+    const noite = demo.map((e) => (e.tipo === 'aprovado' ? { ...e, quem: 'modo-noite' } : e));
+    const t = certificado(noite, [migrar, fechar], undefined, new Date(em(50)));
+    assert.match(t, /pelo modo noite \(sem resposta do dono\), só aberto aos IPs conhecidos; inverso guardado/);
+    assert.doesNotMatch(t, /aprovado por uma pessoa/);
+  });
+
   it('migração não aprovada', () => {
     assert.match(certificado([], [{ ...migrar, estado: 'ignorado' }]), /Migração: não aprovada/);
   });

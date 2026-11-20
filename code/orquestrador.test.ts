@@ -426,6 +426,33 @@ describe('orquestrador', () => {
     assert.equal(erro.corrigidos.length, 1, 'a defesa segue');
   });
 
+  it('modo noite: sem resposta, a defesa aplica a medida temporária; se o dono decidir antes, não', async () => {
+    const t = montar({ decisao: (p) => (p.acao.tipo === 'migrar' ? 'aprovar' : undefined) }, { atacar: false, modoNoiteMs: 5, esperaDecisaoMs: 2_000 });
+    const noite: string[] = [];
+    t.deps.defesa.modoNoite = async (p) => {
+      noite.push(p.id);
+      t.deps.estado.mudarEstado(p.id, 'feito');
+      return true;
+    };
+    await t.orq.correr();
+    assert.equal(noite.length, 1, 'o modo noite correu uma vez');
+    assert.equal(t.corrigidos.length, 0, 'não houve fecho por aprovação');
+    assert.equal(t.falas.at(-1)?.de, 'chefe', 'o ciclo acaba sem esperar os 2 s');
+
+    const dono = montar({}, { atacar: false, modoNoiteMs: 30 });
+    let chamado = false;
+    dono.deps.defesa.modoNoite = async () => ((chamado = true), true);
+    await dono.orq.correr();
+    await new Promise((r) => setTimeout(r, 60));
+    assert.equal(chamado, false, 'o dono decidiu antes: o temporizador saiu');
+    assert.equal(dono.corrigidos.length, 1);
+
+    const nao = montar({ decisao: (p) => (p.acao.tipo === 'migrar' ? 'aprovar' : undefined) }, { atacar: false, modoNoiteMs: 5, esperaDecisaoMs: 80 });
+    nao.deps.defesa.modoNoite = async () => false;
+    await nao.orq.correr();
+    assert.equal([...nao.pedidos.values()].find((p) => p.acao.tipo === 'remover_regra')?.estado, 'pendente', 'não elegível: continua por decidir pelo dono');
+  });
+
   it('plano: segredos e cache entram quando o migrador os tiver, e a prova não leva valores', async () => {
     const t = montar({}, { atacar: false });
     t.deps.migrador.analisar = async () => ({ servicos: ['s3', 'segredos', 'cache'], plano: 'plano' });

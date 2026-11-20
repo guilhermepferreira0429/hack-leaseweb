@@ -70,6 +70,7 @@ async function main(): Promise<void> {
         tratar: (achado) => defesa.tratar(achado, canal.telegram.pedirAprovacao),
         corrigir: (pedido) => defesa.corrigir(pedido, canal.telegram.notificar),
         desfazer: (id) => defesa.desfazer(id, canal.telegram.notificar),
+        modoNoite: (pedido) => defesa.modoNoite(pedido, canal.telegram.notificar),
       },
       atacante: { reconhecer },
       migrador: {
@@ -94,6 +95,8 @@ async function main(): Promise<void> {
       // Falha fechado: uma entrada que não seja IP literal faz o arranque parar, nunca alarga a vedação.
       alvos: [...carregarAllowlist(process.env.ALVOS_PERMITIDOS)],
       donoId: consola ? DONO_CONSOLA : process.env.TELEGRAM_DONO_ID || undefined,
+      // Modo noite só com MODO_NOITE_MINUTOS e MODO_NOITE_IPS no .env (falha fechado: sem eles, não há).
+      modoNoiteMs: (defesa.configModoNoite()?.minutos ?? 0) * 60_000 || undefined,
       esperaDecisaoMs: Number(process.env.ESPERA_DECISAO_MS) > 0 ? Number(process.env.ESPERA_DECISAO_MS) : undefined,
     },
   );

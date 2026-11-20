@@ -48,6 +48,13 @@ describe('chefe/resumir', () => {
     assert.match(texto, /3 ficheiros, checksums iguais.*Base de dados copiada \(2 tabelas\), também com checksums iguais\./);
   });
 
+  it('modo noite: diz que foi o modo noite, não uma pessoa', () => {
+    const noite = { ...ev('a1', 'aprovado', 20), quem: 'modo-noite' };
+    const texto = resumir([noite, ev('a1', 'feito', 25)], [fechar('a1', 'feito')]);
+    assert.match(texto, /Uma falha foi fechada pelo modo noite, sem resposta do dono: só os IPs conhecidos entram, e \/desfazer repõe\./);
+    assert.doesNotMatch(resumir([ev('a1', 'aprovado', 20), ev('a1', 'feito', 25)], [fechar('a1', 'feito')]), /modo noite/);
+  });
+
   it('migração com filas', () => {
     const fl: Pedido = { id: 'f1', titulo: 'filas', texto: '', acao: { tipo: 'migrar', passo: 'fila' }, estado: 'feito' };
     const texto = resumir([ev('m1', 'feito', 5, { objetos: 3 }), ev('f1', 'feito', 9, { mensagens: 1 })], [migrar('feito'), fl]);

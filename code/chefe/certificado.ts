@@ -82,7 +82,7 @@ export function certificado(eventos: EventoAuditoria[], pedidos: Pedido[], local
     const desfeito = pedido?.estado === 'desfeito' ? ' (depois desfeito pelo dono)' : '';
     linhas.push(
       `Fechado: ${pedido?.titulo ?? f.pedidoId}, às ${HORA(f.hora)}` +
-        `${aprov ? `, aprovado por uma pessoa às ${HORA(aprov.hora)}` : ''}; inverso guardado${desfeito}.`,
+        `${aprov ? (aprov.quem === 'modo-noite' ? ', pelo modo noite (sem resposta do dono), só aberto aos IPs conhecidos' : `, aprovado por uma pessoa às ${HORA(aprov.hora)}`) : ''}; inverso guardado${desfeito}.`,
     );
   }
 
