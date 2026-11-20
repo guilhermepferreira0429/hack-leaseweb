@@ -65,3 +65,41 @@ export function mensagemDestino(decisoes: Decisao[], vm: CapacidadeVm): string {
 }
 
 const REGRA_TUDO_SELF = 'You chose everything self-hosted.';
+
+/** Porque é que cada gerido não fica na VM, em 1 a 3 palavras (a frase completa da regra fica no Why?). */
+const MOTIVO_CURTO: Record<number, string> = { 1: 'critical', 2: 'does not fit', 3: 'personal data, no backups' };
+/** Nome curto do serviço na versão curta. */
+const NOME_CURTO: Partial<Record<Decisao['servico'], string>> = { segredos: 'Secrets' };
+
+function precoCurto(d: Decisao): string {
+  if (d.precoAConfirmar) return '(price tbc)';
+  if (d.precoMes !== undefined) return d.moeda === 'USD' ? `~$${formatarNumero(d.precoMes)}/mo` : `~€${formatarNumero(d.precoMes)}/mo`;
+  return d.precoUnidade ?? '(price tbc)';
+}
+
+/**
+ * Versão curta para o Telegram (até 2 linhas): o que fica na VM e o que vai para gerido, com o preço.
+ * Sem a RAM nem o "Why:": isso fica na mensagemDestino completa, no botão Why?.
+ */
+export function mensagemDestinoCurta(decisoes: Decisao[]): string {
+  const linhas: string[] = [];
+  const self = [...new Set(decisoes.filter((d) => d.destino === 'self-hosted').map((d) => d.alternativa))];
+  const tudoSelf = decisoes.length > 0 && decisoes.every((d) => d.numeroRegra === 0);
+  if (self.length > 0) {
+    const naoCabe = decisoes.filter((d) => d.numeroRegra === 0 && d.avisos.some((a) => a.startsWith('Does not fit'))).map((d) => d.alternativa);
+    linhas.push(
+      `Self-hosted on your VM: ${self.join(', ')}.${tudoSelf ? ' Your choice: everything self-hosted.' : ''}` +
+        (naoCabe.length > 0 ? ` Warning: ${juntar(naoCabe)} ${naoCabe.length === 1 ? 'does' : 'do'} not fit.` : ''),
+    );
+  }
+  const geridos = decisoes.filter((d) => d.destino === 'gerido');
+  if (geridos.length > 0) {
+    const motivos = [...new Set(geridos.map((d) => MOTIVO_CURTO[d.numeroRegra] ?? ''))].filter(Boolean);
+    const itens = geridos.map((d) => {
+      const nome = NOME_CURTO[d.servico] ?? d.alternativa;
+      return d.fornecedor === POR_ESCOLHER ? `${nome} → decide by hand` : `${nome} → ${d.fornecedor} ${d.plano?.replace(/ \(.*\)$/, '') ?? ''} ${precoCurto(d)}`.replace(/\s+/g, ' ').trim();
+    });
+    linhas.push(`Managed${motivos.length > 0 ? ` (${motivos.join('; ')})` : ''}: ${itens.join('; ')}.`);
+  }
+  return linhas.join('\n');
+}

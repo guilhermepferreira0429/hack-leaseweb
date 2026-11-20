@@ -39,6 +39,11 @@ export interface Dependencias {
     notificar(texto: string): Promise<void>;
     /** Anexo no grupo (ex.: o relatório PDF). Opcional: sem ele, não se anexa. */
     enviarDocumento?(agente: Agente, nome: string, conteudo: string | Uint8Array, legenda?: string, tipo?: string): Promise<void>;
+    /** Mensagem com botões de escolha (ex.: destino Recommended / Self-hosted / Why?). Sem ele, escolhe-se por comando. */
+    enviarComEscolhas?(agente: Agente, texto: string, opcoes: { texto: string; valor: string }[]): Promise<void>;
+    aoEscolha?(cb: (valor: string, quem: string) => void): void;
+    /** Botão Undo do relatório (a defesa é que desfaz; o orquestrador só volta a pôr o achado como acionável). */
+    aoDesfazer?(cb: (pedidoId: string, quem: string) => void): void;
   };
   bus: { enviar(m: Mensagem): void };
   estado: {
@@ -107,6 +112,8 @@ export interface Dependencias {
     planoInfra?(): Promise<string | undefined>;
     /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
     planoDestino?(servicos: PassoMigracao[], modo?: 'recomendado' | 'tudo-self-hosted'): Promise<string | undefined>;
+    /** O porquê completo da recomendação (regras, orçamento e o provisionamento simulado pela API). Para o botão Why?. */
+    detalheDestino?(servicos: PassoMigracao[], modo?: 'recomendado' | 'tudo-self-hosted'): Promise<string | undefined>;
   };
   /** Voz dos agentes: resposta em texto, no papel do agente, a partir do estado. Opcional. */
   voz?: {
@@ -491,34 +498,11 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     // O decisor volta a correr no modo escolhido. Os geridos da Leaseweb são simulados: por baixo, tudo corre na VM.
     const escolha = /^\/(self-?hosted|recomendado|recommended|leaseweb)(?:@\S+)?$/i.exec(t);
     if (escolha) {
-      if (!deps.migrador.planoDestino || !servicosDoPlano) {
-        await notificar("There is no migration plan yet. The migrator will propose one first.");
-        return;
-      }
-      // Depois de o plano estar decidido, a migração já corre (ou não vai correr) no modo que havia: não se aceita.
-      if (planoDecidido) {
-        await notificar("The plan is already decided, so the destination can no longer change in this run.");
-        return;
-      }
-      const modo = /self/i.test(escolha[1]) ? "tudo-self-hosted" : "recomendado";
-      // Tocar no comando dentro de uma mensagem pode chegar duas vezes (dois bots): a mesma escolha seguida ignora-se.
-      if (ultimaEscolha && ultimaEscolha.modo === modo && Date.now() - ultimaEscolha.em < 10_000) return;
-      ultimaEscolha = { modo, em: Date.now() };
-      try {
-        const texto = await deps.migrador.planoDestino(servicosDoPlano, modo);
-        modoDestino = modo;
-        auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "dono", depois: { modo, texto } });
-        falar(
-          "migrador",
-          "dono",
-          (modo === "tudo-self-hosted"
-            ? "OK: everything self-hosted on your VM, no managed services."
-            : "OK: the recommended plan, with Leaseweb managed services where it makes sense (simulated in this demo: the data runs on the VM underneath).") +
-            (texto ? `\n${texto}` : ""),
-        );
-      } catch (erro) {
-        await falha("destination planner (owner's choice)", erro);
-      }
+      await escolherDestino(/self/i.test(escolha[1]) ? "tudo-self-hosted" : "recomendado");
+      return;
+    }
+    if (/^\/(?:why|porque)(?:@\S+)?$/i.test(t)) {
+      await explicarDestino();
       return;
     }
 
@@ -610,6 +594,23 @@ ${resumo}`,
       auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "migrador", depois: { modo: modoDestino, porOmissao: true } });
       // A recomendação mostra o raciocínio e os preços; nada se contrata. Hoje migra-se tudo para a VM.
       const geridos = /proponho|propose|recommend/i.test(texto);
+      // Com botões (Telegram): a primeira pergunta é a escolha do destino, com o Why? ao lado. Sem eles: por comando.
+      if (geridos && deps.telegram.enviarComEscolhas) {
+        try {
+          await deps.telegram.enviarComEscolhas(
+            "migrador",
+            `${texto}\nWhere should it run? Managed services are simulated today; the data runs on the VM.`,
+            [
+              { texto: "✅ Recommended", valor: "recomendado" },
+              { texto: "🖥 Self-hosted", valor: "selfhosted" },
+              { texto: "❓ Why?", valor: "porque" },
+            ],
+          );
+          return;
+        } catch (erro) {
+          log("botões de destino falharam, a usar comandos:", mensagem(erro));
+        }
+      }
       falar(
         "migrador",
         "dono",
@@ -622,20 +623,65 @@ ${resumo}`,
     }
   }
 
+  /** Escolha do destino pelo dono (comando /recomendado|/selfhosted ou botão). O decisor volta a correr nesse modo. */
+  async function escolherDestino(modo: "recomendado" | "tudo-self-hosted"): Promise<void> {
+    if (!deps.migrador.planoDestino || !servicosDoPlano) {
+      await notificar("There is no migration plan yet. The migrator will propose one first.");
+      return;
+    }
+    // Depois de o plano estar decidido, a migração já corre (ou não vai correr) no modo que havia: não se aceita.
+    if (planoDecidido) {
+      await notificar("The plan is already decided, so the destination can no longer change in this run.");
+      return;
+    }
+    // Tocar no comando/botão pode chegar duas vezes (dois bots): a mesma escolha seguida ignora-se.
+    if (ultimaEscolha && ultimaEscolha.modo === modo && Date.now() - ultimaEscolha.em < 10_000) return;
+    ultimaEscolha = { modo, em: Date.now() };
+    try {
+      const texto = await deps.migrador.planoDestino(servicosDoPlano, modo);
+      modoDestino = modo;
+      auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "dono", depois: { modo, texto } });
+      // Curto: o plano já está no grupo; aqui só a confirmação da escolha (e o orçamento, se houver).
+      const orcamento = texto?.match(/~?€\s?[\d.,]+\/month/i)?.[0];
+      falar(
+        "migrador",
+        "dono",
+        (modo === "tudo-self-hosted"
+          ? `OK: everything self-hosted on your VM.${texto ? ` ${texto}` : ""}`
+          : `OK: recommended plan (managed services simulated; data on the VM)${orcamento ? `. Budget ${orcamento}` : ""}.`) +
+          " Now tap Approve plan.",
+      );
+    } catch (erro) {
+      await falha("destination planner (owner's choice)", erro);
+    }
+  }
+
+  /** Botão Why?: o porquê completo (regras, orçamento e o que se pediria à API da Leaseweb, só simulado). */
+  async function explicarDestino(): Promise<void> {
+    if (!servicosDoPlano || !(deps.migrador.detalheDestino ?? deps.migrador.planoDestino)) {
+      await notificar("There is no migration plan yet. The migrator will propose one first.");
+      return;
+    }
+    try {
+      const texto = deps.migrador.detalheDestino
+        ? await deps.migrador.detalheDestino(servicosDoPlano, modoDestino)
+        : await deps.migrador.planoDestino!(servicosDoPlano, modoDestino);
+      auditar({ pedidoId: "-", tipo: "explicacao-destino", quem: "dono", depois: { modo: modoDestino } });
+      falar("migrador", "dono", texto ? `Why this plan:\n${texto}` : "I have no details for this plan.");
+    } catch (erro) {
+      await falha("destination planner (why)", erro);
+    }
+  }
+
   async function faseMigrar(): Promise<void> {
     pensar("plano");
     const { servicos, plano } = await deps.migrador.analisar(opcoes.dirApp);
     const nomes = servicos.map((s) => NOME_SERVICO[s]).join(", ");
     // Só entram os passos que o migrador sabe fazer (um serviço novo no analisar sem função fica de fora).
     const passos = servicos.filter((s) => executor(s));
-    falar(
-      "migrador",
-      "dono",
-      `I found ${servicos.length} AWS ${servicos.length === 1 ? "service" : "services"} in the app: ${nomes}.` +
-        (passos.length
-          ? " I ask for one OK for the whole plan and go one step at a time, with proof at each step."
-          : ""),
-    );
+    // Com passos, o pedido "Migrate to Leaseweb" já diz o que se encontrou: aqui só quando não há nada a migrar.
+    if (passos.length === 0)
+      falar("migrador", "dono", `I found ${servicos.length} AWS ${servicos.length === 1 ? "service" : "services"} in the app: ${nomes}. Nothing I can migrate yet.`);
     await mostrarPlanoInfra();
     await mostrarPlanoDestino(servicos);
     if (passos.length === 0) return;
@@ -643,7 +689,7 @@ ${resumo}`,
     // Um só "Aprovar plano": o pedido aprovado é o do primeiro passo; os outros nascem aprovados por ele.
     const titulo = `Migrate to Leaseweb: ${passos.map((s) => NOME_SERVICO[s]).join(", ")}`;
     const texto = deps.migrador.migrarCodigo
-      ? `${plano}\nAt the end I prepare a pull request so the app uses Leaseweb. The main branch only changes when someone merges it.`
+      ? `${plano}\nAt the end: a pull request so the app uses Leaseweb.`
       : plano;
     pensar("confirmacao");
     const pedidoPlano = await pedirMigracao(passos[0], titulo, texto, {
@@ -1155,25 +1201,26 @@ ${resumo}`,
       deps.chefe.resumir(doCiclo(), deps.estado.listarPedidos()),
     );
     pensar("relatorio");
+    // Com o PDF anexado, no grupo vai só o título e o resumo do certificado (o resto está no documento, sem repetir).
+    const comPdf = Boolean(deps.chefe.relatorioFicheiro && deps.telegram.enviarDocumento);
     if (deps.chefe.certificado) {
       try {
-        falar(
-          "chefe",
-          "dono",
-          deps.chefe.certificado(doCiclo(), deps.estado.listarPedidos()),
-        );
+        const cert = deps.chefe.certificado(doCiclo(), deps.estado.listarPedidos());
+        falar("chefe", "dono", comPdf ? certificadoCurto(cert) : cert);
       } catch (erro) {
         await falha("migration certificate", erro);
       }
     }
-    if (deps.chefe.relatorioFicheiro && deps.telegram.enviarDocumento) {
+    if (comPdf) {
       try {
-        const f = deps.chefe.relatorioFicheiro(doCiclo(), deps.estado.listarPedidos());
-        await deps.telegram.enviarDocumento("chefe", f.nome, f.conteudo, "Full incident & migration report (PDF).", f.tipo);
+        const f = deps.chefe.relatorioFicheiro!(doCiclo(), deps.estado.listarPedidos());
+        await deps.telegram.enviarDocumento!("chefe", f.nome, f.conteudo, "Full certificate and incident report (PDF).", f.tipo);
       } catch (erro) {
         await falha("report file", erro);
       }
     }
+    // Fim do ciclo: o painel mostra "Cycle complete" (o processo continua vivo para o /undo).
+    auditar({ pedidoId: "-", tipo: "ciclo-terminado", quem: "orquestrador" });
   }
 
   /** Se o dono não decidir a tempo, o modo noite da defesa aplica a medida temporária (só falhas críticas). */
@@ -1229,9 +1276,47 @@ ${resumo}`,
     } catch (erro) {
       void falha("ligar as mensagens do dono (aoMensagemDoDono)", erro);
     }
+    // Botão Undo do relatório: a defesa repõe a regra (ligarDesfazer); aqui o achado volta a ser acionável,
+    // para um /attack a seguir voltar a pedir Close (o mesmo que o /undo por comando faz).
+    try {
+      deps.telegram.aoDesfazer?.((id) => {
+        const reaberto = achadoDoPedido.get(id);
+        if (reaberto) achadosDoCiclo.delete(reaberto.id);
+      });
+    } catch (erro) {
+      void falha("ligar o botão Undo (aoDesfazer)", erro);
+    }
+    // Botões da escolha de destino (Recommended / Self-hosted / Why?). O telegram.ts já só entrega dono/aprovadores.
+    try {
+      deps.telegram.aoEscolha?.((valor) => {
+        const tarefa =
+          valor === "porque"
+            ? explicarDestino()
+            : valor === "selfhosted"
+              ? escolherDestino("tudo-self-hosted")
+              : valor === "recomendado"
+                ? escolherDestino("recomendado")
+                : Promise.resolve();
+        tarefa.catch((e) => falha("destination button", e));
+      });
+    } catch (erro) {
+      void falha("ligar os botões de destino (aoEscolha)", erro);
+    }
   }
 
-  return { ligar, correr, aoResponder, aoMensagemDoDono };
+  return { ligar, correr, aoResponder, aoMensagemDoDono, escolherDestino, explicarDestino };
+}
+
+/** Versão curta do certificado para o grupo quando o PDF vai anexado: título, resumo e a nota da UE. */
+export function certificadoCurto(cert: string): string {
+  const linhas = cert.split("\n").map((l) => l.trim());
+  const titulo = linhas[0] ?? "";
+  const i = linhas.indexOf("SUMMARY");
+  const resumo = i >= 0 ? (linhas[i + 1] ?? "") : "";
+  const ue = linhas.some((l) => l.startsWith("No data left the EU.")) ? "No data left the EU." : "";
+  return [titulo, [resumo, ue].filter(Boolean).join(" "), "Full certificate and incident report in the PDF below."]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** Fala do atacante a partir dos achados (determinística; a voz com IA vem depois). */

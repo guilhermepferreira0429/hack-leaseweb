@@ -916,7 +916,7 @@ describe("orquestrador", () => {
       1,
       "o PR não pede outro clique",
     );
-    assert.match(plano.texto, /At the end I prepare a pull request/);
+    assert.match(plano.texto, /At the end: a pull request/);
     assert.deepEqual(chamadas, [[plano.id, true]]);
     const migrador = textos(t.falas, "migrador");
     const iPR = migrador.findIndex((f) =>
@@ -1174,5 +1174,27 @@ describe("textoAtacante", () => {
     const t = textoAtacante(muitos);
     assert.match(t, /and 1 more/);
     assert.match(t, /Severity high/);
+  });
+});
+
+describe("certificadoCurto", () => {
+  it("com o PDF anexado: só título, resumo e a nota da UE", async () => {
+    const { certificadoCurto } = await import("./orquestrador");
+    const cert = [
+      "MIGRATION CERTIFICATE · CERT-20261120-1507",
+      "20/11/2026 15:07 · Leaseweb, Amsterdam (NL)",
+      "",
+      "SUMMARY",
+      "We moved 5 services from AWS to Leaseweb. Exposure: 16 s.",
+      "",
+      "1. WHERE THE DATA IS",
+      "· S3 → MinIO",
+      "",
+      "No data left the EU. Data destination: Leaseweb, Amsterdam (NL).",
+    ].join("\n");
+    const curto = certificadoCurto(cert);
+    assert.equal(curto.split("\n").length, 3);
+    assert.match(curto, /^MIGRATION CERTIFICATE · CERT-20261120-1507\nWe moved 5 services[^\n]*No data left the EU\.\nFull certificate/);
+    assert.doesNotMatch(curto, /WHERE THE DATA IS|S3 → MinIO/);
   });
 });

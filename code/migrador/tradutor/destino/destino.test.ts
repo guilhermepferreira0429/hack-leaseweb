@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { traduzir } from '../traduzir';
-import { decidirDestino, mensagemDestino, ordenarGeridos, REGRAS, servicosDoPlano, type CapacidadeVm, type EntradaDecisor } from './index';
+import { decidirDestino, mensagemDestino, mensagemDestinoCurta, ordenarGeridos, REGRAS, servicosDoPlano, type CapacidadeVm, type EntradaDecisor } from './index';
 import { GERIDO_EUROPEU, GERIDO_LEASEWEB, type OpcaoGerida } from './tabelas';
 
 const HOJE = new Date('2026-11-20T12:00:00Z');
@@ -263,5 +263,38 @@ describe('decisor de destino: mensagem sem nomes repetidos', () => {
       ['segredos', 'gerido', 'Scaleway'],
       ['s3', 'gerido', 'Leaseweb'], // quando a Leaseweb tem gerido, é sempre a primeira
     ]);
+  });
+});
+
+describe('decisor de destino: mensagem curta para o Telegram', () => {
+  const vm: CapacidadeVm = { ramLivreGb: 122, vcpuLivres: 32, discoLivreGb: 100 };
+  const servicos = [
+    { servico: 's3' as const, nome: 'S3' },
+    { servico: 'postgres' as const, nome: 'PostgreSQL' },
+    { servico: 'fila' as const, nome: 'SQS' },
+    { servico: 'segredos' as const, nome: 'Secrets Manager' },
+    { servico: 'cache' as const, nome: 'ElastiCache' },
+  ];
+
+  it('até 2 linhas: o que fica na VM e o que vai para gerido, sem RAM nem "Why:"', () => {
+    const m = mensagemDestinoCurta(decidir({ servicos, vm }));
+    assert.equal(
+      m,
+      'Self-hosted on your VM: MinIO, RabbitMQ, Valkey.\nManaged (critical): PostgreSQL → Scaleway DB-DEV-S ~€11.39/mo; Secrets → Scaleway Secret Manager (price tbc).',
+    );
+    assert.doesNotMatch(m, /Why:|free RAM/);
+  });
+
+  it('tudo self-hosted: uma linha, com aviso curto se algo não couber', () => {
+    const d = decidirDestino({ servicos, vm, temBackups: true, hoje: HOJE, modo: 'tudo-self-hosted' });
+    assert.equal(mensagemDestinoCurta(d), 'Self-hosted on your VM: MinIO, PostgreSQL, RabbitMQ, OpenBao, Valkey. Your choice: everything self-hosted.');
+    const pequena = decidirDestino({ servicos, vm: { ramLivreGb: 1, vcpuLivres: 1, discoLivreGb: 10 }, temBackups: true, hoje: HOJE, modo: 'tudo-self-hosted' });
+    assert.match(mensagemDestinoCurta(pequena), /Warning: .* not fit\.$/);
+  });
+
+  it('o detalhe (botão Why?) continua com tudo', () => {
+    const m = mensagemDestino(decidir({ servicos, vm }), vm);
+    assert.match(m, /^Your VM has 122 GB of free RAM\./);
+    assert.match(m, /Why: /);
   });
 });

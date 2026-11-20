@@ -97,26 +97,23 @@ describe('simularProvisionamento (dry-run na Leaseweb)', () => {
 });
 
 describe('resumoSimulacao (versão curta para o Telegram)', () => {
-  it('exemplo: no máximo 3 linhas, com o número de recursos, o tipo, onde, para quê e o custo de cada', () => {
+  it('exemplo: uma linha, com os recursos, as VMs, onde e o custo total', () => {
     const sim = simularProvisionamento(decidir([{ servico: 'postgres', nome: 'encomendas', dadosGb: 5 }, { servico: 'segredos', nome: 'db' }]));
-    assert.equal(
-      resumoSimulacao(sim),
-      'DRY-RUN: I would create 4 resources on Leaseweb via API (lsw.c3.large in Amsterdam for PostgreSQL and OpenBao, about €30.02/month each).\nNothing was created. Estimated budget: about €60.04/month (Leaseweb list prices, 20/11/2026).',
-    );
+    assert.equal(resumoSimulacao(sim), 'DRY-RUN on the Leaseweb API: 4 resources (2× lsw.c3.large, Amsterdam), ~€60.04/month. Nothing created.');
   });
 
-  it('VMs diferentes: cada uma com o seu custo; o Object Storage aparece como pedido no portal', () => {
+  it('VMs diferentes e Object Storage: continua numa linha', () => {
     const sim = simularProvisionamento(
       decidir([{ servico: 'postgres', dadosGb: 5 }, { servico: 'cache', dadosGb: 4, criticidade: 'alta' }, { servico: 's3', dadosGb: 10, criticidade: 'alta' }]),
     );
-    const r = resumoSimulacao(sim);
-    assert.ok(r.split('\n').length <= 3);
-    assert.match(r, /^DRY-RUN: I would create 4 resources on Leaseweb via API \(in Amsterdam: lsw\.c3\.large for PostgreSQL \(about €30\.02\/month\) and lsw\.r3\.large for Valkey \(about €40\.49\/month\)\)\./);
-    assert.match(r, /\nPlus Leaseweb Object Storage on demand for S3, ordered in the portal\.\nNothing was created\. Estimated budget: about €70\.51\/month \(Leaseweb list prices, 20\/11\/2026\)\.$/);
+    assert.equal(
+      resumoSimulacao(sim),
+      'DRY-RUN on the Leaseweb API: 4 resources (lsw.c3.large, lsw.r3.large, Amsterdam), ~€70.51/month; S3 → Leaseweb Object Storage on demand (portal). Nothing created.',
+    );
   });
 
   it('sem nada a criar: diz que é dry-run e que nada foi criado', () => {
     const r = resumoSimulacao(simularProvisionamento(decidirDestino({ servicos: [{ servico: 'fila' }], vm: VM, temBackups: true, hoje: HOJE })));
-    assert.equal(r, 'DRY-RUN: no Leaseweb VM to create for these services.\nNothing was created.');
+    assert.equal(r, 'DRY-RUN on the Leaseweb API: nothing to create. Nothing created.');
   });
 });

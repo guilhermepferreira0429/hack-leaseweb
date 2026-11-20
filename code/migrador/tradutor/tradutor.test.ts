@@ -8,6 +8,7 @@ import {
   PORTAS_SENSIVEIS,
   POR_ESCOLHER,
   resumoPlano,
+  resumoPlanoDetalhe,
   traduzir,
   type ItemRecusar,
   type PlanoTraducao,
@@ -349,6 +350,7 @@ describe('tradutor: segredos (o valor nunca aparece)', () => {
       for (const v of valores) {
         semValor(JSON.stringify(p), v, 'plano');
         semValor(resumoPlano(p), v, 'resumo');
+        semValor(resumoPlanoDetalhe(p), v, 'resumo completo');
       }
     }
   });
@@ -471,7 +473,7 @@ describe('tradutor: segredos (o valor nunca aparece)', () => {
     assert.equal(d.nivel, 'C');
     assert.match(d.comoSeMove, /^Plan only today/);
     assert.ok(!p.sinalizar.some((s) => s.origem === 'aws_dynamodb_table.carrinhos'));
-    assert.match(resumoPlano(p), /DynamoDB → ScyllaDB \(plan only\)/);
+    assert.match(resumoPlanoDetalhe(p), /DynamoDB → ScyllaDB \(plan only\)/);
   });
 
   it('última barreira: se um valor secreto fosse parar ao plano, não há plano e o erro não leva o valor', () => {
@@ -512,7 +514,7 @@ describe('tradutor: determinismo e resumo', () => {
 
   it('resumo: curto (<= 600), com "move-se hoje", "recusei copiar" e "precisa de redesenho"', () => {
     for (const adminIp of [ADMIN, '']) {
-      const r = resumoPlano(exemplo(adminIp));
+      const r = resumoPlanoDetalhe(exemplo(adminIp));
       assert.ok(r.length <= 600, `resumo com ${r.length} caracteres`);
       assert.match(r, /Moves today: server m5\.large \(Ireland\) → lsw\.m5\.large in Amsterdam, Ubuntu 22\.04/);
       assert.match(r, /Open to all: 80, 443/);
@@ -522,8 +524,19 @@ describe('tradutor: determinismo e resumo', () => {
       assert.match(r, /Needs redesign: IAM deploy, Lambda miniaturas/);
       assert.doesNotMatch(r, new RegExp(ADMIN.replaceAll('.', '\\.')));
     }
-    assert.match(resumoPlano(exemplo()), /SSH \(22\) only from your IP/);
-    assert.match(resumoPlano(exemplo('')), /SSH \(22\) closed until ADMIN_IP is set in \.env/);
+    assert.match(resumoPlanoDetalhe(exemplo()), /SSH \(22\) only from your IP/);
+    assert.match(resumoPlanoDetalhe(exemplo('')), /SSH \(22\) closed until ADMIN_IP is set in \.env/);
+  });
+
+  it('resumo curto para o Telegram: no máximo 3 linhas curtas', () => {
+    assert.equal(
+      resumoPlano(exemplo()),
+      'Terraform → Leaseweb (nothing created): m5.large (Ireland) → lsw.m5.large in Amsterdam, 7 services mapped.\n' +
+        'Refused: PostgreSQL 5432 open to all, SSH only from your IP, 3 secrets not copied.\n' +
+        'Needs redesign: IAM, Lambda. 2 warnings in the full plan.',
+    );
+    assert.match(resumoPlano(exemplo('')), /\nRefused: PostgreSQL 5432 open to all, SSH until ADMIN_IP, 3 secrets not copied\.\n/);
+    for (const adminIp of [ADMIN, '']) assert.ok(resumoPlano(exemplo(adminIp)).split('\n').length <= 3);
   });
 });
 
