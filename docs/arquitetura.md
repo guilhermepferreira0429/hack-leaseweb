@@ -27,6 +27,28 @@ Decisão:
 
 Registar o resultado em `leaseweb-api.md`, nas notas.
 
+## Contentores (Enio Carlos monta, todos usam)
+
+Tudo no **cérebro**, em contentores separados, definidos em `env/docker-compose.yml`:
+
+| Contentor | Faz de | Porta (só 127.0.0.1) |
+|---|---|---|
+| `localstack` | "AWS" simulada: S3 e SQS (a origem) | 4566 |
+| `postgres` | Base de dados da `exemplo-app` (faz de RDS) | 5433 |
+| `minio` | Destino do S3 na Leaseweb | 9000 e consola 9001 |
+
+```bash
+# no cérebro, na raiz do repo, com o .env preenchido
+npm run infra:up      # sobe os 3 contentores
+docker compose -f env/docker-compose.yml ps
+npm run infra:down    # desliga
+```
+
+- Tudo ligado só a `127.0.0.1`: o cérebro não expõe nada por engano.
+- A **vítima é sempre outra VM**, com o seu próprio security group: é a porta dela que o atacante encontra e a defesa fecha pela API. Não pode ser o cérebro, porque um `nmap` da própria máquina a si mesma não passa pelo security group.
+- Se a VM da organização sobrar, pode ficar com o `localstack` (a "AWS"), para se ver a passagem de uma máquina para outra.
+- No pitch: "simulámos a AWS com o LocalStack".
+
 ## Fluxo
 
 ```
