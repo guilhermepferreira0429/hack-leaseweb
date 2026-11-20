@@ -52,6 +52,8 @@ export interface Dependencias {
   };
   /** Voz dos agentes: resposta em texto, no papel do agente, a partir do estado. Opcional. */
   voz?: { responder(agente: Agente, pergunta: string, estado: string): Promise<string> };
+  /** Relatório do incidente no grupo "Direção" (shared/relatorio.ts), um por achado tratado no ciclo. Opcional. */
+  relatorio?: { publicar(achadoId: string): Promise<unknown> };
   chefe: {
     resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
     estadoAtual(pedidos: Pedido[]): string;
@@ -85,6 +87,8 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   const espera = new Map<string, (r: Resultado) => void>();
   /** Achado que deu origem a cada pedido da defesa (para o atacante confirmar no alvo certo). */
   const achadoDoPedido = new Map<string, Achado>();
+  /** Achados com pedido da defesa neste ciclo: cada um leva um relatório do incidente no fim. */
+  const achadosDoCiclo = new Set<string>();
 
   const hora = () => agora().toISOString();
   const horaCurta = () =>
@@ -430,6 +434,7 @@ ${resumo}`);
       try {
         const pedido = await deps.defesa.tratar(achado);
         achadoDoPedido.set(pedido.id, achado);
+        achadosDoCiclo.add(achado.id);
         resultados.push(esperarResultado(pedido.id));
       } catch (erro) {
         await falha(`pedido para ${achado.alvo}:${achado.porta}`, erro);
@@ -441,6 +446,7 @@ ${resumo}`);
   async function correr(): Promise<void> {
     // A auditoria acumula todos os ensaios do dia: o chefe só fala deste ciclo.
     inicioCiclo = hora();
+    achadosDoCiclo.clear();
     if (opcoes.migrar) await faseMigrar().catch((e) => falha('migração', e));
     // Daqui em diante a infraestrutura nova conta como "no ar": é o início do relógio de exposição (ideia wow 2).
     auditar({ pedidoId: '-', tipo: 'infra-no-ar', quem: 'orquestrador' });
@@ -449,12 +455,25 @@ ${resumo}`);
     const resultados = await faseDefender(doAtacante);
     // Os pedidos sem resposta ficam "por decidir" no resumo; um Aprovar tardio ainda fecha (foi um humano).
     if ((await comLimite(Promise.all(resultados))) === 'sem-resposta') log('há pedidos sem resposta; resumo na mesma');
+    await publicarRelatorios();
     falar('chefe', 'dono', deps.chefe.resumir(doCiclo(), deps.estado.listarPedidos()));
     if (deps.chefe.certificado) {
       try {
         falar('chefe', 'dono', deps.chefe.certificado(doCiclo(), deps.estado.listarPedidos()));
       } catch (erro) {
         await falha('certificado de migração', erro);
+      }
+    }
+  }
+
+  /** Um relatório por achado tratado neste ciclo. Uma falha num não impede os outros nem o resumo. */
+  async function publicarRelatorios(): Promise<void> {
+    if (!deps.relatorio) return;
+    for (const achadoId of achadosDoCiclo) {
+      try {
+        await deps.relatorio.publicar(achadoId);
+      } catch (erro) {
+        await falha(`relatório do incidente ${achadoId}`, erro);
       }
     }
   }
