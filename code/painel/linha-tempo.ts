@@ -6,6 +6,7 @@ import type { EventoAuditoria, Pedido, Regra } from '@mwbe/shared';
 import { auditoria, estado } from '@mwbe/shared';
 import { relogioExposicao } from '@mwbe/chefe';
 import { cabecalho, escapar, horaLisboa, numero } from './estilo';
+import { CSS_TERMINAL, renderizarTerminal } from './terminal';
 
 export const FASES = ['migrar', 'atacar', 'aprovar', 'fechar'] as const;
 export type Fase = (typeof FASES)[number];
@@ -96,7 +97,7 @@ export function cicloAtual(eventos: EventoAuditoria[]): EventoAuditoria[] {
   const i = eventos.findLastIndex((e) => e.tipo === 'infra-no-ar');
   if (i < 0) return eventos.slice(-40);
   let inicio = i;
-  for (let j = i - 1; j >= 0 && j >= i - 30; j--) {
+  for (let j = i - 1; j >= 0 && j >= i - 150; j--) {
     if (eventos[j].tipo === 'infra-no-ar') break;
     if (eventos[j].quem === 'migrador') inicio = j;
   }
@@ -192,9 +193,9 @@ section{background:var(--panel);border-radius:18px;padding:28px;display:flex;fle
 .ev{display:flex;gap:14px}.ev:before{content:'';flex:none;width:4px;border-radius:2px;background:var(--c)}
 .meta{display:flex;gap:10px;font:14px var(--mono)}.meta b{color:var(--c);letter-spacing:1px}.meta span{color:var(--faint)}.frase{font-size:20px;margin-top:4px}
 .ag-migrador{--c:var(--mig)}.ag-atacante{--c:var(--atk)}.ag-defesa{--c:var(--def)}.ag-dono{--c:var(--ink)}.ag-chefe{--c:var(--chf)}
-.fluxo{display:flex;flex-direction:column;gap:22px;flex:1}.cartao{background:var(--bg);border-radius:18px;padding:28px;display:flex;flex-direction:column;gap:6px}
-.cartao h3{margin:0;font:400 30px var(--serif)}.cartao .sub{font:16px var(--mono);color:var(--muted)}.vitima{background:#7DD3A814}
-.seta{display:flex;gap:12px;align-items:center;font:17px var(--mono);color:var(--faint)}.seta b{font:28px var(--sans)}.seta.mig{color:var(--mig)}.seta.atk{color:var(--atk)}
+.fluxo{display:flex;flex-direction:column;gap:10px}.cartao{background:var(--bg);border-radius:14px;padding:14px 20px;display:flex;flex-direction:column;gap:4px}
+.cartao h3{margin:0;font:400 24px var(--serif)}.cartao .sub{font:16px var(--mono);color:var(--muted)}.vitima{background:#7DD3A814}
+.seta{display:flex;gap:12px;align-items:center;font:15px var(--mono);color:var(--faint)}.seta b{font:22px var(--sans)}.seta.mig{color:var(--mig)}.seta.atk{color:var(--atk)}
 .portas{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}.porta{padding:6px 12px;border-radius:8px;font:16px var(--mono)}
 .p-aberta,.p-reaberta{color:var(--atk);background:#FF5C6122}.p-a-fechar{color:#F5B942;background:#F5B94222}.p-fechada{color:var(--def);background:#33D69A22}
 .prova h3{margin:0 0 10px;font:400 28px var(--serif)}.kv{display:flex;justify-content:space-between;gap:12px;font-size:17px;padding:4px 0}
@@ -270,11 +271,12 @@ ${p.chaves !== undefined ? `<div class="kv"><span>Chaves da cache</span><span>${
 <div class="kv"><span>Inverso guardado</span><span>${fecho ? '<span class="ok">criar_regra ✓</span>' : '—'}</span></div></div>
 <div class="espaco"></div>${botao}<div class="nota">Tudo vem de auditoria.jsonl e estado.json</div>`;
 
-  return `${cabecalho('Migrar sem ficar exposto', CSS)}
+  return `${cabecalho('Migrar sem ficar exposto', CSS + CSS_TERMINAL)}
 <div class="topo"><div class="marca"><div class="kicker">InfraHack · Leaseweb · ao vivo</div><h1>Migrar sem ficar exposto</h1></div>${relogio}</div>
 <div class="corpo">
 <section><div class="cab"><span>AGENTES · GRUPO DIREÇÃO</span><span>Telegram</span></div>${agora}<div class="eventos">${linhas || '<div class="frase" style="color:var(--faint)">Ainda sem eventos.</div>'}</div></section>
-<section><div class="cab"><span>INFRAESTRUTURA</span><span>região UE</span></div>${infra}</section>
+<section><div class="cab"><span>INFRAESTRUTURA</span><span>região UE</span></div>${infra}
+<div class="cab"><span>TERMINAL</span><span>reconstruído da auditoria</span></div>${renderizarTerminal(eventos)}</section>
 <section><div class="cab"><span>PROVAS</span></div>${provasHtml}</section></div>
 <script>
 const r=document.querySelector('.relogio[data-inicio]');
