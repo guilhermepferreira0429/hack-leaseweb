@@ -312,6 +312,35 @@ describe('orquestrador', () => {
     assert.ok(falha.falas.some((f) => /ficheiros copiados/.test(f.texto)));
   });
 
+  it('base de dados (nível B): segunda aprovação, cópia com prova e testes outra vez', async () => {
+    const t = montar({}, { atacar: false });
+    let copias = 0;
+    t.deps.migrador.migrarPostgres = async () => (copias++, { tabelas: 1, linhas: 20, checksumsOk: true });
+    await t.orq.correr();
+    assert.equal(copias, 1);
+    const migracoes = t.pedidosEnviados.filter((p) => p.pedido.acao.tipo === 'migrar').map((p) => (p.pedido.acao as { passo: string }).passo);
+    assert.deepEqual(migracoes, ['s3', 'postgres']);
+    assert.ok(t.falas.some((f) => /Base de dados: 1 tabela e 20 linhas copiadas, checksums iguais, testes a passar com a base de dados nova/.test(f.texto)));
+    const pg = t.pedidosEnviados.find((p) => (p.pedido.acao as { passo?: string }).passo === 'postgres')!.pedido;
+    assert.equal(t.pedidos.get(pg.id)?.estado, 'feito');
+  });
+
+  it('base de dados: não se pergunta se o S3 não foi aprovado; um erro na cópia não trava o resto', async () => {
+    const recusa = montar({ decisao: (p) => (p.acao.tipo === 'migrar' ? 'ignorar' : 'aprovar') }, { atacar: false });
+    recusa.deps.migrador.migrarPostgres = async () => ({ tabelas: 1, linhas: 1, checksumsOk: true });
+    await recusa.orq.correr();
+    assert.equal(recusa.pedidosEnviados.filter((p) => p.pedido.acao.tipo === 'migrar').length, 1);
+
+    const erro = montar({}, { atacar: false });
+    erro.deps.migrador.migrarPostgres = async () => {
+      throw new Error('Postgres de destino não responde');
+    };
+    await erro.orq.correr();
+    assert.ok(erro.notificacoes.some((n) => /migração da base de dados/.test(n)));
+    assert.equal(erro.corrigidos.length, 1, 'a defesa segue');
+    assert.equal(erro.falas.at(-1)?.de, 'chefe');
+  });
+
   it('o atacante diz se ainda chega à porta depois de fechar', async () => {
     const t = montar({ portaFechada: false }, { migrar: false });
     await t.orq.correr();

@@ -7,6 +7,9 @@ const HORA = (iso: string) =>
   new Date(iso).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' });
 const DATA = (iso: string) => new Date(iso).toLocaleDateString('pt-PT', { timeZone: 'Europe/Lisbon' });
 
+const doPasso = (pedidos: Pedido[], passo: 's3' | 'postgres' | 'fila') =>
+  pedidos.find((p) => p.acao.tipo === 'migrar' && p.acao.passo === passo);
+
 export interface Exposicao {
   /** Quando a infraestrutura nova ficou no ar (evento 'infra-no-ar' do orquestrador). */
   inicio: string;
@@ -39,7 +42,7 @@ type Reconhecimento = { achados?: number; portas?: { alvo: string; porta: number
 export function certificado(eventos: EventoAuditoria[], pedidos: Pedido[], localDados?: string, agora: Date = new Date()): string {
   const linhas = [`Certificado de migração · ${DATA(agora.toISOString())} ${HORA(agora.toISOString())}`];
 
-  const migracao = pedidos.find((p) => p.acao.tipo === 'migrar');
+  const migracao = doPasso(pedidos, 's3');
   const prova = migracao && (eventos.filter((e) => e.pedidoId === migracao.id && e.tipo === 'feito').at(-1)?.depois as ProvaMigracao | undefined);
   if (migracao?.estado === 'feito' && prova) {
     linhas.push(`Dados: ficheiros do S3 passados para MinIO${localDados ? `, em ${localDados}` : ''}.`);
@@ -48,6 +51,13 @@ export function certificado(eventos: EventoAuditoria[], pedidos: Pedido[], local
     linhas.push(`Prova: ${n}, impressão digital (sha256) ${prova.checksumsOk ? 'igual dos dois lados' : 'DIFERENTE em pelo menos um'}${testes}.`);
   } else if (migracao) {
     linhas.push(`Migração: ${migracao.estado === 'ignorado' ? 'não aprovada' : 'por concluir'}.`);
+  }
+
+  const pg = doPasso(pedidos, 'postgres');
+  const provaPg = pg && (eventos.filter((e) => e.pedidoId === pg.id && e.tipo === 'feito').at(-1)?.depois as { tabelas?: number; linhas?: number; checksumsOk?: boolean } | undefined);
+  if (pg?.estado === 'feito' && provaPg) {
+    const quanto = typeof provaPg.tabelas === 'number' && typeof provaPg.linhas === 'number' ? `${provaPg.tabelas} ${provaPg.tabelas === 1 ? 'tabela' : 'tabelas'} e ${provaPg.linhas} linhas` : 'Tabelas';
+    linhas.push(`Base de dados: ${quanto} copiadas para PostgreSQL${localDados ? `, em ${localDados}` : ''}; contagem e sha256 ${provaPg.checksumsOk ? 'iguais' : 'DIFERENTES'} em cada tabela.`);
   }
 
   const recon = eventos.filter((e) => e.tipo === 'reconhecimento').at(-1)?.depois as Reconhecimento | undefined;

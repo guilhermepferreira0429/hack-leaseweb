@@ -75,6 +75,14 @@ describe('chefe/certificado', () => {
     assert.doesNotMatch(t, /198.51.100.7/);
   });
 
+  it('base de dados migrada (nível B) aparece com a prova por tabela', () => {
+    const pg: Pedido = { id: 'p1', titulo: 'Copiar a base de dados', texto: '', acao: { tipo: 'migrar', passo: 'postgres' }, estado: 'feito' };
+    const eventos = [...demo, ev('p1', 'feito', 48, { depois: { tabelas: 1, linhas: 20, checksumsOk: true } })];
+    const t = certificado(eventos, [migrar, pg, fechar], undefined, new Date(em(50)));
+    assert.match(t, /Base de dados: 1 tabela e 20 linhas copiadas para PostgreSQL; contagem e sha256 iguais em cada tabela\./);
+    assert.match(t, /20 ficheiros copiados/, 'o S3 continua a ser o primeiro passo');
+  });
+
   it('migração não aprovada', () => {
     assert.match(certificado([], [{ ...migrar, estado: 'ignorado' }]), /Migração: não aprovada/);
   });

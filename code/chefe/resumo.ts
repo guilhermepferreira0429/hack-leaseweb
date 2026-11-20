@@ -20,8 +20,11 @@ function tempoAteFechar(pedidoId: string, eventos: EventoAuditoria[]): number | 
   return Date.parse(fim.hora) - Date.parse(inicio.hora);
 }
 
+const doPasso = (pedidos: Pedido[], passo: 's3' | 'postgres' | 'fila') =>
+  pedidos.find((p) => p.acao.tipo === 'migrar' && p.acao.passo === passo);
+
 function linhaMigracao(pedidos: Pedido[], eventos: EventoAuditoria[]): string | undefined {
-  const m = pedidos.find((p) => p.acao.tipo === 'migrar');
+  const m = doPasso(pedidos, 's3');
   if (!m) return undefined;
   if (m.estado === 'ignorado') return 'Migração não aprovada: ficou tudo como estava.';
   if (m.estado !== 'feito') return 'Migração por concluir: vejam o painel.';
@@ -29,7 +32,10 @@ function linhaMigracao(pedidos: Pedido[], eventos: EventoAuditoria[]): string | 
     | { objetos?: number }
     | undefined;
   const n = typeof prova?.objetos === 'number' ? `${plural(prova.objetos, 'ficheiro', 'ficheiros')}, ` : '';
-  return `Migração concluída: ${n}checksums iguais e testes a passar dos dois lados.`;
+  const pg = doPasso(pedidos, 'postgres');
+  const provaPg = pg?.estado === 'feito' ? (eventos.filter((e) => e.pedidoId === pg.id && e.tipo === 'feito').at(-1)?.depois as { tabelas?: number } | undefined) : undefined;
+  const base = provaPg ? ` Base de dados copiada${typeof provaPg.tabelas === 'number' ? ` (${plural(provaPg.tabelas, 'tabela', 'tabelas')})` : ''}, também com checksums iguais.` : '';
+  return `Migração concluída: ${n}checksums iguais e testes a passar dos dois lados.${base}`;
 }
 
 function linhaDefesa(pedidos: Pedido[], eventos: EventoAuditoria[]): string {

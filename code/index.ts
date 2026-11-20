@@ -9,8 +9,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { auditoria, bus, estado, telegram } from '@mwbe/shared';
 import * as defesa from '@mwbe/defesa';
-import { reconhecer } from '@mwbe/atacante';
-import { analisar, migrarS3, verificar } from '@mwbe/migrador';
+import { carregarAllowlist, reconhecer } from '@mwbe/atacante';
+import { analisar, migrarPostgres, migrarS3, verificar } from '@mwbe/migrador';
 import { certificado, estadoAtual, resumir } from '@mwbe/chefe';
 import { iniciarPainel } from '@mwbe/painel';
 import { decidirDestino, mensagemDestino, resumoPlano, traduzir } from './migrador/tradutor/index';
@@ -48,13 +48,6 @@ async function planoDestino(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<s
   return mensagemDestino(decisoes, vm);
 }
 
-function lista(valor: string | undefined): string[] {
-  return (valor ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
 async function main(): Promise<void> {
   carregarEnv();
   const args = new Set(process.argv.slice(2));
@@ -77,14 +70,15 @@ async function main(): Promise<void> {
         desfazer: (id) => defesa.desfazer(id, canal.telegram.notificar),
       },
       atacante: { reconhecer },
-      migrador: { analisar, migrarS3, verificar, planoInfra, planoDestino },
+      migrador: { analisar, migrarS3, migrarPostgres, verificar, planoInfra, planoDestino },
       chefe: { resumir, estadoAtual, certificado: (eventos, pedidos) => certificado(eventos, pedidos, process.env.LOCAL_DADOS || undefined) },
     },
     {
       migrar: !args.has('--sem-migrador'),
       atacar: !args.has('--sem-atacante'),
       dirApp: `${RAIZ}code/exemplo-app`,
-      alvos: lista(process.env.ALVOS_PERMITIDOS),
+      // Falha fechado: uma entrada que não seja IP literal faz o arranque parar, nunca alarga a vedação.
+      alvos: [...carregarAllowlist(process.env.ALVOS_PERMITIDOS)],
       donoId: consola ? DONO_CONSOLA : process.env.TELEGRAM_DONO_ID || undefined,
       esperaDecisaoMs: Number(process.env.ESPERA_DECISAO_MS) > 0 ? Number(process.env.ESPERA_DECISAO_MS) : undefined,
     },
