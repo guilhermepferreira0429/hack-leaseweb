@@ -83,7 +83,7 @@ Regra: o código só muda por PR. Nunca há push direto para o ramo principal.
 | Ferramenta | O que procura | Nível |
 |---|---|---|
 | Ligação TCP às portas sensíveis | Bases de dados, Redis, Elasticsearch, RDP abertos a toda a Internet | **A** |
-| Senhas SSH, limitado | Login SSH por senha fraca: no máximo 20 tentativas, um só alvo da allowlist, só com `/atacar`; para na primeira entrada | **B** |
+| Senhas SSH, limitado | Login SSH por senha fraca: no máximo 5 tentativas, um só alvo da allowlist, só com `/atacar`; para na primeira entrada | **B** |
 | Leitura dos security groups pela API | Regras com `0.0.0.0/0` ou `::/0` | **A** |
 | Bucket do MinIO público | Política de leitura anónima depois da migração | **B** |
 | Credenciais por defeito | Postgres, Redis, MinIO e painéis com a senha de fábrica (só tentativa de login, sem mexer em dados) | **B** |

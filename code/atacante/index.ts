@@ -23,8 +23,8 @@ export * from './credenciais';
 export * from './extras';
 export * from './ssh-auth';
 
-/** Máximo de tentativas, mesmo que a wordlist cresça. */
-export const MAX_TENTATIVAS = 20;
+/** Máximo de tentativas, mesmo que a wordlist cresça. Pequeno de propósito: a demo não deve encher o grupo de falhas. */
+export const MAX_TENTATIVAS = 5;
 /** Pausa entre tentativas: a demo tem de ser legível e o auth.log não fica uma parede de linhas. */
 export const PAUSA_ENTRE_TENTATIVAS_MS = 800;
 /** Tempo máximo para estabelecer a sessão SSH. */
@@ -130,20 +130,20 @@ export async function executarForcaBruta(opcoes: OpcoesForcaBruta): Promise<Resu
     // A guarda repete-se antes de CADA ligação, não é uma verificação única no início do processo.
     garantirPermitido(alvo, opcoes.allowlist);
     const senha = senhas[i]!;
-    log(`tentativa ${i + 1}/${senhas.length} em ${alvo}, utilizador '${utilizador}'`);
+    log(`attempt ${i + 1}/${senhas.length} on ${alvo}, user '${utilizador}'`);
 
     const cliente = await tentarSenha(alvo, utilizador, senha, opcoes.timeoutMs ?? TIMEOUT_SSH_MS);
     if (cliente) {
-      log(`entrou à ${i + 1}.ª tentativa; sessão fechada sem alterações`);
+      log(`got in on attempt ${i + 1}; session closed, nothing changed`);
       cliente.end();
       return { alvo, utilizador, tentativas: i + 1, sucesso: true, senha };
     }
 
-    log('  falhou');
+    log('  failed');
     if (i < senhas.length - 1) await pausa(opcoes.pausaMs ?? PAUSA_ENTRE_TENTATIVAS_MS);
   }
 
-  log(`lista esgotada sem entrar em ${alvo}`);
+  log(`wordlist exhausted, no entry on ${alvo}`);
   return { alvo, utilizador, tentativas: senhas.length, sucesso: false };
 }
 
@@ -254,7 +254,7 @@ function depsAtaquePadrao(): DependenciasAtaque {
 
 /** Tira palavras-passe de um relato vindo da força bruta, por segurança. */
 function semSegredo(texto: string): string {
-  return texto.replace(/(?:senha|password)\s*[:=]?\s*'[^']*'/gi, 'senha [oculta]');
+  return texto.replace(/(?:senha|password)\s*[:=]?\s*'[^']*'/gi, 'password [hidden]');
 }
 
 /**
@@ -277,7 +277,7 @@ export async function iniciarAtaque(
   };
 
   if (ataqueEmCurso) {
-    falar('ataque já em curso');
+    falar('attack already running');
     return { estado: 'em-curso' };
   }
 
@@ -285,23 +285,23 @@ export async function iniciarAtaque(
   try {
     allowlist = deps.allowlist();
   } catch (erro) {
-    falar(`allowlist inválida, ataque recusado: ${erro instanceof Error ? erro.message : String(erro)}`);
+    falar(`allowlist invalid, attack refused: ${erro instanceof Error ? erro.message : String(erro)}`);
     return { estado: 'recusado' };
   }
   if (allowlist.size === 0) {
-    falar('allowlist vazia, ataque recusado');
+    falar('allowlist empty, attack refused');
     return { estado: 'recusado' };
   }
 
   const alvo = (opcoes.alvo ?? [...allowlist][0] ?? '').trim();
   if (!alvo) {
-    falar('allowlist vazia, ataque recusado');
+    falar('allowlist empty, attack refused');
     return { estado: 'recusado' };
   }
   try {
     garantirPermitido(alvo, allowlist);
   } catch {
-    falar(`alvo recusado (fora da allowlist): ${alvo}`);
+    falar(`target refused (not in allowlist): ${alvo}`);
     return { estado: 'recusado', alvo };
   }
 
@@ -316,14 +316,14 @@ export async function iniciarAtaque(
       }
     };
 
-    falar(`⚔️ Ataque iniciado contra ${alvo}`);
+    falar(`⚔️ Attack started against ${alvo}`);
 
     const portas = await deps.reconhecer(alvo, allowlist);
     const abertas = portas.filter((p) => p.estado === 'aberta').map((p) => p.porta);
     falar(
       abertas.length > 0
-        ? `👁️ Reconhecimento: ${abertas.length} porta(s) aberta(s): ${abertas.join(', ')}`
-        : '👁️ Reconhecimento: nenhuma porta aberta',
+        ? `👁️ Recon: ${abertas.length} open port(s): ${abertas.join(', ')}`
+        : '👁️ Recon: no open ports',
     );
     await avisarRonda({ nome: 'reconhecimento', achados: portas.filter((p) => p.estado === 'aberta').map(paraAchado) });
 
@@ -331,24 +331,24 @@ export async function iniciarAtaque(
     const ssh = await deps.forcaBruta(alvo, allowlist, (texto) => falar(semSegredo(texto)));
     falar(
       ssh.sucesso
-        ? `✅ SSH: entrei com ${ssh.utilizador} em ${ssh.tentativas} tentativa(s)`
-        : `❌ SSH: sem entrada em ${ssh.tentativas} tentativa(s)`,
+        ? `✅ SSH: got in as ${ssh.utilizador} after ${ssh.tentativas} attempt(s)`
+        : `❌ SSH: no entry after ${ssh.tentativas} attempt(s)`,
     );
 
     const comExtras = opcoes.extras ?? process.env.ATACANTE_EXTRAS === '1';
     if (comExtras) {
       const achados = await deps.extras(alvo, allowlist);
-      const lista = achados.map((a) => `${a.servico ?? 'serviço'} ${a.porta}`).join(', ');
-      falar(`🧪 Extras: ${achados.length} achado(s)${lista ? ` (${lista})` : ''}`);
+      const lista = achados.map((a) => `${a.servico ?? 'service'} ${a.porta}`).join(', ');
+      falar(`🧪 Extras: ${achados.length} finding(s)${lista ? ` (${lista})` : ''}`);
       await avisarRonda({ nome: 'extras', achados });
       const segredos = await deps.segredos();
-      falar(`🧪 Segredos no código: ${segredos.length} encontrado(s)`);
+      falar(`🧪 Secrets in code: ${segredos.length} found`);
     }
 
-    falar('✅ Ataque terminado');
+    falar('✅ Attack finished');
     return { estado: 'feito', alvo };
   } catch (erro) {
-    falar(`❌ Ataque falhou: ${erro instanceof Error ? erro.message : String(erro)}`);
+    falar(`❌ Attack failed: ${erro instanceof Error ? erro.message : String(erro)}`);
     return { estado: 'falhou', alvo };
   } finally {
     ataqueEmCurso = false;

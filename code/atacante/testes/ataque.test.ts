@@ -18,7 +18,7 @@ function preparar(opcoes: { allowlist?: string; bloqueioRecon?: Promise<void> } 
     },
     forcaBruta: async (alvo, _allowlist, log) => {
       ordem.push('ssh');
-      log(`tentativa 1/20 em ${alvo}, utilizador 'deploy'`);
+      log(`attempt 1/5 on ${alvo}, user 'deploy'`);
       return { alvo, utilizador: 'deploy', tentativas: 2, sucesso: true, senha: 'deploy123' };
     },
     extras: async () => {
@@ -39,7 +39,7 @@ describe('atacante/iniciarAtaque', () => {
     const { deps, mensagens, ordem } = preparar({ allowlist: '' });
     const r = await iniciarAtaque({}, deps);
     assert.equal(r.estado, 'recusado');
-    assert.ok(mensagens.includes('allowlist vazia, ataque recusado'));
+    assert.ok(mensagens.includes('allowlist empty, attack refused'));
     assert.deepEqual(ordem, []);
   });
 
@@ -47,7 +47,7 @@ describe('atacante/iniciarAtaque', () => {
     const { deps, mensagens, ordem } = preparar();
     const r = await iniciarAtaque({ alvo: '203.0.113.11' }, deps);
     assert.equal(r.estado, 'recusado');
-    assert.ok(mensagens.some((m) => m.includes('fora da allowlist')));
+    assert.ok(mensagens.some((m) => m.includes('not in allowlist')));
     assert.deepEqual(ordem, []);
   });
 
@@ -56,9 +56,9 @@ describe('atacante/iniciarAtaque', () => {
     const r = await iniciarAtaque({ alvo: '203.0.113.10' }, deps);
     assert.equal(r.estado, 'feito');
     assert.deepEqual(ordem, ['recon', 'ssh']);
-    assert.ok(mensagens.some((m) => m.startsWith('⚔️ Ataque iniciado')));
-    assert.ok(mensagens.some((m) => m.startsWith('✅ SSH: entrei com deploy')));
-    assert.ok(mensagens.includes('✅ Ataque terminado'));
+    assert.ok(mensagens.some((m) => m.startsWith('⚔️ Attack started')));
+    assert.ok(mensagens.some((m) => m.startsWith('✅ SSH: got in as deploy')));
+    assert.ok(mensagens.includes('✅ Attack finished'));
     assert.ok(!mensagens.join('\n').includes('deploy123'));
   });
 
@@ -72,7 +72,7 @@ describe('atacante/iniciarAtaque', () => {
     try {
       const segundo = await iniciarAtaque({ alvo: '203.0.113.10' }, deps);
       assert.equal(segundo.estado, 'em-curso');
-      assert.ok(mensagens.includes('ataque já em curso'));
+      assert.ok(mensagens.includes('attack already running'));
     } finally {
       libertar();
       await primeiro;

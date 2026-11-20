@@ -185,7 +185,7 @@ async function main(): Promise<void> {
   // c) parte 1: recusa ao ID fora da lista (o update simulado já foi tratado pelo ciclo).
   await ate(() => chamadas.some((c) => c.metodo === 'answerCallbackQuery' && c.corpo.callback_query_id === ID_CALLBACK_FALSO), 5_000);
   const recusa = chamadas.find((c) => c.metodo === 'answerCallbackQuery' && c.corpo.callback_query_id === ID_CALLBACK_FALSO);
-  const recusado = Boolean(recusa && /Sem permissão/.test(String(recusa.corpo.text))) && !toques.some((t) => t.quem === String(naoAprovador));
+  const recusado = Boolean(recusa && /Not allowed|No permission/.test(String(recusa.corpo.text))) && !toques.some((t) => t.quem === String(naoAprovador));
   passo(`c) ID ${naoAprovador} (fora da lista) recusado`, recusado && !telegram.podeAprovar(naoAprovador), recusa ? `resposta: "${String(recusa.corpo.text)}"` : 'sem answerCallbackQuery');
 
   // b)

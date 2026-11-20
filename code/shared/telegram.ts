@@ -161,7 +161,7 @@ const mensagensDosPedidos = new Map<string, { token: string; chatId: number; mes
 
 /** Textos dos botões acordados em shared/mensagens.ts; um tipo de ação sem texto cai no genérico. */
 function rotulosDoPedido(acao: Pedido['acao'] | undefined): { aprovar: string; ignorar: string } {
-  const recurso = { aprovar: 'Aprovar', ignorar: 'Ignorar' };
+  const recurso = { aprovar: 'Approve', ignorar: 'Ignore' };
   if (!acao) return recurso;
   const r: { aprovar: string; ignorar: string } | undefined = botoesPara(acao);
   return r ?? recurso;
@@ -171,7 +171,7 @@ function rotulosDoPedido(acao: Pedido['acao'] | undefined): { aprovar: string; i
 export async function pedirAprovacao(agente: Agente, pedido: Pedido): Promise<void> {
   // `risco` (opcional) só existe no Pedido do ramo da defesa; em main ainda não está em shared/tipos.ts.
   const risco = (pedido as Pedido & { risco?: string }).risco;
-  const texto = [pedido.titulo, '', pedido.texto, '', `${risco ? `Risco: ${risco} · ` : ''}Pedido ${pedido.id}`].join('\n');
+  const texto = [pedido.titulo, '', pedido.texto, '', `${risco ? `Risk: ${risco} · ` : ''}Request ${pedido.id}`].join('\n');
   const rotulos = rotulosDoPedido(pedido.acao);
   const teclado = {
     inline_keyboard: [
@@ -360,10 +360,10 @@ async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: U
     if (aDesfazer) {
       if (!podeAprovar(q.from.id)) {
         console.warn(`[telegram] desfazer de ${q.from.id} ignorado (não está em TELEGRAM_APROVADORES).`);
-        await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'Sem permissão.', show_alert: true });
+        await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'No permission.', show_alert: true });
         return;
       }
-      await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'A desfazer…' });
+      await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'Undoing…' });
       // Tira só este botão: os outros passos continuam a poder desfazer-se. Um segundo toque não faz nada.
       if (q.message) {
         const chave = `${q.message.chat.id}:${q.message.message_id}`;
@@ -382,15 +382,15 @@ async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: U
     }
     const botao = q.data ? descodificarBotao(q.data) : undefined;
     if (!botao) {
-      await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'Botão desconhecido.' });
+      await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'Unknown button.' });
       return;
     }
     if (!podeAprovar(q.from.id)) {
       console.warn(`[telegram] botão de ${q.from.id} ignorado (não está em TELEGRAM_APROVADORES).`);
-      await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'Sem permissão para aprovar.', show_alert: true });
+      await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: 'Not allowed to approve.', show_alert: true });
       return;
     }
-    await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: botao.decisao === 'aprovar' ? 'Aprovado.' : 'Ignorado.' });
+    await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: botao.decisao === 'aprovar' ? 'Approved.' : 'Ignored.' });
     const hora = new Date().toTimeString().slice(0, 5);
     // Tira os botões já (editMessageReplyMarkup): um segundo toque não faz nada.
     if (q.message) {
@@ -401,7 +401,7 @@ async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: U
       // Sem o texto original (ex.: processo reiniciado) não se reescreve a mensagem: perdia-se o pedido.
       const guardada = mensagensDosPedidos.get(botao.pedidoId);
       if (guardada) {
-        guardada.texto = `${guardada.texto}\n\n${botao.decisao === 'aprovar' ? 'Aprovado' : 'Ignorado'} por ${q.from.first_name ?? q.from.id} às ${hora}.`;
+        guardada.texto = `${guardada.texto}\n\n${botao.decisao === 'aprovar' ? 'Approved' : 'Ignored'} by ${q.from.first_name ?? q.from.id} at ${hora}.`;
         await chamar(token, 'editMessageText', { ...alvo, text: guardada.texto.slice(0, 4000) }).catch(() => {});
       }
     }
@@ -415,7 +415,7 @@ async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: U
   if (!podeComandar(m.from.id)) {
     // /atacar de quem não está na lista: responde no chat e não chega ao orquestrador.
     if (/^\/atacar(?:@\S+)?(?:\s|$)/.test(texto) && esteBotResponde(m.chat.type, m.text, nomeBot, agente)) {
-      await chamar(token, 'sendMessage', { chat_id: m.chat.id, text: 'sem permissão' }).catch((e: unknown) =>
+      await chamar(token, 'sendMessage', { chat_id: m.chat.id, text: 'no permission' }).catch((e: unknown) =>
         console.warn('[telegram]', e instanceof Error ? e.message : e),
       );
     }

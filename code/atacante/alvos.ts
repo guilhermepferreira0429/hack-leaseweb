@@ -5,7 +5,7 @@ import { isIP } from 'node:net';
 
 export class AlvoRecusadoError extends Error {
   constructor(readonly alvo: string) {
-    super(`Alvo recusado (fora da allowlist): ${alvo}`);
+    super(`Target refused (not in allowlist): ${alvo}`);
     this.name = 'AlvoRecusadoError';
   }
 }
