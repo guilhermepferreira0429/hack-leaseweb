@@ -1,0 +1,22 @@
+Migrate without being exposed
+Copyright 2026 The migrate-without-being-exposed authors
+
+This product was built at Hackathon Portugal 2026 — InfraHack: AI for Cloud
+Infrastructure, hosted by Leaseweb with Velv, in Lisbon, on 20 November 2026.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Third-party dependencies are installed with npm and are not included in this
+repository; each one remains under its own license. Product names and
+trademarks (AWS, Leaseweb, Telegram, TensorX, sference and others) belong to
+their respective owners.

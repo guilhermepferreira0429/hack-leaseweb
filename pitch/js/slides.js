@@ -58,7 +58,10 @@
             <div class="problema-texto">
               ${rotulo('SANS CLOUD SECURITY SURVEY · 2026', 'muted', E(0))}
               <div ${E(2, 'legenda')}>of companies need more than a day to close a critical gap they already know about.</div>
-              <div ${E(3, 'bd-fonte')}>45% of incidents start with misconfiguration <span class="muted">(SANS 2026)</span> · 55% need &gt; 3 months to leave <span class="muted">(Leaseweb 2026)</span></div>
+              <div ${E(3, 'mini-stats')}>
+              <div class="mini"><div class="mini-n">45%</div><div class="mini-d">of incidents start with misconfiguration<br><em>SANS 2026</em></div></div>
+              <div class="mini"><div class="mini-n">55%</div><div class="mini-d">need &gt; 3 months to leave<br><em>Leaseweb 2026</em></div></div>
+            </div>
             </div>
           </div>
           <div class="barras">
@@ -97,13 +100,21 @@
       id: 'para-quem',
       titulo: 'Para quem',
       passos: 0,
-      html: () => {
+      html: (p, v) => {
+        const t = vazio(v.t) ? falta('T') : fmt(v.t);
+        const x = vazio(v.x) ? falta('X') : fmt(v.x);
+        const av = {
+          Migrator: 'avatares/migrator.png',
+          Attacker: 'avatares/attacker.png',
+          Defender: 'avatares/defender.png',
+          Orchestrator: 'avatares/orchestrator.png',
+        };
         const msgs = [
-          ['Migrator', 'azul', 'I found 3 AWS services in the app: S3, Postgres, SQS.\nProposal: MinIO, PostgreSQL and RabbitMQ, all self-hosted.', 'Approve plan'],
-          ['Attacker', 'coral', 'The new database is open to the whole internet (port 5432).\nSeverity: high. Anyone can try to get in. @defesa', ''],
-          ['Defense', 'verde', 'Your customer database is open to the whole internet. Someone outside can guess the password and get in.\nI propose closing outside access. Undo is saved.', 'Close'],
-          ['Defense', 'verde', 'Closed and confirmed. Time exposed: T seconds.\nUndo saved: /desfazer', ''],
-          ['Chief', '', 'In X min we moved from AWS to Leaseweb, closed one issue and fixed the cause. Nothing left the EU.', ''],
+          ['Migrator', 'azul', '5 services found.\nProposal: MinIO, PostgreSQL, RabbitMQ, OpenBao and Valkey. All self-hosted.', 'Approve plan'],
+          ['Attacker', 'coral', 'The new database is open to the whole internet (port 5432).\nSeverity: high. Anyone can try to get in. @Defender', ''],
+          ['Defender', 'verde', 'Your customer database is open to the whole internet. Someone outside can guess the password and get in.\nI propose closing outside access. Undo is saved.', 'Close'],
+          ['Defender', 'verde', `Closed and confirmed. Time exposed: ${t} seconds.\nUndo saved: /desfazer`, ''],
+          ['Orchestrator', '', `In ${x} min we moved from AWS to Leaseweb, closed one issue and fixed the cause. Nothing left the EU.`, ''],
         ];
         return `
         <div class="lado-a-lado para-quem">
@@ -112,13 +123,13 @@
             <div ${E(1, 'frase-xl')}>Your whole<br>IT team,<br><span class="verde">inside Telegram.</span></div>
           </div>
           <div ${E(2, 'telemovel')}>
-            <div class="tl-cab"><span class="tl-avatar">D</span><div><b>Direção</b><small>4 agents · you</small></div></div>
+            <div class="tl-cab"><img class="tl-avatar-img" src="avatares/board.png" alt="Board"><div><b>Board</b><small>5 members · you</small></div></div>
             <div class="tl-conversa">
               ${msgs
                 .map(
                   ([quem, cor, texto, botao], i) => `
                 <div class="tl-msg" style="--m:${i}">
-                  <b class="${cor}">${quem}</b>
+                  <div class="tl-quem">${av[quem] ? `<img class="tl-mini" src="${av[quem]}" alt="">` : '<span class="tl-mini dv">DV</span>'}<b class="${cor}">${quem}</b></div>
                   <span>${texto}</span>
                   ${botao ? `<span class="tl-botoes"><em class="tl-botao">${botao}</em><em class="tl-botao">Ignore</em></span>` : ''}
                 </div>`,
@@ -165,85 +176,118 @@
     },
     {
       id: 'ao-vivo',
-      titulo: 'O percurso completo (replay)',
+      titulo: 'Painel da demo',
       passos: 0,
       html: (p, v) => {
-        const ev = (quem, cor, hora, texto, atraso) => `
-          <div class="lv-ev lv-in" style="--t:${atraso}">
-            <i class="lv-dot ${cor}"></i>
-            <div class="lv-ev-cab"><b class="${cor}">${quem}</b><span class="lv-hora">${hora}</span></div>
-            <div class="lv-ev-txt">${texto}</div>
-          </div>`;
         const t = vazio(v.t) ? falta('T') : fmt(v.t);
         const x = vazio(v.x) ? falta('X') : fmt(v.x);
+        const chain = [
+          ['orchestrator', 'Orchestrator', '12:47:10', "Cycle started. I'll report at every step."],
+          ['migrator', 'Migrator', '12:47:40', 'Migration plan for 5 AWS services, waiting for the owner.'],
+          ['migrator', 'Migrator', '12:48:30', 'Migration complete. Checksums match. Tests pass.'],
+          ['attacker', 'Attacker', '12:48:36', 'Database open to the internet (port 5432). Severity: high.'],
+          ['defender', 'Defender', '12:48:44', 'I propose closing outside access. Undo saved.'],
+          ['attacker', 'Attacker', '12:49:20', 'Re-scan: the port no longer answers.'],
+          ['migrator', 'Migrator', '12:50:12', 'PR opened: 2 files, tests passing.'],
+          ['orchestrator', 'Orchestrator', '12:50:48', `In ${x} min: off AWS, on Leaseweb. Nothing left the EU.`],
+        ];
+        const services = [
+          ['S3 → MinIO', '1,220 objects · checksums ✓'],
+          ['RDS PostgreSQL → PostgreSQL', '5,620 rows · checksums ✓'],
+          ['SQS → RabbitMQ', 'queue drained · tests ✓'],
+          ['Secrets Manager → OpenBao', 'no secret left behind'],
+          ['ElastiCache → Valkey', 'cache warm · TTL kept'],
+        ];
+        const logs = [
+          ['migrator', 'plan: 5 services · 1,220 objects'],
+          ['migrator', 's3 → minio · checksums ✓'],
+          ['migrator', 'postgres → postgresql · checksums ✓'],
+          ['migrator', 'sqs → rabbitmq · queue drained'],
+          ['migrator', 'secrets → openbao · 0 left behind'],
+          ['attacker', 'tcp 5432 open · severity high'],
+          ['defender', 'request: revokeFirewallRules'],
+          ['defender', 'port filtered from outside ✓'],
+          ['attacker', 're-scan: 5432 filtered'],
+          ['attacker', 'probe tcp/22 · ours only'],
+          ['defender', 'inverse saved · 1 click undo'],
+          ['migrator', 'pr: 2 files · tests ✓'],
+          ['orchestrator', `run complete · ${x} min`],
+          ['orchestrator', `tests: ${v.testes ?? 288} passing`],
+          ['orchestrator', 'report → board · audit line written'],
+        ];
+        const cor = (a) => (a === 'attacker' ? 'coral' : a === 'defender' ? 'verde' : a === 'migrator' ? 'azul' : 'muted');
         return `
-        <div class="lv">
-          <div class="lv-topo">
-            <div class="lv-marca">
-              <div class="rotulo">INFRAHACK · LEASEWEB · TODAY</div>
-              <div class="lv-titulo">The whole run,<br><span class="verde">as it happened.</span></div>
-              <div class="lv-sub">${conta(v.n, 'N', 0)} attempts on the bait · nothing left the EU.</div>
+        <div class="vp">
+          <div class="vp-top">
+            <div class="vp-brand">
+              <div class="rotulo">INFRAHACK · LEASEWEB · LIVE</div>
+              <div class="vp-title">Migrate without being exposed</div>
+              <div class="vp-sub">${conta(v.n, 'N', 0)} attempts on the bait · nothing left the EU.</div>
+              <div class="vp-src">Every number read from auditoria.jsonl and estado.json</div>
             </div>
-            <div class="lv-relogio">
+            <div class="vp-clock">
               <div class="rotulo">TIME EXPOSED</div>
-              <div class="lv-segundos">${conta(v.t, 'T', 200)}<small>s</small></div>
-              <div class="lv-estado lv-in" style="--t:5.1">closed by the owner</div>
+              <div class="vp-seconds">${conta(v.t, 'T', 200)}<small>s</small></div>
+              <div class="vp-pill vp-in" style="--t:4.8">closed by the owner</div>
+              <div class="vp-undo vp-in" style="--t:5.2">↺ Undo last action</div>
             </div>
           </div>
-          <div class="lv-corpo">
-            <div class="lv-col lv-timeline">
-              <div class="lv-cab"><span class="rotulo">AGENTS · DIREÇÃO</span><span class="mono muted">Telegram</span></div>
-              <div class="lv-eventos">
-                ${ev('Migrator', 'azul', '14:28', 'I found 3 AWS services. Proposal: MinIO, PostgreSQL, RabbitMQ.', 0.4)}
-                ${ev('You', 'muted', '14:29', 'Plan approved. @migrador, go ahead.', 1.3)}
-                ${ev('Migrator', 'azul', '14:30', 'Migration complete. Checksums match. Tests pass.', 2.2)}
-                ${ev('Attacker', 'coral', '14:31', 'Database open to the internet (port 5432). Severity: high. @defesa', 3.1)}
-                ${ev('Defense', 'verde', '14:31', 'I propose closing outside access. Undo saved.', 4.0)}
-                ${ev('Defense', 'verde', '14:32', `Closed and confirmed. Time exposed: ${t} s.`, 4.9)}
-                ${ev('Migrator', 'azul', '14:33', 'PR opened: fixed the cause. Tests pass.', 5.8)}
-                ${ev('Chief', 'muted', '14:34', `In ${x} min: off AWS, on Leaseweb, one issue closed. Nothing left the EU.`, 6.7)}
+          <div class="vp-body">
+            <div class="vp-col vp-chain">
+              <div class="vp-cab"><span class="rotulo">AGENT CHAIN</span><span class="mono muted">Board · Telegram</span></div>
+              <div class="vp-think vp-in" style="--t:0.4">
+                <div class="vp-think-k">THINKING NOW</div>
+                <div class="vp-think-t">Preparing the handoff: what changed, why, and the undo.</div>
+              </div>
+              <div class="vp-steps">
+                ${chain
+                  .map(
+                    ([a, name, hora, msg], i) => `
+                  <div class="vp-step vp-in" style="--t:${0.7 + i * 0.55}">
+                    <img class="vp-av" src="avatares/${a}.png" alt="">
+                    <div><div class="vp-step-cab"><b class="${cor(a)}">${name}</b><span class="vp-hora">${hora}</span></div><div class="vp-msg">${msg}</div></div>
+                  </div>`,
+                  )
+                  .join('')}
               </div>
             </div>
-            <div class="lv-col lv-infra">
-              <div class="lv-cab"><span class="rotulo">INFRASTRUCTURE</span><span class="mono muted">Frankfurt</span></div>
-              <div class="lv-infra-corpo">
-                <div class="lv-infra-box lv-in" style="--t:0.8">
-                  <div class="lv-infra-k">AWS · SIMULATED</div>
-                  <div class="lv-infra-t">exemplo-app</div>
-                  <div class="lv-infra-d">S3 · Postgres · SQS</div>
-                </div>
-                <div class="lv-seta lv-in" style="--t:1.5">↓ 1,220 objects · checksums ✓</div>
-                <div class="lv-infra-box leaseweb lv-in" style="--t:2.2">
-                  <div class="lv-infra-k">LEASEWEB · FRANKFURT</div>
-                  <div class="lv-infra-t">your server</div>
-                  <div class="lv-infra-d">MinIO · PostgreSQL · RabbitMQ</div>
-                </div>
-                <div class="lv-seta coral lv-in" style="--t:3.1">↓ nmap · 5432 open</div>
-                <div class="lv-infra-box vitima lv-in" style="--t:3.8">
-                  <div class="lv-infra-k">VICTIM · PORT 5432</div>
-                  <div class="lv-infra-t">postgres</div>
-                  <div class="lv-infra-d"><span class="coral">open</span> <span class="lv-in" style="--t:5.2">→ <span class="verde">filtered</span></span></div>
-                </div>
+            <div class="vp-col vp-services">
+              <div class="vp-cab"><span class="rotulo">SERVICES</span><span class="mono muted">AWS (simulated) → Leaseweb</span></div>
+              <div class="vp-cards">
+                ${services
+                  .map(
+                    ([s, d], i) => `
+                  <div class="vp-card vp-in" style="--t:${0.9 + i * 0.35}">
+                    <div class="vp-card-cab"><b>${s}</b><span class="vp-done">DONE</span></div>
+                    <div class="vp-card-d">${d}</div>
+                  </div>`,
+                  )
+                  .join('')}
+              </div>
+              <div class="vp-victim vp-in" style="--t:3.2">
+                <div class="vp-victim-cab"><span class="rotulo">VICTIM VM</span><span class="coral">5432</span></div>
+                <div class="vp-victim-row"><span class="coral">open</span> <span class="muted">12:48:36</span> <span class="muted">→</span> <span class="verde">closed</span> <span class="muted">12:48:48</span></div>
+                <div class="vp-victim-d">${t} s exposed · rule removed via Leaseweb API · inverse stored</div>
               </div>
             </div>
-            <div class="lv-col lv-provas">
-              <div class="lv-cab"><span class="rotulo">PROOFS</span><span class="mono muted">audit log</span></div>
-              <div class="lv-prova lv-in" style="--t:2.6"><span>Files</span><b class="verde">1,220 · checksums ✓</b></div>
-              <div class="lv-prova lv-in" style="--t:2.8"><span>Database</span><b class="verde">5,620 rows · checksums ✓</b></div>
-              <div class="lv-prova lv-in" style="--t:3.0"><span>Tests</span><b class="verde">${conta(v.testes, '?', 0)} pass</b></div>
-              <div class="lv-prova lv-in" style="--t:4.4"><span>nmap before</span><b class="coral">5432 open</b></div>
-              <div class="lv-prova lv-in" style="--t:5.2"><span>nmap after</span><b class="verde">filtered</b></div>
-              <div class="lv-prova lv-in" style="--t:5.4"><span>Approved by</span><b>you</b></div>
-              <div class="lv-prova lv-in" style="--t:5.6"><span>Undo</span><b class="mono">/desfazer</b></div>
-              <div class="lv-prova lv-in" style="--t:5.8"><span>Time exposed</span><b class="verde">${t} s</b></div>
-              <div class="lv-cert lv-in" style="--t:7.2">
-                <div class="lv-cert-k">AUDIT-READY RECORD</div>
-                <div class="lv-cert-t">Migration certificate</div>
-                <div class="lv-cert-d">Where the data lives, proof nothing was lost, who closed what.</div>
+            <div class="vp-col vp-logs">
+              <div class="vp-cab"><span class="rotulo">LIVE LOGS</span><span class="mono verde">● streaming</span></div>
+              <div class="vp-tabs"><span>MIGRATOR</span><span>ATTACKER</span><span>DEFENDER</span><span class="on">ORCHESTRATOR</span></div>
+              <div class="vp-terminal">
+                ${logs
+                  .map(
+                    ([a, line], i) => `<div class="vp-log vp-in" style="--t:${1.4 + i * 0.3}"><b class="${cor(a)}">${a}</b><span>${line}</span></div>`,
+                  )
+                  .join('')}
+              </div>
+              <div class="vp-idle vp-in" style="--t:5.3"><span class="vp-cursor">█</span> orchestrator idle · watching for new findings</div>
+              <div class="vp-receipt vp-in" style="--t:5.5">
+                <div class="vp-r"><span>Services migrated</span><b>5 / 5</b></div>
+                <div class="vp-r"><span>Tests passing</span><b>${v.testes ?? 288}</b></div>
+                <div class="vp-r"><span>Secrets left behind</span><b>0</b></div>
               </div>
             </div>
           </div>
-          <div class="lv-nota">SCRIPTED REPLAY · VALUES FROM THE AUDIT LOG</div>
         </div>`;
       },
     },
@@ -254,15 +298,19 @@
       html: () => `
         <div class="centro-v">
           <div ${E(0, 'titulo')}>Four agents. One flow.</div>
-          <div class="fluxo escada">
+          <div class="fluxo escada seis">
             ${[
-              ['Migrator', 'translates, in code', 'azul'],
-              ['Attacker', 'tests the new doors', 'coral'],
-              ['Defense', 'explains, proposes', 'verde'],
-              ['You', 'approve in Telegram', 'tu'],
-              ['Leaseweb API', 'closes, verifies', 'verde'],
+              ['Migrator', 'translates, in code', 'azul', 'migrator'],
+              ['Attacker', 'tests the new doors', 'coral', 'attacker'],
+              ['Defender', 'explains, proposes', 'verde', 'defender'],
+              ['Orchestrator', 'coordinates, reports', 'chf', 'orchestrator'],
+              ['You', 'approve in Telegram', 'tu', ''],
+              ['Leaseweb API', 'closes, verifies', 'verde', ''],
             ]
-              .map(([t, d, c]) => `<div class="no ${c}"><div class="t">${t}</div><div class="d">${d}</div></div>`)
+              .map(
+                ([t, d, c, a]) =>
+                  `<div class="no ${c}">${a ? `<img class="no-av" src="avatares/${a}.png" alt="">` : t === 'You' ? '<span class="no-av dv">DV</span>' : '<span class="no-av api">API</span>'}<div class="t">${t}</div><div class="d">${d}</div></div>`,
+              )
               .join('<span class="seta">→</span>')}
           </div>
           <div class="camadas">
@@ -427,7 +475,7 @@
       ...anexo('A5', 'The attacker is on a leash', `
         <ul class="lista">
           <li>Only our own machines (ALVOS_PERMITIDOS), with permission</li>
-          <li>At most 20 password attempts</li>
+          <li>At most 5 password attempts per round; then it switches tool</li>
           <li>Stops at the first entry: writes nothing, no sudo</li>
           <li>Any other target is refused and logged</li>
         </ul>`),
@@ -436,7 +484,7 @@
       id: 'a-noite',
       ...anexo('A6', 'Night mode: nobody answers', `
         <div class="fluxo">
-          <div class="no"><div class="t">Critical finding</div><div class="d">owner silent for N min</div></div><span class="seta">→</span>
+          <div class="no"><div class="t">Critical finding</div><div class="d">owner silent for 5 min</div></div><span class="seta">→</span>
           <div class="no verde"><div class="t">Temporary measure</div><div class="d">port open to known IPs only</div></div><span class="seta">→</span>
           <div class="no lilas"><div class="t">Owner warned</div><div class="d">in Telegram, with undo</div></div>
         </div>
@@ -466,6 +514,16 @@
           </div>
         </div>
         <div class="mono muted">An audit-ready record, not an official certification. Every field comes from the logs.</div>`),
+    },
+    {
+      id: 'a-qa',
+      ...anexo('A9', 'Every question, one answer', `
+        <div class="qa-grelha">
+          ${(window.PERGUNTAS ?? []).map(
+            (q) => `<div class="qa-item"><div class="qa-p">${q.p}</div><div class="qa-r">${q.r.replace('{testes}', String(window.CONFIG?.aoVivo?.testes ?? '?'))}</div><div class="qa-quem">${q.quem}</div></div>`,
+          ).join('')}
+        </div>
+        <div class="mono muted">The long answers and sources: docs/perguntas-juri.md · A1–A8 for the deep dives.</div>`),
     },
   ].map((a) => ({ ...a, passos: 0, anexo: true }));
 

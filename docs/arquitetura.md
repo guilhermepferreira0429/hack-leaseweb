@@ -1,12 +1,14 @@
 # Arquitetura
 
+Public, English overview: [`ARCHITECTURE.md`](ARCHITECTURE.md). This file is the team's lab layout.
+
 ## Máquinas (Leaseweb, região UE)
 
-| VM | Para quê | Configuração |
-|---|---|---|
-| **cérebro** | Corre o serviço (agentes + painel), o LocalStack e o MinIO da demo | SSH só por chave e só do nosso IP; porta do painel aberta ao nosso IP |
-| **vítima** | A falha da demo | Security group com `5432/tcp` aberto a `0.0.0.0/0` e um escutador inofensivo (`nc -lk 5432`) para o `nmap` dar `open` antes e `filtered` depois |
-| **isco** | O número da abertura do pitch | Ligado de manhã. SSH só por chave, porta 22 aberta a todos, nenhum serviço real |
+| VM          | Para quê                                                           | Configuração                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **cérebro** | Corre o serviço (agentes + painel), o LocalStack e o MinIO da demo | SSH só por chave e só do nosso IP; porta do painel aberta ao nosso IP                                                                           |
+| **vítima**  | A falha da demo                                                    | Security group com `5432/tcp` aberto a `0.0.0.0/0` e um escutador inofensivo (`nc -lk 5432`) para o `nmap` dar `open` antes e `filtered` depois |
+| **isco**    | O número da abertura do pitch                                      | Ligado de manhã. SSH só por chave, porta 22 aberta a todos, nenhum serviço real                                                                 |
 
 ## Divisão: o servidor do dono e o fornecedor de cloud
 
@@ -21,11 +23,11 @@ São duas camadas diferentes. Não se misturam.
    para ela. É um fornecedor entre vários: Hostinger, OVHcloud, Hetzner ou Scaleway teriam o seu próprio
    adaptador, com as mesmas operações.
 
-| Camada | Na demo | Num cliente real |
-|---|---|---|
-| Servidor do dono | VM com os contentores (MinIO, PostgreSQL, RabbitMQ, OpenBao, Valkey) e a app | O VPS ou servidor da PME |
-| Fornecedor | API da Leaseweb: instâncias e firewall | Leaseweb, Hostinger, OVHcloud, … |
-| "AWS" de origem | LocalStack (e um Redis a fazer de ElastiCache) | A conta AWS do cliente |
+| Camada           | Na demo                                                                      | Num cliente real                 |
+| ---------------- | ---------------------------------------------------------------------------- | -------------------------------- |
+| Servidor do dono | VM com os contentores (MinIO, PostgreSQL, RabbitMQ, OpenBao, Valkey) e a app | O VPS ou servidor da PME         |
+| Fornecedor       | API da Leaseweb: instâncias e firewall                                       | Leaseweb, Hostinger, OVHcloud, … |
+| "AWS" de origem  | LocalStack (e um Redis a fazer de ElastiCache)                               | A conta AWS do cliente           |
 
 Regras para o código:
 
@@ -48,11 +50,11 @@ A organização dá uma VM Linux por equipa, desligada no fim do evento. Antes d
 
 Decisão:
 
-| Resultado | Papel da VM |
-|---|---|
-| Aparece na API e tem recursos | **Vítima** (poupa uma máquina), ou cérebro e vítima ao mesmo tempo |
-| Não aparece na API | **Cérebro** (agentes, LocalStack, MinIO). A vítima cria-se na nossa conta, porque a demo depende de fechar a porta pela API |
-| É fraca | Só **isco** |
+| Resultado                     | Papel da VM                                                                                                                 |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Aparece na API e tem recursos | **Vítima** (poupa uma máquina), ou cérebro e vítima ao mesmo tempo                                                          |
+| Não aparece na API            | **Cérebro** (agentes, LocalStack, MinIO). A vítima cria-se na nossa conta, porque a demo depende de fechar a porta pela API |
+| É fraca                       | Só **isco**                                                                                                                 |
 
 Registar o resultado em `leaseweb-api.md`, nas notas.
 
@@ -60,16 +62,16 @@ Registar o resultado em `leaseweb-api.md`, nas notas.
 
 Tudo no **cérebro**, em contentores separados, definidos em `env/docker-compose.yml`:
 
-| Contentor | Faz de | Porta (só 127.0.0.1) |
-|---|---|---|
-| `localstack` | "AWS" simulada: S3, SQS, Secrets Manager e SSM (a origem) | 4566 |
-| `postgres` | Base de dados da `exemplo-app` (faz de RDS, a origem) | 5433 |
-| `postgres-destino` | Destino do RDS na Leaseweb | 5434 |
-| `minio` | Destino do S3 na Leaseweb | 9000 e consola 9001 |
-| `rabbitmq` | Destino da fila SQS na Leaseweb | 5672 e consola 15672 |
-| `redis-origem` | Faz de ElastiCache Redis (a origem) | 6380 |
-| `valkey` | Destino do ElastiCache na Leaseweb | 6381 |
-| `openbao` | Destino dos segredos (Secrets Manager e SSM) na Leaseweb | 8200 |
+| Contentor          | Faz de                                                    | Porta (só 127.0.0.1) |
+| ------------------ | --------------------------------------------------------- | -------------------- |
+| `localstack`       | "AWS" simulada: S3, SQS, Secrets Manager e SSM (a origem) | 4566                 |
+| `postgres`         | Base de dados da `exemplo-app` (faz de RDS, a origem)     | 5433                 |
+| `postgres-destino` | Destino do RDS na Leaseweb                                | 5434                 |
+| `minio`            | Destino do S3 na Leaseweb                                 | 9000 e consola 9001  |
+| `rabbitmq`         | Destino da fila SQS na Leaseweb                           | 5672 e consola 15672 |
+| `redis-origem`     | Faz de ElastiCache Redis (a origem)                       | 6380                 |
+| `valkey`           | Destino do ElastiCache na Leaseweb                        | 6381                 |
+| `openbao`          | Destino dos segredos (Secrets Manager e SSM) na Leaseweb  | 8200                 |
 
 ```bash
 # no cérebro, na raiz do repo, com o .env preenchido
