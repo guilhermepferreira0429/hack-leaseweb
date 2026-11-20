@@ -1,38 +1,59 @@
-# docs
+# Documentation
 
-**⭐ Importante: `agentes/`** (vozes, mensagens da demo e roteiro do dia). Ler antes de mexer no que os agentes dizem.
+The public documentation is in English. The team's working notes from the event are also here; most are in
+Portuguese and were written for the team, not for a reader coming to the project for the first time.
 
-Ordem de leitura:
+## Start here
 
-0. `install.md`: instalar tudo de raiz (cérebro, vítima na Leaseweb, Telegram, LLM) e os problemas que tivemos.
+1. [`../README.md`](../README.md): the project overview, quickstart, safety rules and repository map.
+2. [`ARCHITECTURE.md`](ARCHITECTURE.md): the orchestrator and the agent bus, the AWS → Leaseweb translation rules,
+   the detection and response sequence, the certificate and the audit log.
+3. [`RUNBOOK.md`](RUNBOOK.md): reproduce the demo step by step, with the Telegram messages and the checks.
+4. [`install.md`](install.md): full setup from zero — brain VM, victim VM on Leaseweb, Telegram bots, EU LLM and
+   the problems we hit.
+5. [`leaseweb-api.md`](leaseweb-api.md) and [`research/leaseweb-api.md`](research/leaseweb-api.md): the endpoints
+   we use and what we measured against the real API.
+6. [`research/`](research/README.md): the research behind the service mapping, the detection rules and the numbers
+   with sources.
+7. [`media/SHOTLIST.md`](media/SHOTLIST.md): the screenshots and the demo video, with the exact paths used in the
+   docs.
+8. [`../CONTRIBUTING.md`](../CONTRIBUTING.md): how to run, change and test the repository.
 
-1. `plano.md`: o que fazemos, prioridades, cortes e salvaguardas.
-2. `execucao.md`: quem faz o quê e o horário.
-3. `arquitetura.md`: máquinas, fluxo e pastas.
-4. `interfaces.md`: contratos entre as peças.
-5. `ideias-wow.md`: **ideias para impressionar o júri** (júri a aprovar, relógio de exposição, certificado, modo noite, PR que corrige a causa).
-6. `ferramentas.md`: catálogo de ferramentas por níveis.
-7. `agentes-telegram.md`: falar com os agentes no Telegram.
-8. `leaseweb-api.md` e `telegram.md`: integrações (API da Leaseweb, bots e grupo do Telegram).
-9. `demo.md`: o guião da demo. O plano do pitch está em `notas-equipa/pitch.md` (interno).
-10. `riscos.md`.
-11. `decisor-destino.md`: regras e preços para o migrador decidir self-hosted ou gerido europeu.
-12. `perguntas-juri.md`: perguntas difíceis e respostas de 20 segundos, para treinar.
-13. `painel-web.md`: o ecrã da demo. Desenhos em `material/design/` (`pitching.pen`, `web.pen`).
-14. `certificado-migracao.md`: o certificado que o Chefe envia e o painel mostra no fim.
+## Team working notes
+
+Written during the event, in Portuguese unless noted. These are the source for the public docs above.
+
+| File                                                 | What it covers                                         |
+| ---------------------------------------------------- | ------------------------------------------------------ |
+| [`plano.md`](plano.md)                               | What we build, priorities, cuts and safeguards.        |
+| [`execucao.md`](execucao.md)                         | Who does what, and the day's schedule.                 |
+| [`arquitetura.md`](arquitetura.md)                   | Machines, containers, ports and folder layout.         |
+| [`interfaces.md`](interfaces.md)                     | The contracts between the modules.                     |
+| [`ideias-wow.md`](ideias-wow.md)                     | The features that make the demo, by level.             |
+| [`ferramentas.md`](ferramentas.md)                   | The tool catalogue, by level.                          |
+| [`agentes-telegram.md`](agentes-telegram.md)         | Talking to the four agents in Telegram.                |
+| [`telegram.md`](telegram.md)                         | Bots, group, commands, permissions and the smoke test. |
+| [`riscos.md`](riscos.md)                             | Risks and mitigations.                                 |
+| [`decisor-destino.md`](decisor-destino.md)           | Destination rules and dated prices.                    |
+| [`perguntas-juri.md`](perguntas-juri.md)             | Hard questions and short answers.                      |
+| [`painel-web.md`](painel-web.md)                     | The dashboard screens and their purpose.               |
+| [`certificado-migracao.md`](certificado-migracao.md) | The certificate fields and rules.                      |
 
 `agentes/`:
 
-- `README.md`: regras das mensagens (texto fixo primeiro, só factos medidos, nada promete ações).
-- `vozes.md`: persona e regras de cada agente (`code/shared/voz.ts`).
-- `mensagens-demo.md`: texto de cada passo da demo, botões e linha "a pensar" (`code/shared/mensagens.ts`).
-- `checkup-12h.md`: primeira demo de ponta a ponta e repo público dos PR.
-- `roteiro-dia.md`: o que ligar e verificar das 15:00 às 15:45.
+- [`README.md`](agentes/README.md): the rules for agent messages (fixed text first, only measured facts, never
+  promise an action).
+- [`vozes.md`](agentes/vozes.md): each agent's persona and rules (`code/shared/voz.ts`).
+- [`mensagens-demo.md`](agentes/mensagens-demo.md): the text of each demo step, the buttons and the "thinking"
+  line (`code/shared/mensagens.ts`).
+- [`checkup-12h.md`](agentes/checkup-12h.md): the first end-to-end run and the public repo for the PRs.
+- [`roteiro-dia.md`](agentes/roteiro-dia.md): what to switch on and check during the day.
 
-`research/` (em inglês, pesquisa do dia):
+`research/` (in English, gathered during the event):
 
-- `README.md`: índice da pesquisa.
-- `aws-to-leaseweb-mapping.md`: o que o tradutor faz com cada serviço AWS (`code/migrador/tradutor/`).
-- `leaseweb-api.md`: a API da Leaseweb verificada contra o SDK oficial.
-- `detection-and-response.md`: detetar e responder durante a migração.
-- `stats-and-sources.md`: números e fontes para o pitch.
+- [`README.md`](research/README.md): the research index.
+- [`aws-to-leaseweb-mapping.md`](research/aws-to-leaseweb-mapping.md): what the translator does with each AWS
+  service (`code/migrador/tradutor/`).
+- [`leaseweb-api.md`](research/leaseweb-api.md): the Leaseweb API checked against the official SDK.
+- [`detection-and-response.md`](research/detection-and-response.md): detecting and responding during the migration.
+- [`stats-and-sources.md`](research/stats-and-sources.md): the numbers and sources used in the README.
