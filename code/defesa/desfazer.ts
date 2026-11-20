@@ -27,8 +27,8 @@ export function temporariasModoNoite(eventos: EventoAuditoria[], pedidoId: strin
 export async function desfazer(pedidoId: string, avisar: Avisar = (t) => telegram.notificar(t)): Promise<void> {
   const eventos = auditoria.ler();
   const inverso = inversoPendente(eventos, pedidoId);
-  if (!inverso) throw new Error(`Nada para desfazer no pedido ${pedidoId}`);
-  if (inverso.tipo !== 'criar_regra') throw new Error(`Inverso não suportado: ${inverso.tipo}`);
+  if (!inverso) throw new Error(`Nothing to undo for request ${pedidoId}`);
+  if (inverso.tipo !== 'criar_regra') throw new Error(`Unsupported inverse action: ${inverso.tipo}`);
 
   // Primeiro repor a regra original; só depois tirar as temporárias do modo noite (ninguém fica sem acesso a meio).
   const criada = await leaseweb.criarRegra(inverso.securityGroupId, inverso.regra);
@@ -50,5 +50,5 @@ export async function desfazer(pedidoId: string, avisar: Avisar = (t) => telegra
     depois: temporarias.length ? { reposta: criada, temporariasTiradas: tiradas } : criada,
   });
   if (estado.obterPedido(pedidoId)) estado.mudarEstado(pedidoId, 'desfeito');
-  await avisarSemFalhar(avisar, `Desfeito às ${horaCurta()}: a regra voltou (${criada.protocol} ${criada.startPort} de ${criada.source}).`);
+  await avisarSemFalhar(avisar, `Undone at ${horaCurta()}: the rule is back (${criada.protocol} ${criada.startPort} from ${criada.source}).`);
 }

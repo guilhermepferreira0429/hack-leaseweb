@@ -10,7 +10,7 @@ export async function tratar(
   pedirAprovacao: (agente: 'defesa', pedido: Pedido) => Promise<void> = telegram.pedirAprovacao,
 ): Promise<Pedido> {
   const acao = acaoPara(achado);
-  if (!acao) throw new Error(`Achado ${achado.id} sem regra associada: não há nada a fechar.`);
+  if (!acao) throw new Error(`Finding ${achado.id} has no linked rule: nothing to close.`);
   const texto = await explicar(achado);
   const pedido = montarPedido(achado, texto, acao);
   estado.guardarPedido(pedido);

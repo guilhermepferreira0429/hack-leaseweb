@@ -9,7 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-[ -f .env ] || { echo "Falta o .env na raiz (cp env/.env.example .env)"; exit 1; }
+[ -f .env ] || { echo "Missing .env at the repo root (cp env/.env.example .env)"; exit 1; }
 set -a; . ./.env; set +a
 
 faltam=()
@@ -17,9 +17,9 @@ for v in POSTGRES_PASSWORD DATABASE_URL MINIO_ACCESS_KEY MINIO_SECRET_KEY POSTGR
          RABBITMQ_USER RABBITMQ_PASSWORD RABBITMQ_URL REDIS_ORIGEM_PASSWORD REDIS_ORIGEM_URL VALKEY_PASSWORD VALKEY_URL OPENBAO_TOKEN; do
   [ -n "${!v:-}" ] || faltam+=("$v")
 done
-if [ ${#faltam[@]} -gt 0 ]; then echo "Faltam no .env: ${faltam[*]}"; exit 1; fi
+if [ ${#faltam[@]} -gt 0 ]; then echo "Missing in .env: ${faltam[*]}"; exit 1; fi
 
-echo "== 1/4 infra (LocalStack, Postgres origem e destino, MinIO, RabbitMQ, redis-origem, Valkey, OpenBao)"
+echo "== 1/4 infra (LocalStack, source and destination Postgres, MinIO, RabbitMQ, redis-origem, Valkey, OpenBao)"
 docker compose -f env/docker-compose.yml --env-file .env up -d
 for i in $(seq 1 45); do
   curl -sf http://127.0.0.1:4566/_localstack/health >/dev/null \
@@ -29,15 +29,15 @@ for i in $(seq 1 45); do
   sleep 2
 done
 
-echo "== 2/4 esvaziar o DESTINO (só o que a demo enche), para não aparecer cheio antes de Aprovar"
+echo "== 2/4 empty the DESTINATION (only what the demo fills), so it is not full before Approve"
 npm run -s seed:limpar-destino -- --sim
 
-echo "== 3/4 seed na ORIGEM (dados falsos de uma PME; repõe também as 20 encomendas da app)"
+echo "== 3/4 seed the SOURCE (fake data of a small business; also restores the 20 app orders)"
 npm run -s seed
 
-echo "== 4/4 conferir a origem com o esperado.json"
+echo "== 4/4 check the source against esperado.json"
 npm run -s seed:comparar
 
 echo
-echo "Pronto: origem cheia, destino vazio."
-echo "Ensaio: npm run dev -- --consola --uma-vez   ·   Prova no fim: npm run seed:comparar -- --destino"
+echo "Ready: source full, destination empty."
+echo "Rehearsal: npm run dev -- --consola --uma-vez   ·   Proof at the end: npm run seed:comparar -- --destino"

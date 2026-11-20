@@ -22,7 +22,7 @@ async function main(): Promise<void> {
   });
   telegram.aoMensagemDoDono((_agente, texto) => {
     const m = texto.trim().match(/^\/desfazer(?:@\S+)?\s+(\S+)/);
-    if (m) desfazer(m[1], avisar).catch((e) => avisar(`Não consegui desfazer ${m[1]}: ${e instanceof Error ? e.message : e}`));
+    if (m) desfazer(m[1], avisar).catch((e) => avisar(`Could not undo ${m[1]}: ${e instanceof Error ? e.message : e}`));
   });
   const achados = await detetar();
   console.log(`[defesa] ${achados.length} achado(s) pela API`);
