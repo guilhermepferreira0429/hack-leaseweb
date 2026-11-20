@@ -9,13 +9,24 @@
 //   resumir  chefe.resumir
 // Cortes (docs/plano.md): sem migrador e/ou sem atacante; a defesa pela API fica sempre.
 // Uma falha numa fase é auditada e avisada, e o fluxo continua: a demo não pára.
-import { isIP } from 'node:net';
-import type { Acao, Achado, Agente, Decisao, EventoAuditoria, Mensagem, Pedido, EstadoPedido } from '@mwbe/shared';
+import { isIP } from "node:net";
+import type {
+  Acao,
+  Achado,
+  Agente,
+  Decisao,
+  EventoAuditoria,
+  Mensagem,
+  Pedido,
+  EstadoPedido,
+} from "@mwbe/shared";
 
 export interface Dependencias {
   telegram: {
     pedirAprovacao(agente: Agente, pedido: Pedido): Promise<void>;
-    aoResponder(cb: (pedidoId: string, decisao: Decisao, quem: string) => void): void;
+    aoResponder(
+      cb: (pedidoId: string, decisao: Decisao, quem: string) => void,
+    ): void;
     aoMensagemDoDono(cb: (agente: Agente | null, texto: string) => void): void;
     notificar(texto: string): Promise<void>;
   };
@@ -30,7 +41,7 @@ export interface Dependencias {
   defesa: {
     detetar(): Promise<Achado[]>;
     correlacionar(daApi: Achado[], doAtacante: Achado[]): Achado[];
-    acaoPara(achado: Achado): Pedido['acao'] | undefined;
+    acaoPara(achado: Achado): Pedido["acao"] | undefined;
     tratar(achado: Achado): Promise<Pedido>;
     corrigir(pedido: Pedido): Promise<void>;
     desfazer(pedidoId: string): Promise<void>;
@@ -41,13 +52,26 @@ export interface Dependencias {
      */
     modoNoite?(pedido: Pedido): Promise<boolean>;
   };
-  atacante: { reconhecer(alvos: string[]): Promise<Achado[]> };
+  atacante: {
+    reconhecer(alvos: string[]): Promise<Achado[]>;
+    /** /atacar no grupo: corre a sequência e relata pelo bus. Opcional para os testes antigos. */
+    iniciarAtaque?(opcoes: {
+      alvo?: string;
+      log?: (texto: string) => void;
+    }): Promise<unknown>;
+  };
   migrador: {
-    analisar(dirApp: string): Promise<{ servicos: PassoMigracao[]; plano: string }>;
+    analisar(
+      dirApp: string,
+    ): Promise<{ servicos: PassoMigracao[]; plano: string }>;
     migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }>;
     verificar(): Promise<{ antes: boolean; depois: boolean }>;
     /** Nível B: RDS PostgreSQL -> PostgreSQL na Leaseweb, com prova por tabela. */
-    migrarPostgres?(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolean }>;
+    migrarPostgres?(): Promise<{
+      tabelas: number;
+      linhas: number;
+      checksumsOk: boolean;
+    }>;
     /** SQS -> RabbitMQ na Leaseweb, com prova por contagem e sha256 das mensagens. */
     migrarFila?(): Promise<{ mensagens: number; iguais: boolean }>;
     /** Secrets Manager / SSM -> OpenBao. A prova nunca leva valores, só contagem e sha256. */
@@ -62,7 +86,13 @@ export interface Dependencias {
     planoDestino?(servicos: PassoMigracao[]): Promise<string | undefined>;
   };
   /** Voz dos agentes: resposta em texto, no papel do agente, a partir do estado. Opcional. */
-  voz?: { responder(agente: Agente, pergunta: string, estado: string): Promise<string> };
+  voz?: {
+    responder(
+      agente: Agente,
+      pergunta: string,
+      estado: string,
+    ): Promise<string>;
+  };
   /** Relatório do incidente no grupo "Direção" (shared/relatorio.ts), um por achado tratado no ciclo. Opcional. */
   relatorio?: { publicar(achadoId: string): Promise<unknown> };
   chefe: {
@@ -98,21 +128,22 @@ export interface Opcoes {
 
 export const ESPERA_DECISAO_MS = 10 * 60_000;
 
-export type Resultado = 'feito' | 'ignorado' | 'falhou' | 'aprovado';
+export type Resultado = "feito" | "ignorado" | "falhou" | "aprovado";
 
-type PassoMigracao = Extract<Acao, { tipo: 'migrar' }>['passo'];
+type PassoMigracao = Extract<Acao, { tipo: "migrar" }>["passo"];
 
 const NOME_SERVICO: Record<PassoMigracao, string> = {
-  s3: 'S3',
-  postgres: 'Postgres',
-  fila: 'SQS',
-  segredos: 'Secrets Manager',
-  cache: 'ElastiCache',
+  s3: "S3",
+  postgres: "Postgres",
+  fila: "SQS",
+  segredos: "Secrets Manager",
+  cache: "ElastiCache",
 };
 
 export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   const agora = opcoes.agora ?? (() => new Date());
-  const log = opcoes.log ?? ((...a: unknown[]) => console.log('[orquestrador]', ...a));
+  const log =
+    opcoes.log ?? ((...a: unknown[]) => console.log("[orquestrador]", ...a));
   const espera = new Map<string, (r: Resultado) => void>();
   /** Achado que deu origem a cada pedido da defesa (para o atacante confirmar no alvo certo). */
   const achadoDoPedido = new Map<string, Achado>();
@@ -123,26 +154,30 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
 
   const hora = () => agora().toISOString();
   const horaCurta = () =>
-    agora().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' });
+    agora().toLocaleTimeString("pt-PT", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/Lisbon",
+    });
   // As peças dos outros podem ainda ser stubs que lançam de forma síncrona: nada disso pode parar a demo.
-  function falar(de: Agente, para: Mensagem['para'], texto: string): void {
+  function falar(de: Agente, para: Mensagem["para"], texto: string): void {
     try {
       deps.bus.enviar({ de, para, texto });
     } catch (erro) {
-      log(`bus falhou (${de} -> ${para}):`, mensagem(erro), '|', texto);
+      log(`bus falhou (${de} -> ${para}):`, mensagem(erro), "|", texto);
     }
   }
 
   /** Cópia local do que se auditou: se a auditoria falhar, o resumo do chefe continua a ter números. */
   const eventosLocais: EventoAuditoria[] = [];
 
-  function auditar(e: Omit<EventoAuditoria, 'hora'>): void {
+  function auditar(e: Omit<EventoAuditoria, "hora">): void {
     const evento = { hora: hora(), ...e };
     eventosLocais.push(evento);
     try {
       deps.auditoria.registar(evento);
     } catch (erro) {
-      log('auditoria falhou:', mensagem(erro));
+      log("auditoria falhou:", mensagem(erro));
     }
   }
 
@@ -150,7 +185,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     try {
       return deps.auditoria.ler();
     } catch (erro) {
-      log('auditoria.ler falhou, a usar a cópia local:', mensagem(erro));
+      log("auditoria.ler falhou, a usar a cópia local:", mensagem(erro));
       return eventosLocais;
     }
   }
@@ -159,13 +194,18 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     try {
       await deps.telegram.notificar(texto);
     } catch (erro) {
-      log('notificar falhou:', mensagem(erro), '|', texto);
+      log("notificar falhou:", mensagem(erro), "|", texto);
     }
   }
 
   async function falha(fase: string, erro: unknown): Promise<void> {
     log(`${fase} falhou:`, mensagem(erro));
-    auditar({ pedidoId: '-', tipo: 'erro', quem: 'orquestrador', depois: { fase, erro: mensagem(erro) } });
+    auditar({
+      pedidoId: "-",
+      tipo: "erro",
+      quem: "orquestrador",
+      depois: { fase, erro: mensagem(erro) },
+    });
     await notificar(`Falha em ${fase}: ${mensagem(erro)}. A demo continua.`);
   }
 
@@ -186,10 +226,13 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   }
 
   /** Espera por `p`, mas no máximo esperaDecisaoMs: o dono pode nunca responder. */
-  function comLimite<T>(p: Promise<T>): Promise<T | 'sem-resposta'> {
+  function comLimite<T>(p: Promise<T>): Promise<T | "sem-resposta"> {
     let relogio: ReturnType<typeof setTimeout> | undefined;
-    const limite = new Promise<'sem-resposta'>((r) => {
-      relogio = setTimeout(() => r('sem-resposta'), opcoes.esperaDecisaoMs ?? ESPERA_DECISAO_MS);
+    const limite = new Promise<"sem-resposta">((r) => {
+      relogio = setTimeout(
+        () => r("sem-resposta"),
+        opcoes.esperaDecisaoMs ?? ESPERA_DECISAO_MS,
+      );
     });
     return Promise.race([p, limite]).finally(() => clearTimeout(relogio));
   }
@@ -206,41 +249,55 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
 
   // ---------- respostas do dono ----------
 
-  async function aoResponder(pedidoId: string, decisao: Decisao, quem: string): Promise<void> {
+  async function aoResponder(
+    pedidoId: string,
+    decisao: Decisao,
+    quem: string,
+  ): Promise<void> {
     if (opcoes.donoId && quem !== opcoes.donoId) {
       log(`decisão de ${quem} ignorada (não é o dono)`);
       return;
     }
     const pedido = deps.estado.obterPedido(pedidoId);
     pararModoNoite(pedidoId);
-    if (!pedido || pedido.estado !== 'pendente') {
-      log(`decisão para ${pedidoId} ignorada (${pedido ? `estado ${pedido.estado}` : 'pedido desconhecido'})`);
+    if (!pedido || pedido.estado !== "pendente") {
+      log(
+        `decisão para ${pedidoId} ignorada (${pedido ? `estado ${pedido.estado}` : "pedido desconhecido"})`,
+      );
       return;
     }
-    const aprovado = decisao === 'aprovar';
-    deps.estado.mudarEstado(pedidoId, aprovado ? 'aprovado' : 'ignorado');
-    auditar({ pedidoId, tipo: aprovado ? 'aprovado' : 'ignorado', quem });
+    const aprovado = decisao === "aprovar";
+    deps.estado.mudarEstado(pedidoId, aprovado ? "aprovado" : "ignorado");
+    auditar({ pedidoId, tipo: aprovado ? "aprovado" : "ignorado", quem });
 
-    if (!aprovado) return concluir(pedidoId, 'ignorado');
+    if (!aprovado) return concluir(pedidoId, "ignorado");
     // A migração continua no próprio fluxo (faseMigrar está à espera).
-    if (pedido.acao.tipo === 'migrar') return concluir(pedidoId, 'aprovado');
+    if (pedido.acao.tipo === "migrar") return concluir(pedidoId, "aprovado");
 
     try {
-      await deps.defesa.corrigir({ ...pedido, estado: 'aprovado' });
+      await deps.defesa.corrigir({ ...pedido, estado: "aprovado" });
     } catch (erro) {
       await falha(`fechar "${pedido.titulo}"`, erro);
-      falar('defesa', 'dono', `Não consegui fechar "${pedido.titulo}". Nada foi alterado sem confirmação; vejam o painel.`);
-      return concluir(pedidoId, 'falhou');
+      falar(
+        "defesa",
+        "dono",
+        `Não consegui fechar "${pedido.titulo}". Nada foi alterado sem confirmação; vejam o painel.`,
+      );
+      return concluir(pedidoId, "falhou");
     }
     // O aviso "Fechado e confirmado às HH:MM ... /desfazer <id>" já vem do corrigir(); aqui só se passa a vez ao atacante.
-    falar('defesa', 'atacante', `@atacante, fechei "${pedido.titulo}" às ${horaCurta()} e guardei como voltar atrás. Podes confirmar?`);
+    falar(
+      "defesa",
+      "atacante",
+      `@atacante, fechei "${pedido.titulo}" às ${horaCurta()} e guardei como voltar atrás. Podes confirmar?`,
+    );
     if (opcoes.atacar) await confirmarFecho(pedido);
-    concluir(pedidoId, 'feito');
+    concluir(pedidoId, "feito");
   }
 
   /** O atacante volta à porta que foi fechada e diz se ainda lá chega. */
   async function confirmarFecho(pedido: Pedido): Promise<void> {
-    if (pedido.acao.tipo !== 'remover_regra') return;
+    if (pedido.acao.tipo !== "remover_regra") return;
     const { startPort, endPort } = pedido.acao.regra;
     // Com o IP do alvo conhecido, só conta esse alvo: outra máquina da allowlist com a mesma porta
     // aberta (o isco tem a 22) não é sinal de que o fecho falhou. Sem IP (só instanceId), conta a porta.
@@ -248,22 +305,27 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     const doAlvo = (a: Achado) => !alvo || !isIP(alvo) || a.alvo === alvo;
     try {
       const achados = await deps.atacante.reconhecer(opcoes.alvos);
-      const ainda = achados.filter((a) => doAlvo(a) && a.porta >= startPort && a.porta <= endPort);
+      const ainda = achados.filter(
+        (a) => doAlvo(a) && a.porta >= startPort && a.porta <= endPort,
+      );
       falar(
-        'atacante',
-        'todos',
+        "atacante",
+        "todos",
         ainda.length === 0
-          ? 'Confirmo. Já não chego lá.'
+          ? "Confirmo. Já não chego lá."
           : `Ainda chego à porta ${ainda[0].porta} em ${ainda[0].alvo}. Pode demorar uns segundos a aplicar.`,
       );
     } catch (erro) {
-      await falha('confirmação do atacante', erro);
+      await falha("confirmação do atacante", erro);
     }
   }
 
-  async function aoMensagemDoDono(agente: Agente | null, texto: string): Promise<void> {
+  async function aoMensagemDoDono(
+    agente: Agente | null,
+    texto: string,
+  ): Promise<void> {
     const t = texto.trim();
-    if (t === '/estado' || t.startsWith('/estado@')) {
+    if (t === "/estado" || t.startsWith("/estado@")) {
       await notificar(deps.chefe.estadoAtual(deps.estado.listarPedidos()));
       return;
     }
@@ -279,9 +341,29 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       }
       return;
     }
+
+    const atacar = t.match(/^\/atacar(?:@\S+)?(?:\s+(\S+))?$/);
+    if (atacar) {
+      if (!deps.atacante.iniciarAtaque) {
+        await notificar("Ataque não está ligado neste processo.");
+        return;
+      }
+      try {
+        // A sequência relata sozinha pelo bus; aqui só se arranca e injeta o log do orquestrador.
+        await deps.atacante.iniciarAtaque({
+          alvo: atacar[1],
+          log: (texto) => log("atacante:", texto),
+        });
+      } catch (erro) {
+        await falha("atacar", erro);
+      }
+      return;
+    }
     // Voz dos agentes: só responde a quem foi chamado (privado ou com menção); no grupo sem menção, cala-se.
     if (!agente || !deps.voz || !t) {
-      log(`mensagem do dono para ${agente ?? 'ninguém'} sem comando: ${t.slice(0, 80)}`);
+      log(
+        `mensagem do dono para ${agente ?? "ninguém"} sem comando: ${t.slice(0, 80)}`,
+      );
       return;
     }
     const pedidos = deps.estado.listarPedidos();
@@ -291,9 +373,9 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
 
 ${deps.chefe.resumir(doCiclo(), pedidos)}`;
     } catch (erro) {
-      log('resumo para a voz falhou:', mensagem(erro));
+      log("resumo para a voz falhou:", mensagem(erro));
     }
-    falar(agente, 'dono', await deps.voz.responder(agente, t, estadoTexto));
+    falar(agente, "dono", await deps.voz.responder(agente, t, estadoTexto));
   }
 
   // ---------- fases ----------
@@ -304,11 +386,20 @@ ${deps.chefe.resumir(doCiclo(), pedidos)}`;
     try {
       const resumo = await deps.migrador.planoInfra();
       if (!resumo) return;
-      auditar({ pedidoId: '-', tipo: 'migracao-plano-infra', quem: 'migrador', depois: { resumo } });
-      falar('migrador', 'dono', `Li a configuração da AWS (Terraform) e traduzi-a para a Leaseweb. Por agora é só o plano, ainda não criei nada:
-${resumo}`);
+      auditar({
+        pedidoId: "-",
+        tipo: "migracao-plano-infra",
+        quem: "migrador",
+        depois: { resumo },
+      });
+      falar(
+        "migrador",
+        "dono",
+        `Li a configuração da AWS (Terraform) e traduzi-a para a Leaseweb. Por agora é só o plano, ainda não criei nada:
+${resumo}`,
+      );
     } catch (erro) {
-      await falha('tradução da configuração AWS', erro);
+      await falha("tradução da configuração AWS", erro);
     }
   }
 
@@ -318,48 +409,69 @@ ${resumo}`);
     try {
       const texto = await deps.migrador.planoDestino(servicos);
       if (!texto) return;
-      auditar({ pedidoId: '-', tipo: 'migracao-plano-destino', quem: 'migrador', depois: { texto } });
-      falar('migrador', 'dono', texto);
+      auditar({
+        pedidoId: "-",
+        tipo: "migracao-plano-destino",
+        quem: "migrador",
+        depois: { texto },
+      });
+      falar("migrador", "dono", texto);
     } catch (erro) {
-      await falha('decisor de destino', erro);
+      await falha("decisor de destino", erro);
     }
   }
 
   async function faseMigrar(): Promise<void> {
     const { servicos, plano } = await deps.migrador.analisar(opcoes.dirApp);
-    const nomes = servicos.map((s) => NOME_SERVICO[s]).join(', ');
+    const nomes = servicos.map((s) => NOME_SERVICO[s]).join(", ");
     // Só entram os passos que o migrador sabe fazer (um serviço novo no analisar sem função fica de fora).
     const passos = servicos.filter((s) => executor(s));
     falar(
-      'migrador',
-      'dono',
-      `Encontrei ${servicos.length} ${servicos.length === 1 ? 'serviço' : 'serviços'} AWS na app: ${nomes}.` +
-        (passos.length ? ' Peço um só OK para o plano todo e faço um passo de cada vez, com prova em cada um.' : ''),
+      "migrador",
+      "dono",
+      `Encontrei ${servicos.length} ${servicos.length === 1 ? "serviço" : "serviços"} AWS na app: ${nomes}.` +
+        (passos.length
+          ? " Peço um só OK para o plano todo e faço um passo de cada vez, com prova em cada um."
+          : ""),
     );
     await mostrarPlanoInfra();
     await mostrarPlanoDestino(servicos);
     if (passos.length === 0) return;
 
     // Um só "Aprovar plano": o pedido aprovado é o do primeiro passo; os outros nascem aprovados por ele.
-    const titulo = `Migrar para a Leaseweb: ${passos.map((s) => NOME_SERVICO[s]).join(', ')}`;
+    const titulo = `Migrar para a Leaseweb: ${passos.map((s) => NOME_SERVICO[s]).join(", ")}`;
     const texto = deps.migrador.migrarCodigo
       ? `${plano}\nNo fim preparo um pull request para a app passar a usar a Leaseweb. O ramo principal só muda quando alguém fizer merge.`
       : plano;
-    const pedidoPlano = await pedirMigracao(passos[0], titulo, texto, { servicos, passos, plano });
+    const pedidoPlano = await pedirMigracao(passos[0], titulo, texto, {
+      servicos,
+      passos,
+      plano,
+    });
     if (!pedidoPlano) return;
 
     const feitos: { passo: PassoMigracao; pedido: Pedido; copia: Copia }[] = [];
     for (const passo of passos) {
-      const pedido = passo === passos[0] ? pedidoPlano : pedidoDoPlano(passo, pedidoPlano);
+      const pedido =
+        passo === passos[0] ? pedidoPlano : pedidoDoPlano(passo, pedidoPlano);
       try {
         feitos.push({ passo, pedido, copia: await executor(passo)!() });
       } catch (erro) {
-        auditar({ pedidoId: pedido.id, tipo: 'erro', quem: 'migrador', depois: { passo, erro: mensagem(erro) } });
+        auditar({
+          pedidoId: pedido.id,
+          tipo: "erro",
+          quem: "migrador",
+          depois: { passo, erro: mensagem(erro) },
+        });
         await falha(`migração ${NOME_SERVICO[passo]}`, erro);
       }
     }
     if (feitos.length === 0) {
-      falar('migrador', 'dono', 'A migração falhou em todos os passos. Nada foi apagado na AWS; vejam o painel.');
+      falar(
+        "migrador",
+        "dono",
+        "A migração falhou em todos os passos. Nada foi apagado na AWS; vejam o painel.",
+      );
       return;
     }
 
@@ -368,53 +480,86 @@ ${resumo}`);
     try {
       testes = await deps.migrador.verificar();
     } catch (erro) {
-      await falha('testes da app (verificar)', erro);
+      await falha("testes da app (verificar)", erro);
     }
     const testesOk = testes.antes && testes.depois;
     for (const { passo, pedido, copia } of feitos) {
       const ok = copia.ok && testesOk;
-      deps.estado.mudarEstado(pedido.id, ok ? 'feito' : 'aprovado');
-      auditar({ pedidoId: pedido.id, tipo: ok ? 'feito' : 'erro', quem: 'migrador', depois: { passo, ...copia.prova, testes } });
+      deps.estado.mudarEstado(pedido.id, ok ? "feito" : "aprovado");
+      auditar({
+        pedidoId: pedido.id,
+        tipo: ok ? "feito" : "erro",
+        quem: "migrador",
+        depois: { passo, ...copia.prova, testes },
+      });
     }
     const testesTexto = testesOk
-      ? 'Testes da app a passar dos dois lados'
-      : `Testes antes ${testes.antes ? 'ok' : 'falharam'}, depois ${testes.depois ? 'ok' : 'falharam'}`;
-    const provas = `${feitos.map((f) => f.copia.frase).join('. ')}. ${testesTexto}.`;
+      ? "Testes da app a passar dos dois lados"
+      : `Testes antes ${testes.antes ? "ok" : "falharam"}, depois ${testes.depois ? "ok" : "falharam"}`;
+    const provas = `${feitos.map((f) => f.copia.frase).join(". ")}. ${testesTexto}.`;
     if (deps.migrador.migrarCodigo) {
-      falar('migrador', 'dono', provas);
+      falar("migrador", "dono", provas);
       await migrarCodigoDaApp(pedidoPlano.id, testesOk);
-      falar('migrador', 'atacante', '@atacante, a infraestrutura nova está no ar.');
+      falar(
+        "migrador",
+        "atacante",
+        "@atacante, a infraestrutura nova está no ar.",
+      );
     } else {
-      falar('migrador', 'atacante', `${provas} @atacante, a infraestrutura nova está no ar.`);
+      falar(
+        "migrador",
+        "atacante",
+        `${provas} @atacante, a infraestrutura nova está no ar.`,
+      );
     }
   }
 
   /** O código da app passa a apontar para a Leaseweb, por pull request. Um erro aqui não trava a demo. */
-  async function migrarCodigoDaApp(planoId: string, testesOk: boolean): Promise<void> {
+  async function migrarCodigoDaApp(
+    planoId: string,
+    testesOk: boolean,
+  ): Promise<void> {
     try {
       const r = await deps.migrador.migrarCodigo!(planoId, testesOk);
       auditar({
         pedidoId: planoId,
-        tipo: 'migracao-codigo',
-        quem: 'migrador',
-        depois: { ficheiros: r.ficheiros, problemas: r.problemas, fora: r.fora, ramo: r.pr?.ramo, url: r.pr?.url, simulado: r.pr?.simulado },
+        tipo: "migracao-codigo",
+        quem: "migrador",
+        depois: {
+          ficheiros: r.ficheiros,
+          problemas: r.problemas,
+          fora: r.fora,
+          ramo: r.pr?.ramo,
+          url: r.pr?.url,
+          simulado: r.pr?.simulado,
+        },
       });
       if (!r.pr) {
-        const porque = r.problemas.length ? r.problemas.join('; ') : 'não há nada para mudar no código';
-        falar('migrador', 'dono', `Não abri o pull request do código: ${porque}.`);
+        const porque = r.problemas.length
+          ? r.problemas.join("; ")
+          : "não há nada para mudar no código";
+        falar(
+          "migrador",
+          "dono",
+          `Não abri o pull request do código: ${porque}.`,
+        );
         return;
       }
       const n = r.ficheiros.length;
-      const onde = r.pr.url ?? `ramo ${r.pr.ramo}, ensaio sem GitHub: o diff ficou no cérebro`;
+      const onde =
+        r.pr.url ??
+        `ramo ${r.pr.ramo}, ensaio sem GitHub: o diff ficou no cérebro`;
       falar(
-        'migrador',
-        'dono',
-        `Código: ${r.pr.simulado ? 'preparei' : 'abri'} um pull request com ${n} ${n === 1 ? 'ficheiro' : 'ficheiros'} (${r.ficheiros.join(', ')}) ` +
+        "migrador",
+        "dono",
+        `Código: ${r.pr.simulado ? "preparei" : "abri"} um pull request com ${n} ${n === 1 ? "ficheiro" : "ficheiros"} (${r.ficheiros.join(", ")}) ` +
           `para a app usar a Leaseweb, com os testes a passar e sem segredos (${onde}). O ramo principal só muda com o vosso merge.` +
-          (r.fora.length ? ` Fica fora: ${r.fora.length} ${r.fora.length === 1 ? 'ponto' : 'pontos'}, explicados no PR.` : ''),
+          (r.fora.length
+            ? ` Fica fora: ${r.fora.length} ${r.fora.length === 1 ? "ponto" : "pontos"}, explicados no PR.`
+            : ""),
       );
     } catch (erro) {
-      await falha('migrador de código', erro);
+      await falha("migrador de código", erro);
     }
   }
 
@@ -423,34 +568,47 @@ ${resumo}`);
   /** Como se executa cada passo. undefined = o migrador ainda não tem essa função ligada. */
   function executor(passo: PassoMigracao): (() => Promise<Copia>) | undefined {
     const m = deps.migrador;
-    const igual = (ok: boolean) => (ok ? 'checksums iguais' : 'checksums DIFERENTES');
+    const igual = (ok: boolean) =>
+      ok ? "checksums iguais" : "checksums DIFERENTES";
     switch (passo) {
-      case 's3':
+      case "s3":
         return async () => {
           const c = await m.migrarS3();
-          return { ok: c.checksumsOk, prova: c, frase: `${c.objetos} ficheiros copiados para o MinIO, ${igual(c.checksumsOk)}` };
+          return {
+            ok: c.checksumsOk,
+            prova: c,
+            frase: `${c.objetos} ficheiros copiados para o MinIO, ${igual(c.checksumsOk)}`,
+          };
         };
-      case 'postgres': {
+      case "postgres": {
         const f = m.migrarPostgres;
         return f
           ? async () => {
               const c = await f();
-              const t = `${c.tabelas} ${c.tabelas === 1 ? 'tabela' : 'tabelas'} e ${c.linhas} linhas`;
-              return { ok: c.checksumsOk, prova: c, frase: `Base de dados: ${t} copiadas para PostgreSQL, ${igual(c.checksumsOk)}` };
+              const t = `${c.tabelas} ${c.tabelas === 1 ? "tabela" : "tabelas"} e ${c.linhas} linhas`;
+              return {
+                ok: c.checksumsOk,
+                prova: c,
+                frase: `Base de dados: ${t} copiadas para PostgreSQL, ${igual(c.checksumsOk)}`,
+              };
             }
           : undefined;
       }
-      case 'fila': {
+      case "fila": {
         const f = m.migrarFila;
         return f
           ? async () => {
               const c = await f();
-              const t = `${c.mensagens} ${c.mensagens === 1 ? 'mensagem passada' : 'mensagens passadas'}`;
-              return { ok: c.iguais, prova: { mensagens: c.mensagens, checksumsOk: c.iguais }, frase: `Filas: ${t} para o RabbitMQ, ${igual(c.iguais)}` };
+              const t = `${c.mensagens} ${c.mensagens === 1 ? "mensagem passada" : "mensagens passadas"}`;
+              return {
+                ok: c.iguais,
+                prova: { mensagens: c.mensagens, checksumsOk: c.iguais },
+                frase: `Filas: ${t} para o RabbitMQ, ${igual(c.iguais)}`,
+              };
             }
           : undefined;
       }
-      case 'segredos': {
+      case "segredos": {
         const f = m.migrarSegredos;
         return f
           ? async () => {
@@ -463,13 +621,17 @@ ${resumo}`);
             }
           : undefined;
       }
-      case 'cache': {
+      case "cache": {
         const f = m.migrarCache;
         return f
           ? async () => {
               const c = await f();
-              const t = `${c.chaves} ${c.chaves === 1 ? 'chave copiada' : 'chaves copiadas'}`;
-              return { ok: c.iguais, prova: { chaves: c.chaves, checksumsOk: c.iguais }, frase: `Cache: ${t} para o Valkey, ${igual(c.iguais)}` };
+              const t = `${c.chaves} ${c.chaves === 1 ? "chave copiada" : "chaves copiadas"}`;
+              return {
+                ok: c.iguais,
+                prova: { chaves: c.chaves, checksumsOk: c.iguais },
+                frase: `Cache: ${t} para o Valkey, ${igual(c.iguais)}`,
+              };
             }
           : undefined;
       }
@@ -482,12 +644,22 @@ ${resumo}`);
       id: deps.defesa.novoIdPedido(),
       titulo: `Migrar ${NOME_SERVICO[passo]} (plano ${plano.id})`,
       texto: plano.texto,
-      acao: { tipo: 'migrar', passo },
-      estado: 'aprovado',
+      acao: { tipo: "migrar", passo },
+      estado: "aprovado",
     };
     deps.estado.guardarPedido(pedido);
-    auditar({ pedidoId: pedido.id, tipo: 'pedido', quem: 'migrador', depois: { passo, plano: plano.id } });
-    auditar({ pedidoId: pedido.id, tipo: 'aprovado', quem: 'migrador', depois: { pelo: plano.id } });
+    auditar({
+      pedidoId: pedido.id,
+      tipo: "pedido",
+      quem: "migrador",
+      depois: { passo, plano: plano.id },
+    });
+    auditar({
+      pedidoId: pedido.id,
+      tipo: "aprovado",
+      quem: "migrador",
+      depois: { pelo: plano.id },
+    });
     return pedido;
   }
 
@@ -495,21 +667,45 @@ ${resumo}`);
    * Pede aprovação para um passo de migração e espera (com limite). Devolve o pedido aprovado, ou undefined.
    * Sem resposta: fecha o pedido, para um clique tardio não arrancar uma migração a meio da demo.
    */
-  async function pedirMigracao(passo: PassoMigracao, titulo: string, texto: string, prova: object): Promise<Pedido | undefined> {
-    const pedido: Pedido = { id: deps.defesa.novoIdPedido(), titulo, texto, acao: { tipo: 'migrar', passo }, estado: 'pendente' };
+  async function pedirMigracao(
+    passo: PassoMigracao,
+    titulo: string,
+    texto: string,
+    prova: object,
+  ): Promise<Pedido | undefined> {
+    const pedido: Pedido = {
+      id: deps.defesa.novoIdPedido(),
+      titulo,
+      texto,
+      acao: { tipo: "migrar", passo },
+      estado: "pendente",
+    };
     deps.estado.guardarPedido(pedido);
-    auditar({ pedidoId: pedido.id, tipo: 'pedido', quem: 'migrador', depois: prova });
+    auditar({
+      pedidoId: pedido.id,
+      tipo: "pedido",
+      quem: "migrador",
+      depois: prova,
+    });
     const decisao = esperarResultado(pedido.id);
-    await deps.telegram.pedirAprovacao('migrador', pedido);
+    await deps.telegram.pedirAprovacao("migrador", pedido);
     const r = await comLimite(decisao);
-    if (r === 'sem-resposta') {
-      deps.estado.mudarEstado(pedido.id, 'ignorado');
-      auditar({ pedidoId: pedido.id, tipo: 'sem-resposta', quem: 'migrador' });
-      falar('migrador', 'dono', `Sem resposta ao pedido de migração: não migro (${titulo.toLowerCase()}). Fica tudo como estava.`);
+    if (r === "sem-resposta") {
+      deps.estado.mudarEstado(pedido.id, "ignorado");
+      auditar({ pedidoId: pedido.id, tipo: "sem-resposta", quem: "migrador" });
+      falar(
+        "migrador",
+        "dono",
+        `Sem resposta ao pedido de migração: não migro (${titulo.toLowerCase()}). Fica tudo como estava.`,
+      );
       return undefined;
     }
-    if (r !== 'aprovado') {
-      falar('migrador', 'dono', `Migração não aprovada (${titulo.toLowerCase()}). Fica tudo como estava.`);
+    if (r !== "aprovado") {
+      falar(
+        "migrador",
+        "dono",
+        `Migração não aprovada (${titulo.toLowerCase()}). Fica tudo como estava.`,
+      );
       return undefined;
     }
     return pedido;
@@ -518,33 +714,49 @@ ${resumo}`);
   async function faseAtacar(): Promise<Achado[]> {
     const achados = await deps.atacante.reconhecer(opcoes.alvos);
     auditar({
-      pedidoId: '-',
-      tipo: 'reconhecimento',
-      quem: 'atacante',
-      depois: { alvos: opcoes.alvos, achados: achados.length, portas: achados.map((a) => ({ alvo: a.alvo, porta: a.porta, servico: a.servico })) },
+      pedidoId: "-",
+      tipo: "reconhecimento",
+      quem: "atacante",
+      depois: {
+        alvos: opcoes.alvos,
+        achados: achados.length,
+        portas: achados.map((a) => ({
+          alvo: a.alvo,
+          porta: a.porta,
+          servico: a.servico,
+        })),
+      },
     });
-    falar('atacante', 'defesa', textoAtacante(achados));
+    falar("atacante", "defesa", textoAtacante(achados));
     return achados;
   }
 
-  async function faseDefender(doAtacante: Achado[]): Promise<Promise<Resultado>[]> {
+  async function faseDefender(
+    doAtacante: Achado[],
+  ): Promise<Promise<Resultado>[]> {
     let daApi: Achado[] = [];
     try {
       daApi = await deps.defesa.detetar();
     } catch (erro) {
-      await falha('deteção pela API', erro);
+      await falha("deteção pela API", erro);
     }
     let achados: Achado[];
     try {
       achados = deps.defesa.correlacionar(daApi, doAtacante);
     } catch (erro) {
       // Sem correlação ficam só os achados da API: são os que trazem a regra a fechar.
-      log('correlacionar falhou, a usar só os achados da API:', mensagem(erro));
+      log("correlacionar falhou, a usar só os achados da API:", mensagem(erro));
       achados = daApi;
     }
     const acionaveis = achados.filter((a) => deps.defesa.acaoPara(a));
     if (acionaveis.length === 0) {
-      falar('defesa', 'dono', achados.length === 0 ? 'Não encontrei nada aberto a toda a internet.' : 'Há portas visíveis, mas nenhuma regra nossa para fechar.');
+      falar(
+        "defesa",
+        "dono",
+        achados.length === 0
+          ? "Não encontrei nada aberto a toda a internet."
+          : "Há portas visíveis, mas nenhuma regra nossa para fechar.",
+      );
       return [];
     }
     const resultados: Promise<Resultado>[] = [];
@@ -566,21 +778,33 @@ ${resumo}`);
     // A auditoria acumula todos os ensaios do dia: o chefe só fala deste ciclo.
     inicioCiclo = hora();
     achadosDoCiclo.clear();
-    if (opcoes.migrar) await faseMigrar().catch((e) => falha('migração', e));
+    if (opcoes.migrar) await faseMigrar().catch((e) => falha("migração", e));
     // Daqui em diante a infraestrutura nova conta como "no ar": é o início do relógio de exposição (ideia wow 2).
-    auditar({ pedidoId: '-', tipo: 'infra-no-ar', quem: 'orquestrador' });
+    auditar({ pedidoId: "-", tipo: "infra-no-ar", quem: "orquestrador" });
     let doAtacante: Achado[] = [];
-    if (opcoes.atacar) doAtacante = await faseAtacar().catch(async (e) => (await falha('reconhecimento', e), []));
+    if (opcoes.atacar)
+      doAtacante = await faseAtacar().catch(
+        async (e) => (await falha("reconhecimento", e), []),
+      );
     const resultados = await faseDefender(doAtacante);
     // Os pedidos sem resposta ficam "por decidir" no resumo; um Aprovar tardio ainda fecha (foi um humano).
-    if ((await comLimite(Promise.all(resultados))) === 'sem-resposta') log('há pedidos sem resposta; resumo na mesma');
+    if ((await comLimite(Promise.all(resultados))) === "sem-resposta")
+      log("há pedidos sem resposta; resumo na mesma");
     await publicarRelatorios();
-    falar('chefe', 'dono', deps.chefe.resumir(doCiclo(), deps.estado.listarPedidos()));
+    falar(
+      "chefe",
+      "dono",
+      deps.chefe.resumir(doCiclo(), deps.estado.listarPedidos()),
+    );
     if (deps.chefe.certificado) {
       try {
-        falar('chefe', 'dono', deps.chefe.certificado(doCiclo(), deps.estado.listarPedidos()));
+        falar(
+          "chefe",
+          "dono",
+          deps.chefe.certificado(doCiclo(), deps.estado.listarPedidos()),
+        );
       } catch (erro) {
-        await falha('certificado de migração', erro);
+        await falha("certificado de migração", erro);
       }
     }
   }
@@ -590,12 +814,11 @@ ${resumo}`);
     if (!deps.defesa.modoNoite || !opcoes.modoNoiteMs) return;
     const t = setTimeout(() => {
       noite.delete(pedido.id);
-      if (deps.estado.obterPedido(pedido.id)?.estado !== 'pendente') return;
-      deps.defesa
-        .modoNoite!(pedido)
+      if (deps.estado.obterPedido(pedido.id)?.estado !== "pendente") return;
+      deps.defesa.modoNoite!(pedido)
         .then((aplicou) => {
           // O aviso ("Modo noite às HH:MM … /desfazer <id>") já vem da defesa.
-          if (aplicou) concluir(pedido.id, 'feito');
+          if (aplicou) concluir(pedido.id, "feito");
         })
         .catch((erro) => falha(`modo noite em "${pedido.titulo}"`, erro));
     }, opcoes.modoNoiteMs);
@@ -626,17 +849,21 @@ ${resumo}`);
   function ligar(): void {
     try {
       deps.telegram.aoResponder((id, decisao, quem) => {
-        aoResponder(id, decisao, quem).catch((e) => falha('resposta do dono', e));
+        aoResponder(id, decisao, quem).catch((e) =>
+          falha("resposta do dono", e),
+        );
       });
     } catch (erro) {
-      void falha('ligar as respostas do dono (aoResponder)', erro);
+      void falha("ligar as respostas do dono (aoResponder)", erro);
     }
     try {
       deps.telegram.aoMensagemDoDono((agente, texto) => {
-        aoMensagemDoDono(agente, texto).catch((e) => falha('mensagem do dono', e));
+        aoMensagemDoDono(agente, texto).catch((e) =>
+          falha("mensagem do dono", e),
+        );
       });
     } catch (erro) {
-      void falha('ligar as mensagens do dono (aoMensagemDoDono)', erro);
+      void falha("ligar as mensagens do dono (aoMensagemDoDono)", erro);
     }
   }
 
@@ -645,14 +872,15 @@ ${resumo}`);
 
 /** Fala do atacante a partir dos achados (determinística; a voz com IA vem depois). */
 export function textoAtacante(achados: Achado[]): string {
-  if (achados.length === 0) return 'Recebido. Não encontrei portas abertas nas nossas máquinas. @defesa';
-  const altas = achados.filter((a) => a.severidade === 'alta');
+  if (achados.length === 0)
+    return "Recebido. Não encontrei portas abertas nas nossas máquinas. @defesa";
+  const altas = achados.filter((a) => a.severidade === "alta");
   const lista = achados
     .slice(0, 3)
-    .map((a) => `${a.servico ?? 'serviço'} na porta ${a.porta} (${a.alvo})`)
-    .join('; ');
-  const resto = achados.length > 3 ? ` e mais ${achados.length - 3}` : '';
-  return `Recebido. Responde a qualquer pessoa na internet: ${lista}${resto}. Gravidade ${altas.length > 0 ? 'alta' : 'média'}. @defesa`;
+    .map((a) => `${a.servico ?? "serviço"} na porta ${a.porta} (${a.alvo})`)
+    .join("; ");
+  const resto = achados.length > 3 ? ` e mais ${achados.length - 3}` : "";
+  return `Recebido. Responde a qualquer pessoa na internet: ${lista}${resto}. Gravidade ${altas.length > 0 ? "alta" : "média"}. @defesa`;
 }
 
 function mensagem(erro: unknown): string {

@@ -4,10 +4,16 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { setTimeout as esperar } from 'node:timers/promises';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Client } from 'ssh2';
-import { carregarEnv } from '@mwbe/shared';
+import { bus, carregarEnv } from '@mwbe/shared';
+import type { Achado, Mensagem } from '@mwbe/shared';
 import { carregarAllowlist, garantirPermitido } from './alvos';
+import { executarExtras } from './extras';
+import { verificarPortas } from './reconhecimento';
+import type { PortaTestada } from './reconhecimento';
+import { varrerSegredos } from './segredos';
+import type { SegredoEncontrado } from './segredos';
 
 export * from './alvos';
 export * from './reconhecimento';
@@ -124,7 +130,7 @@ export async function executarForcaBruta(opcoes: OpcoesForcaBruta): Promise<Resu
     // A guarda repete-se antes de CADA ligação, não é uma verificação única no início do processo.
     garantirPermitido(alvo, opcoes.allowlist);
     const senha = senhas[i]!;
-    log(`tentativa ${i + 1}/${senhas.length} em ${alvo}, utilizador '${utilizador}', senha '${senha}'`);
+    log(`tentativa ${i + 1}/${senhas.length} em ${alvo}, utilizador '${utilizador}'`);
 
     const cliente = await tentarSenha(alvo, utilizador, senha, opcoes.timeoutMs ?? TIMEOUT_SSH_MS);
     if (cliente) {
@@ -139,6 +145,27 @@ export async function executarForcaBruta(opcoes: OpcoesForcaBruta): Promise<Resu
 
   log(`lista esgotada sem entrar em ${alvo}`);
   return { alvo, utilizador, tentativas: senhas.length, sucesso: false };
+}
+
+/** Lê a wordlist e o .env e corre a força bruta limitada. Usa a mesma guarda do executarForcaBruta. */
+export async function forcaBrutaDemo(
+  alvo: string,
+  allowlist: ReadonlySet<string>,
+  opcoes: { log?: (texto: string) => void } = {},
+): Promise<ResultadoForcaBruta> {
+  carregarEnv();
+  const texto = await readFile(new URL('./wordlist.txt', import.meta.url), 'utf8');
+  const lista = lerWordlist(texto);
+  // A senha exata da demo pode vir do .env (git-ignored); a wordlist já traz a combinada.
+  const senhaDemo = process.env.ATACANTE_SENHA_DEMO?.trim();
+  const senhas = senhaDemo ? [senhaDemo, ...lista] : lista;
+  return executarForcaBruta({
+    alvo,
+    utilizador: process.env.ATACANTE_SSH_UTILIZADOR,
+    senhas,
+    allowlist,
+    log: opcoes.log,
+  });
 }
 
 /** Entrada da CLI do passo de SSH. Devolve o código de saída (0 = entrou, 1 = não entrou). */
@@ -157,24 +184,156 @@ export async function mainForcaBruta(args: string[] = process.argv.slice(2)): Pr
     return 1;
   }
   const alvo = alvoPedido ?? [...allowlist][0]!;
-  const texto = await readFile(new URL('./wordlist.txt', import.meta.url), 'utf8');
-  const lista = lerWordlist(texto);
-  // A senha exata da demo pode vir do .env (git-ignored); a wordlist já traz a combinada.
-  const senhaDemo = process.env.ATACANTE_SENHA_DEMO?.trim();
-  const senhas = senhaDemo ? [senhaDemo, ...lista] : lista;
 
   console.log(`[atacante] alvo ${alvo}, utilizador '${process.env.ATACANTE_SSH_UTILIZADOR || UTILIZADOR_DEMO}'`);
   console.log(
-    `[atacante] no máximo ${Math.min(senhas.length, MAX_TENTATIVAS)} tentativas, ${PAUSA_ENTRE_TENTATIVAS_MS} ms entre cada uma.`,
+    `[atacante] no máximo ${MAX_TENTATIVAS} tentativas, ${PAUSA_ENTRE_TENTATIVAS_MS} ms entre cada uma.`,
   );
 
-  const resultado = await executarForcaBruta({
-    alvo,
-    utilizador: process.env.ATACANTE_SSH_UTILIZADOR,
-    senhas,
-    allowlist,
+  const resultado = await forcaBrutaDemo(alvo, allowlist, {
+    log: (texto) => console.log('[atacante]', texto),
   });
   return resultado.sucesso ? 0 : 1;
+}
+
+// ---------- /atacar: sequência completa, com relato no grupo ----------
+
+export type EstadoAtaque = 'feito' | 'em-curso' | 'recusado' | 'falhou';
+
+export interface ResultadoAtaque {
+  estado: EstadoAtaque;
+  alvo?: string;
+}
+
+export interface OpcoesAtaque {
+  alvo?: string;
+  log?: (texto: string) => void;
+  /** Corre também os extras de nível B no fim. Por omissão: ATACANTE_EXTRAS=1. */
+  extras?: boolean;
+}
+
+export interface DependenciasAtaque {
+  bus: { enviar(m: Mensagem): void };
+  allowlist: () => ReadonlySet<string>;
+  reconhecer: (alvo: string, allowlist: ReadonlySet<string>) => Promise<PortaTestada[]>;
+  forcaBruta: (
+    alvo: string,
+    allowlist: ReadonlySet<string>,
+    log: (texto: string) => void,
+  ) => Promise<ResultadoForcaBruta>;
+  extras: (alvo: string, allowlist: ReadonlySet<string>) => Promise<Achado[]>;
+  segredos: () => Promise<SegredoEncontrado[]>;
+}
+
+let ataqueEmCurso = false;
+
+function depsAtaquePadrao(): DependenciasAtaque {
+  return {
+    bus,
+    allowlist: () => {
+      carregarEnv();
+      return carregarAllowlist(process.env.ALVOS_PERMITIDOS);
+    },
+    reconhecer: (alvo, allowlist) => verificarPortas(alvo, allowlist),
+    forcaBruta: (alvo, allowlist, log) => forcaBrutaDemo(alvo, allowlist, { log }),
+    extras: (alvo, allowlist) => {
+      const bucket = process.env.ATACANTE_BUCKET || process.env.ARMAZENAMENTO_BUCKET || '';
+      const portaBucket = Number.parseInt(process.env.ATACANTE_BUCKET_PORTA ?? '9000', 10) || 9000;
+      return executarExtras(alvo, allowlist, { bucket, portaBucket });
+    },
+    segredos: () => varrerSegredos(fileURLToPath(new URL('../../code/exemplo-app', import.meta.url))),
+  };
+}
+
+/** Tira palavras-passe de um relato vindo da força bruta, por segurança. */
+function semSegredo(texto: string): string {
+  return texto.replace(/(?:senha|password)\s*[:=]?\s*'[^']*'/gi, 'senha [oculta]');
+}
+
+/**
+ * Sequência /atacar: reconhecimento -> SSH -> extras (opcional).
+ * Relata cada passo pelo bus (agente atacante) e nunca publica palavras-passe/segredos.
+ * A allowlist é a primeira barreira; um ataque de cada vez.
+ */
+export async function iniciarAtaque(
+  opcoes: OpcoesAtaque = {},
+  deps: DependenciasAtaque = depsAtaquePadrao(),
+): Promise<ResultadoAtaque> {
+  const log = opcoes.log ?? ((texto: string) => console.log('[atacante]', texto));
+  const falar = (texto: string) => {
+    log(texto);
+    try {
+      deps.bus.enviar({ de: 'atacante', para: 'todos', texto });
+    } catch (erro) {
+      log(`bus falhou: ${erro instanceof Error ? erro.message : String(erro)}`);
+    }
+  };
+
+  if (ataqueEmCurso) {
+    falar('ataque já em curso');
+    return { estado: 'em-curso' };
+  }
+
+  let allowlist: ReadonlySet<string>;
+  try {
+    allowlist = deps.allowlist();
+  } catch (erro) {
+    falar(`allowlist inválida, ataque recusado: ${erro instanceof Error ? erro.message : String(erro)}`);
+    return { estado: 'recusado' };
+  }
+  if (allowlist.size === 0) {
+    falar('allowlist vazia, ataque recusado');
+    return { estado: 'recusado' };
+  }
+
+  const alvo = (opcoes.alvo ?? [...allowlist][0] ?? '').trim();
+  if (!alvo) {
+    falar('allowlist vazia, ataque recusado');
+    return { estado: 'recusado' };
+  }
+  try {
+    garantirPermitido(alvo, allowlist);
+  } catch {
+    falar(`alvo recusado (fora da allowlist): ${alvo}`);
+    return { estado: 'recusado', alvo };
+  }
+
+  ataqueEmCurso = true;
+  try {
+    falar(`⚔️ Ataque iniciado contra ${alvo}`);
+
+    const portas = await deps.reconhecer(alvo, allowlist);
+    const abertas = portas.filter((p) => p.estado === 'aberta').map((p) => p.porta);
+    falar(
+      abertas.length > 0
+        ? `👁️ Reconhecimento: ${abertas.length} porta(s) aberta(s): ${abertas.join(', ')}`
+        : '👁️ Reconhecimento: nenhuma porta aberta',
+    );
+
+    // O log da força bruta passa por semSegredo: uma mensagem futura nunca publica a palavra-passe.
+    const ssh = await deps.forcaBruta(alvo, allowlist, (texto) => falar(semSegredo(texto)));
+    falar(
+      ssh.sucesso
+        ? `✅ SSH: entrei com ${ssh.utilizador} em ${ssh.tentativas} tentativa(s)`
+        : `❌ SSH: sem entrada em ${ssh.tentativas} tentativa(s)`,
+    );
+
+    const comExtras = opcoes.extras ?? process.env.ATACANTE_EXTRAS === '1';
+    if (comExtras) {
+      const achados = await deps.extras(alvo, allowlist);
+      const segredos = await deps.segredos();
+      const lista = achados.map((a) => `${a.servico ?? 'serviço'} ${a.porta}`).join(', ');
+      falar(`🧪 Extras: ${achados.length} achado(s)${lista ? ` (${lista})` : ''}; ${segredos.length} segredo(s) no código`);
+    }
+
+    falar('✅ Ataque terminado');
+    return { estado: 'feito', alvo };
+  } catch (erro) {
+    falar(`❌ Ataque falhou: ${erro instanceof Error ? erro.message : String(erro)}`);
+    return { estado: 'falhou', alvo };
+  } finally {
+    ataqueEmCurso = false;
+  }
 }
 
 // Só corre quando este ficheiro é o ponto de entrada; o pacote é importado pelo orquestrador.
