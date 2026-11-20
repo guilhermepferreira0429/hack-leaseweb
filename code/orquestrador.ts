@@ -9,6 +9,7 @@
 //   resumir  chefe.resumir
 // Cortes (docs/plano.md): sem migrador e/ou sem atacante; a defesa pela API fica sempre.
 // Uma falha numa fase é auditada e avisada, e o fluxo continua: a demo não pára.
+import { isIP } from 'node:net';
 import type { Achado, Agente, Decisao, EventoAuditoria, Mensagem, Pedido, EstadoPedido } from '@mwbe/shared';
 
 export interface Dependencias {
@@ -63,6 +64,8 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   const agora = opcoes.agora ?? (() => new Date());
   const log = opcoes.log ?? ((...a: unknown[]) => console.log('[orquestrador]', ...a));
   const espera = new Map<string, (r: Resultado) => void>();
+  /** Achado que deu origem a cada pedido da defesa (para o atacante confirmar no alvo certo). */
+  const achadoDoPedido = new Map<string, Achado>();
 
   const hora = () => agora().toISOString();
   const horaCurta = () =>
@@ -171,9 +174,13 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   async function confirmarFecho(pedido: Pedido): Promise<void> {
     if (pedido.acao.tipo !== 'remover_regra') return;
     const { startPort, endPort } = pedido.acao.regra;
+    // Com o IP do alvo conhecido, só conta esse alvo: outra máquina da allowlist com a mesma porta
+    // aberta (o isco tem a 22) não é sinal de que o fecho falhou. Sem IP (só instanceId), conta a porta.
+    const alvo = achadoDoPedido.get(pedido.id)?.alvo;
+    const doAlvo = (a: Achado) => !alvo || !isIP(alvo) || a.alvo === alvo;
     try {
       const achados = await deps.atacante.reconhecer(opcoes.alvos);
-      const ainda = achados.filter((a) => a.porta >= startPort && a.porta <= endPort);
+      const ainda = achados.filter((a) => doAlvo(a) && a.porta >= startPort && a.porta <= endPort);
       falar(
         'atacante',
         'todos',
@@ -277,6 +284,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     for (const achado of acionaveis) {
       try {
         const pedido = await deps.defesa.tratar(achado);
+        achadoDoPedido.set(pedido.id, achado);
         resultados.push(esperarResultado(pedido.id));
       } catch (erro) {
         await falha(`pedido para ${achado.alvo}:${achado.porta}`, erro);

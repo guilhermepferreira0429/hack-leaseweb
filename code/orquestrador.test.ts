@@ -31,6 +31,8 @@ type Cenario = {
   stubs?: boolean;
   /** aoResponder e aoMensagemDoDono a lançar, como o telegram.ts ainda em stub. */
   canalStub?: boolean;
+  /** Outra máquina da allowlist (o isco) com a mesma porta aberta, antes e depois do fecho. */
+  outroAlvoAberto?: boolean;
 };
 
 const stub = (): never => {
@@ -99,7 +101,8 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
     atacante: {
       async reconhecer() {
         reconhecimentos++;
-        return fechado ? [] : [achadoAtacante];
+        const isco = cenario.outroAlvoAberto ? [{ ...achadoAtacante, id: 'isco', alvo: '203.0.113.99' }] : [];
+        return fechado ? isco : [achadoAtacante, ...isco];
       },
     },
     migrador: {
@@ -231,6 +234,12 @@ describe('orquestrador', () => {
     // montar() já chamou ligar(); se lançasse, nem chegávamos aqui.
     assert.ok(t.notificacoes.some((n) => /aoResponder/.test(n)));
     assert.ok(t.notificacoes.some((n) => /aoMensagemDoDono/.test(n)));
+  });
+
+  it('a confirmação do fecho só olha para o alvo do achado, não para outras máquinas', async () => {
+    const t = montar({ outroAlvoAberto: true }, { migrar: false });
+    await t.orq.correr();
+    assert.equal(textos(t.falas, 'atacante').at(-1), 'Confirmo. Já não chego lá.');
   });
 
   it('o atacante diz se ainda chega à porta depois de fechar', async () => {
