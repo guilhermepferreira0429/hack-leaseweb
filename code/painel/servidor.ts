@@ -76,7 +76,8 @@ export function iniciarPainel(porta: number, opcoes: OpcoesPainel = {}): Server 
       else res.end();
     });
   });
-  const host = opcoes.host ?? process.env.PAINEL_HOST ?? '127.0.0.1';
+  // || e não ??: um PAINEL_HOST= vazio no .env abria o painel em todas as interfaces.
+  const host = opcoes.host || process.env.PAINEL_HOST?.trim() || '127.0.0.1';
   servidor.listen(porta, host, () => console.log(`[painel] http://${host}:${porta}`));
   return servidor;
 }

@@ -106,3 +106,17 @@ describe('ecrã da demo (4 zonas)', () => {
     assert.ok(!html.includes('velho'));
   });
 });
+
+describe('painel escuta só em 127.0.0.1 por omissão', () => {
+  it('PAINEL_HOST vazio não abre a todas as interfaces', async () => {
+    const { iniciarPainel } = await import('@mwbe/painel');
+    process.env.PAINEL_HOST = '';
+    const srv = iniciarPainel(0);
+    await new Promise((ok) => srv.once('listening', ok));
+    try {
+      assert.equal((srv.address() as { address: string }).address, '127.0.0.1');
+    } finally {
+      srv.close();
+    }
+  });
+});
