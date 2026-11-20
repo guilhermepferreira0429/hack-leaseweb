@@ -38,12 +38,12 @@
           </div>
           <div class="divisor${p >= 1 ? ' cresce' : ''}"></div>
           <div ${ap(p, 1, 'estat inquerito')}>
-            ${rotulo('LEASEWEB DIGITAL INDEPENDENCE SURVEY · 2026')}
+            ${rotulo('SANS CLOUD SECURITY SURVEY · 2026')}
             <div class="numero-e-pontos">
-              <div class="numero grande verde">${p >= 1 ? conta(11) : '11'}<small>%</small></div>
-              ${p >= 1 ? pontos(11) : pontos(0)}
+              <div class="numero grande verde">${p >= 1 ? conta(49) : '49'}<small>%</small></div>
+              ${p >= 1 ? pontos(49) : pontos(0)}
             </div>
-            <div class="legenda">could leave their cloud provider<br>in three weeks.</div>
+            <div class="legenda">need more than a day to close<br>a critical gap they know about.</div>
           </div>
         </div>`,
     },
@@ -54,12 +54,12 @@
       html: (p) => `
         <div class="problema">
           <div class="problema-cima">
-            <div ${E(1, 'numero gigante coral')}>${conta(49, '?', 200)}<small>%</small></div>
+            <div ${E(1, 'numero gigante coral')}>${conta(45, '?', 200)}<small>%</small></div>
             <div class="problema-texto">
               ${rotulo('SANS CLOUD SECURITY SURVEY · 2026', 'muted', E(0))}
-              <div ${E(2, 'legenda')}>of companies like her need more than a day to close a critical gap they already know about.</div>
+              <div ${E(2, 'legenda')}>of cloud incidents start with a misconfiguration.</div>
               <div ${E(3, 'mini-stats')}>
-              <div class="mini"><div class="mini-n">45%</div><div class="mini-d">of incidents start with misconfiguration<br><em>SANS 2026</em></div></div>
+              <div class="mini"><div class="mini-n">49%</div><div class="mini-d">need &gt; 1 day to close a known gap<br><em>SANS 2026</em></div></div>
               <div class="mini"><div class="mini-n">55%</div><div class="mini-d">need &gt; 3 months to leave<br><em>Leaseweb 2026</em></div></div>
             </div>
             </div>
@@ -92,7 +92,7 @@
             </div>
             <div class="resultado"><span class="soberano">Sovereign.</span></div>
           </div>
-          <div class="verbos">migrate · secure · fix · prove</div>
+          <div class="verbos">explain · approve · close · prove</div>
         </div>`;
       },
     },
@@ -146,14 +146,14 @@
       passos: 8,
       html: (p) => {
         const passos = [
-          ['Decide', 'where each piece goes'],
+          ['Decide', 'what moves, and what opens'],
           ['Approve', 'you are the owner'],
-          ['Migrate', 'checksums match'],
-          ['Attack', 'our machines only'],
-          ['Defend', 'explain, approve, close'],
-          ['Fix the cause', 'a pull request'],
-          ['Validate', 'tests and attacker'],
-          ['Certificate', 'audit-ready, to the phone'],
+          ['Migrate', 'the window opens'],
+          ['Attack', 'we find the open door'],
+          ['Defend', 'AI explains, you close'],
+          ['Fix the cause', 'the door stays shut'],
+          ['Validate', 'the attacker checks again'],
+          ['Certificate', 'the proof, on your phone'],
         ];
         return `
         <div class="demo">
@@ -198,8 +198,8 @@
               .join('<span class="seta">→</span>')}
           </div>
           <div class="camadas">
-            <div ${E(10, 'camada')}><span class="rotulo">YOUR SERVER · SELF-HOSTED</span><span>MinIO · PostgreSQL · RabbitMQ · OpenBao · Valkey</span></div>
-            <div ${E(11, 'camada')}><span class="rotulo verde">PROVIDER · LEASEWEB API</span><span class="mono"><b class="verde">One call</b> closes a door. <b class="azul">One call</b> opens it again. Seconds, measured today.</span></div>
+            <div ${E(10, 'camada')}><span class="rotulo">AI · EUROPEAN INFERENCE</span><span>Explains in plain words. Never picks the action, never runs a command.</span></div>
+            <div ${E(11, 'camada')}><span class="rotulo verde">ACTIONS · CLOSED LIST</span><span class="mono"><b class="verde">One call</b> closes a door. <b class="azul">The inverse</b> opens it again. Every line audited.</span></div>
           </div>
         </div>`,
     },
@@ -231,10 +231,10 @@
         <div class="centro-v">
           <div ${E(0, 'titulo')}>Encomendas Lusas, measured today.</div>
           <div class="placar escada">
-            <div class="kpi"><div class="numero medio">${conta(v.x, 'X', 400)}<small> min</small></div><div class="legenda-p">from a hyperscaler to Leaseweb</div></div>
-            <div class="kpi verde"><div class="numero medio verde">${conta(v.t, 'T', 500)}<small> s</small></div><div class="legenda-p">exposed. Not a day.</div></div>
-            <div class="kpi coral"><div class="numero medio coral">${conta(v.n, 'N', 600)}</div><div class="legenda-p">attacks on the bait</div></div>
-            <div class="kpi"><div class="numero medio">${conta(v.testes, '?', 700)}</div><div class="legenda-p">automated tests</div></div>
+            <div class="kpi verde"><div class="numero medio verde">${conta(v.t, 'T', 400)}<small> s</small></div><div class="legenda-p">exposed. Not a day.</div></div>
+            <div class="kpi coral"><div class="numero medio coral">${conta(v.n, 'N', 500)}</div><div class="legenda-p">attacks on the bait</div></div>
+            <div class="kpi"><div class="numero medio">${conta(v.testes, '?', 600)}</div><div class="legenda-p">automated tests</div></div>
+            <div class="kpi"><div class="numero medio">${conta(v.x, 'X', 700)}<small> min</small></div><div class="legenda-p">the move, as context</div></div>
           </div>
           <div ${E(7, 'mono muted')}>All measured today, in one run. Every action is on the record.</div>
         </div>`,
@@ -256,18 +256,18 @@
             <div ${E(1, 'bd-col antes')}>
               <div class="bd-k">BEFORE</div>
               <div class="bd-linha"><span class="bd-num">&gt; 24 h</span><small>to close a critical gap · 49%</small></div>
-              <div class="bd-linha"><span class="bd-num">&gt; 3 months</span><small>to leave a provider · 55%</small></div>
+              <div class="bd-linha"><span class="bd-num">45%</span><small>of incidents start with misconfiguration</small></div>
               <div class="bd-linha"><span class="bd-num">$4.99M</span><small>average breach cost · IBM 2026</small></div>
             </div>
             <div class="bd-seta">→</div>
             <div ${E(3, 'bd-col depois')}>
               <div class="bd-k">AFTER</div>
               <div class="bd-linha"><span class="bd-num">${t} s</span><small>to close · measured today</small></div>
-              <div class="bd-linha"><span class="bd-num">${x} min</span><small>to leave · measured today</small></div>
+              <div class="bd-linha"><span class="bd-num">${conta(v.testes, '?', 200)}</span><small>tests on the record · audit-ready</small></div>
               <div class="bd-linha"><span class="bd-num">1 API call</span><small>to undo · open source</small></div>
             </div>
           </div>
-          <div ${E(6, 'bd-nota')}>A breach costs $4.99M on average; closing this gap costs one API call. <span class="verde">${conta(v.testes, '?', 0)} tests</span> · audit-ready record.</div>
+          <div ${E(6, 'bd-nota')}>A breach costs $4.99M on average; closing this gap costs one API call. <span class="verde">Every action is on the record.</span></div>
         </div>`;
       },
     },
@@ -280,7 +280,7 @@
           <div class="estat">
             ${rotulo('LEASEWEB DIGITAL INDEPENDENCE SURVEY · 2026', 'muted', E(0))}
             <div ${E(1, 'numero gigante verde')}>${conta(73, '?', 200)}<small>%</small></div>
-            <div ${E(2, 'legenda')}>would pay at least 11% more<br>for infrastructure independence.</div>
+            <div ${E(2, 'legenda')}>would pay at least 11% more<br>for control over their own infrastructure.</div>
             <div ${ap(p, 1, 'nl')}><span class="numero medio lilas">${p >= 1 ? conta(81) : '81'}<small>%</small></span><span class="legenda-p">in the Netherlands</span></div>
           </div>
           <div ${E(2)}>${pontos(73, p >= 1 ? 8 : 0)}</div>

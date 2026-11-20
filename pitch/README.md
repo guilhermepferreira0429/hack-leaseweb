@@ -3,7 +3,8 @@
 O deck do pitch de 5 minutos (ensaiado para 4:30), em HTML simples: sem build, sem dependências, sem internet.
 São 11 slides: a empresa e o problema primeiro, a demo ao meio, o antes/depois e o mercado depois, o fecho no fim. No slide 5 sai-se do deck para o painel real.
 A história segue uma empresa fictícia, a **Encomendas Lusas** (Porto), que é a própria app da demo: os números
-medidos (N, T, X, testes) são os da corrida dela e as estatísticas são reais, com fonte nos anexos.
+medidos (N, T, X, testes) são os da corrida dela e as estatísticas são reais, com fonte nos anexos. O foco é a
+equipa de segurança (IA + aprovação humana + auditoria); a migração é só o momento em que a porta abre.
 Abre-se com **duplo clique em `index.html`** (Chrome ou Edge), carrega-se em **F** para ecrã inteiro e em **P**
 para abrir a vista do apresentador no segundo ecrã. As duas janelas andam juntas.
 
