@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { traduzir } from '../traduzir';
 import { decidirDestino, mensagemDestino, ordenarGeridos, REGRAS, servicosDoPlano, type CapacidadeVm, type EntradaDecisor } from './index';
-import { GERIDO_EUROPEU, type OpcaoGerida } from './tabelas';
+import { GERIDO_EUROPEU, GERIDO_LEASEWEB, type OpcaoGerida } from './tabelas';
 
 const HOJE = new Date('2026-11-20T12:00:00Z');
 const GRANDE: CapacidadeVm = { ramLivreGb: 125, vcpuLivres: 32, discoLivreGb: 500 };
@@ -232,5 +232,36 @@ describe('decisor de destino: ligação ao tradutor e mensagem', () => {
         REGRAS[1],
     );
     assert.equal(mensagemDestino(decidir({ servicos, vm }), vm), m);
+  });
+});
+
+describe('decisor de destino: mensagem sem nomes repetidos', () => {
+  const vm: CapacidadeVm = { ramLivreGb: 122, vcpuLivres: 32, discoLivreGb: 100 };
+
+  it('nome igual ao serviço (ou o nome por omissão) não se repete', () => {
+    for (const nome of ['Secrets Manager', 'secrets manager', 'segredos', 'OpenBao', undefined]) {
+      const m = mensagemDestino(decidir({ servicos: [{ servico: 'segredos', nome }], vm }), vm);
+      assert.match(m, /O Secrets Manager: proponho Scaleway Secret Manager, preço a confirmar\./, String(nome));
+      assert.doesNotMatch(m, /\(/, String(nome));
+    }
+    const pg = mensagemDestino(decidir({ servicos: [{ servico: 'postgres', nome: 'postgres', dadosGb: 5 }], vm }), vm);
+    assert.match(pg, /A base de dados é crítica e tem dados pessoais: proponho Scaleway/);
+  });
+
+  it('um nome próprio continua a aparecer', () => {
+    const m = mensagemDestino(decidir({ servicos: [{ servico: 'segredos', nome: 'db, api_token' }, { servico: 'postgres', nome: 'encomendas', dadosGb: 5 }], vm }), vm);
+    assert.match(m, /O Secrets Manager \(db, api_token\): proponho/);
+    assert.match(m, /A base de dados encomendas é crítica/);
+  });
+
+  it('Leaseweb primeiro: Postgres e segredos vão para a Scaleway só porque a tabela não tem gerido da Leaseweb para eles', () => {
+    assert.equal(GERIDO_LEASEWEB.postgres, undefined);
+    assert.equal(GERIDO_LEASEWEB.segredos, undefined);
+    const d = decidir({ servicos: [{ servico: 'postgres', dadosGb: 5 }, { servico: 'segredos' }, { servico: 's3', dadosGb: 10, criticidade: 'alta' }], vm });
+    assert.deepEqual(d.map((x) => [x.servico, x.destino, x.fornecedor]), [
+      ['postgres', 'gerido', 'Scaleway'],
+      ['segredos', 'gerido', 'Scaleway'],
+      ['s3', 'gerido', 'Leaseweb'], // quando a Leaseweb tem gerido, é sempre a primeira
+    ]);
   });
 });
