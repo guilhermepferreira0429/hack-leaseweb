@@ -14,13 +14,14 @@ import { lerAmbienteMigrador } from './ambiente';
 import type { Lado } from './ambiente';
 
 export interface ChecksumObjeto {
+  bucket: string;
   chave: string;
   origem: string;
   destino: string;
 }
 
-/** Quantos objetos se copiam ao mesmo tempo. */
-const EM_PARALELO = 8;
+/** Quantos objetos se copiam ao mesmo tempo. Acima disto não ganha: o limite é o volume de bytes. */
+const EM_PARALELO = 16;
 
 /** sha256 em hex de um corpo. */
 export function sha256(conteudo: Uint8Array): string {
@@ -111,41 +112,45 @@ export async function sondarArmazenamento(): Promise<void> {
  * Versão com o detalhe por objeto (para o CLI e o painel). O sha256 do destino calcula-se
  * a partir do que se volta a ler do MinIO, não do que se enviou.
  */
-export async function migrarS3Detalhado(): Promise<{ bucket: string; objetos: ChecksumObjeto[]; checksumsOk: boolean }> {
+export async function migrarS3Detalhado(): Promise<{ buckets: string[]; objetos: ChecksumObjeto[]; checksumsOk: boolean }> {
   const amb = lerAmbienteMigrador();
   const origem = cliente(amb.origem);
   const destino = cliente(amb.destino);
   try {
     await Promise.all([sondar(origem, amb.origem), sondar(destino, amb.destino)]);
 
-    let chaves: string[];
-    try {
-      chaves = await listarChaves(origem, amb.bucket);
-    } catch (erro) {
-      if (estadoHttp(erro) === 404) throw new Error(`O bucket ${amb.bucket} não existe no ${amb.origem.nome}`);
-      throw erro;
+    // Todos os buckets da "AWS": a app pode usar mais do que um (faturas, fotos-produtos…).
+    const buckets = ((await origem.send(new ListBucketsCommand({}))).Buckets ?? [])
+      .map((b) => b.Name)
+      .filter((n): n is string => Boolean(n))
+      .sort();
+    const trabalho: { bucket: string; chave: string }[] = [];
+    for (const bucket of buckets) {
+      for (const chave of await listarChaves(origem, bucket)) trabalho.push({ bucket, chave });
     }
-    if (chaves.length === 0) {
-      throw new Error(`O bucket ${amb.bucket} no ${amb.origem.nome} está vazio: nada para migrar (npm run dev:exemplo -- --semear 20)`);
+    if (trabalho.length === 0) {
+      throw new Error(
+        `Não há ficheiros no S3 do ${amb.origem.nome} (${buckets.length} buckets): nada para migrar (npm run dev:exemplo -- --semear 20)`,
+      );
     }
 
-    await garantirBucket(destino, amb.bucket);
+    for (const bucket of buckets) await garantirBucket(destino, bucket);
 
-    const objetos = await emLotes(chaves, EM_PARALELO, async (chave): Promise<ChecksumObjeto> => {
-      const { corpo, tipo } = await lerObjeto(origem, amb.bucket, chave);
-      await destino.send(new PutObjectCommand({ Bucket: amb.bucket, Key: chave, Body: corpo, ContentType: tipo }));
-      const copia = await lerObjeto(destino, amb.bucket, chave);
-      return { chave, origem: sha256(corpo), destino: sha256(copia.corpo) };
+    const objetos = await emLotes(trabalho, EM_PARALELO, async ({ bucket, chave }): Promise<ChecksumObjeto> => {
+      const { corpo, tipo } = await lerObjeto(origem, bucket, chave);
+      await destino.send(new PutObjectCommand({ Bucket: bucket, Key: chave, Body: corpo, ContentType: tipo }));
+      const copia = await lerObjeto(destino, bucket, chave);
+      return { bucket, chave, origem: sha256(corpo), destino: sha256(copia.corpo) };
     });
 
-    return { bucket: amb.bucket, objetos, checksumsOk: objetos.every((o) => o.origem === o.destino) };
+    return { buckets, objetos, checksumsOk: objetos.every((o) => o.origem === o.destino) };
   } finally {
     origem.destroy();
     destino.destroy();
   }
 }
 
-/** Lista o bucket na origem, copia cada objeto para o MinIO e compara sha256 dos dois lados. */
+/** Copia todos os buckets da origem para o MinIO, objeto a objeto, e compara sha256 dos dois lados. */
 export async function migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }> {
   const r = await migrarS3Detalhado();
   return { objetos: r.objetos.length, checksumsOk: r.checksumsOk };

@@ -23,8 +23,8 @@ async function main(): Promise<void> {
   let t0 = Date.now();
   const m = await migrarS3Detalhado();
   const diferentes = m.objetos.filter((o) => o.origem !== o.destino);
-  console.log(`[migrador] S3 -> MinIO, bucket ${m.bucket}: ${m.objetos.length} objetos em ${Date.now() - t0} ms`);
-  for (const o of m.objetos.slice(0, 3)) console.log(`  ${o.chave}  ${curto(o.origem)} = ${curto(o.destino)}`);
+  console.log(`[migrador] S3 -> MinIO, buckets ${m.buckets.join(', ')}: ${m.objetos.length} objetos em ${Date.now() - t0} ms`);
+  for (const o of m.objetos.slice(0, 3)) console.log(`  ${o.bucket}/${o.chave}  ${curto(o.origem)} = ${curto(o.destino)}`);
   if (m.objetos.length > 3) console.log(`  … e mais ${m.objetos.length - 3}`);
   console.log(`[migrador] checksums ${m.checksumsOk ? 'todos iguais' : `DIFERENTES em ${diferentes.length}: ${diferentes.map((o) => o.chave).join(', ')}`}`);
   falhou ||= !m.checksumsOk;
