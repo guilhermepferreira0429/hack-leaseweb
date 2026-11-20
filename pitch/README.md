@@ -17,7 +17,7 @@ para abrir a vista do apresentador no segundo ecrã. As duas janelas andam junta
 | P | Vista do apresentador: guião do clique atual, slide seguinte, cronómetro, perguntas (Q) |
 | G | Guião completo, pronto a imprimir |
 | E | Números ao vivo: N (isco), T (exposição), X (minutos), testes |
-| D | Painel ao vivo por cima do slide (sem Alt+Tab) |
+| D · I · C | Por cima do slide, sem Alt+Tab: painel ao vivo (`/`), ecrã do isco (`/isco`), certificado (`/certificado`) |
 | V | Vídeo de recurso (`plano-b.mp4` ao lado do `index.html`) |
 | B | Ecrã preto |
 | F | Ecrã inteiro |

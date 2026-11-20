@@ -11,13 +11,14 @@ window.CONFIG = {
     n: null, // tentativas de entrada no isco desde as 08:00 (painel /isco)
     t: null, // segundos de exposição (relógio de exposição do painel)
     x: null, // minutos da migração completa, do plano ao relatório
-    testes: 179, // `it(` nos ficheiros *.test.ts de code/ (recontar às 15:30)
+    testes: 256, // `it(` nos ficheiros *.test.ts de code/ (256 às 11:50; recontar às 15:30)
   },
 
   // Painel ao vivo (tecla D abre-o por cima do slide, sem Alt+Tab).
   // No portátil, com um túnel SSH para o cérebro: http://127.0.0.1:3000
-  painelUrl: 'http://127.0.0.1:3000/',
-  iscoUrl: 'http://127.0.0.1:3000/isco',
+  painelUrl: 'http://127.0.0.1:3000/', // tecla D: linha do tempo e relógio de exposição
+  iscoUrl: 'http://127.0.0.1:3000/isco', // tecla I: o ecrã do isco, com o QR do grupo
+  certificadoUrl: 'http://127.0.0.1:3000/certificado', // tecla C: o certificado da migração
 
   // Vídeo de recurso (tecla V). Caminho relativo a index.html.
   videoPlanoB: 'plano-b.mp4',
