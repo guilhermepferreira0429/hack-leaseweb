@@ -206,6 +206,13 @@ describe('verificar-porta', () => {
     process.env.ALVOS_PERMITIDOS = '198.51.100.7';
     await assert.rejects(estadoPorta('8.8.8.8', 53), /ALVOS_PERMITIDOS/);
   });
+  it('recusa CIDR no pedido e na lista (não varre redes)', async () => {
+    const { estadoPorta } = await import('../verificar-porta');
+    process.env.ALVOS_PERMITIDOS = '198.51.100.0/24';
+    await assert.rejects(estadoPorta('198.51.100.0/24', 5432), /não é um IP literal/);
+    process.env.ALVOS_PERMITIDOS = '198.51.100.7,198.51.100.0/24';
+    await assert.rejects(estadoPorta('198.51.100.7', 5432), /Entrada inválida/);
+  });
 });
 
 describe('modo noite', () => {

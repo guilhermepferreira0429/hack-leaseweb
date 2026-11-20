@@ -2,6 +2,7 @@
 // Antes de fechar deve dar "open"; depois de remover a regra no security group, "filtered".
 // Só toca em IPs de ALVOS_PERMITIDOS (a mesma vedação do atacante). Um único pacote por porta, sem scripts.
 import { execFile } from 'node:child_process';
+import { isIP } from 'node:net';
 import { carregarConfig } from '@mwbe/shared';
 
 export type EstadoPorta = 'open' | 'closed' | 'filtered' | 'desconhecido';
@@ -15,6 +16,11 @@ export function lerEstadoNmap(saida: string, porta: number): EstadoPorta {
 
 export function estadoPorta(ip: string, porta: number): Promise<EstadoPorta> {
   const { alvosPermitidos } = carregarConfig([]);
+  // Só IPs literais, como a allowlist do atacante (code/atacante/alvos.ts): um CIDR na lista ou no pedido
+  // faria o nmap varrer uma rede inteira. Uma entrada inválida invalida a lista toda (falha fechado).
+  const invalida = alvosPermitidos.find((a) => isIP(a) === 0);
+  if (invalida) return Promise.reject(new Error(`Entrada inválida em ALVOS_PERMITIDOS (não é um IP literal): ${invalida}`));
+  if (isIP(ip) === 0) return Promise.reject(new Error(`${ip} não é um IP literal: recusado`));
   if (!alvosPermitidos.includes(ip)) return Promise.reject(new Error(`${ip} não está em ALVOS_PERMITIDOS: recusado`));
   if (!Number.isInteger(porta) || porta < 1 || porta > 65535) return Promise.reject(new Error(`Porta inválida: ${porta}`));
   return new Promise((ok, falha) =>
