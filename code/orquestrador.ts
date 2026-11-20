@@ -522,7 +522,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       return;
     }
 
-    const atacar = t.match(/^\/atacar(?:@\S+)?(?:\s+(\S+))?$/);
+    const atacar = t.match(/^\/(?:atacar|attack)(?:@\S+)?(?:\s+(\S+))?$/);
     if (atacar) {
       if (!deps.atacante.iniciarAtaque) {
         await notificar("The attack is not enabled in this process.");
