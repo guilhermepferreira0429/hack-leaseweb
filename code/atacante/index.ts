@@ -23,8 +23,8 @@ export * from './credenciais';
 export * from './extras';
 export * from './ssh-auth';
 
-/** Máximo de tentativas, mesmo que a wordlist cresça. */
-export const MAX_TENTATIVAS = 20;
+/** Máximo de tentativas por ronda de SSH, mesmo que a wordlist cresça. Depois passa às outras ferramentas. */
+export const MAX_TENTATIVAS = 5;
 /** Pausa entre tentativas: a demo tem de ser legível e o auth.log não fica uma parede de linhas. */
 export const PAUSA_ENTRE_TENTATIVAS_MS = 800;
 /** Tempo máximo para estabelecer a sessão SSH. */
