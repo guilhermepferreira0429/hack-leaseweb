@@ -88,6 +88,11 @@ export function normalizarAdminIp(bruto: string | undefined): { cidr?: string; p
   return { cidr: `${ip}/${prefixo}` };
 }
 
+/** CIDR literal IPv4 ou IPv6 (o que a regra da Leaseweb aceita em `source`). */
+function eCidr(v: string): boolean {
+  return /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/.test(v) || /^[0-9a-f:]+\/\d{1,3}$/i.test(v);
+}
+
 function regiaoDaZona(zona: string): string {
   return zona.replace(/[a-z]$/, '');
 }
@@ -184,9 +189,30 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
     const proto = String(regra.protocol ?? 'tcp').toLowerCase();
     const de = numero(regra.from_port) ?? 0;
     const ate = numero(regra.to_port) ?? de;
-    const fontes = [...lista(regra.cidr_blocks), ...lista(regra.ipv6_cidr_blocks)].filter(
-      (c): c is string => typeof c === 'string',
-    );
+    // Cada origem resolve-se (${var.x}) e tem de ser um CIDR literal; o que não for, sinaliza-se e não vira regra.
+    const fontes: string[] = [];
+    const porResolver: string[] = [];
+    for (const atributo of [regra.cidr_blocks, regra.ipv6_cidr_blocks]) {
+      if (atributo === undefined) continue;
+      const valor = resolver(atributo);
+      if (!Array.isArray(valor)) {
+        porResolver.push(String(atributo));
+        continue;
+      }
+      for (const elemento of valor) {
+        const cidr = resolver(elemento);
+        if (typeof cidr === 'string' && eCidr(cidr)) fontes.push(cidr);
+        else porResolver.push(String(elemento));
+      }
+    }
+    for (const ref of porResolver)
+      sinalizar({
+        origem,
+        assunto: 'desconhecido',
+        titulo: `origem ${ref} por resolver`,
+        porque: `A origem "${ref}" não é um endereço (CIDR) que eu consiga ler, por isso não criei a regra.`,
+        oQueFazer: 'Escreve a origem como CIDR no Terraform (ou dá um valor por omissão à variável) e volta a traduzir.',
+      });
 
     if (regra.security_groups || regra.source_security_group_id || regra.self === true)
       sinalizar({
@@ -261,7 +287,13 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
               ? `${nomes} estava aberto a toda a Internet. No destino só aceita o ADMIN_IP.`
               : destino === 'admin-ip-em-falta'
                 ? `${nomes} estava aberto a toda a Internet. Fica fechado até pores o ADMIN_IP no .env.`
-                : `${nomes} estava aberto a toda a Internet. No destino não fica exposto; para administrar usa um túnel SSH.`,
+                : `${nomes} estava aberto a toda a Internet. No destino não fica exposto; para administrar usa um túnel SSH.${
+                    p.inicio !== p.fim
+                      ? ` A regra abria o intervalo ${p.inicio}-${p.fim} inteiro, por isso as outras portas${
+                          p.inicio <= 443 && p.fim >= 80 ? ' (também as web, 80 e 443)' : ''
+                        } ficam de fora; recria à parte só as de que precisas.`
+                      : ''
+                  }`,
         };
         plano.recusar.push(recusa);
         if (destino === 'so-admin') {

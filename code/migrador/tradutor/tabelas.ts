@@ -57,11 +57,12 @@ export const NOMES_REGIAO: Record<string, string> = {
   'us-west-2': 'Oregon',
 };
 
-/** Portas que nunca ficam abertas a toda a Internet. */
+/** Portas que nunca ficam abertas a toda a Internet. Igual à lista de docs/arquitetura.md e de defesa/detetar.ts. */
 export const PORTAS_SENSIVEIS: Record<number, string> = {
   22: 'SSH',
   3389: 'RDP',
   5432: 'PostgreSQL',
+  5984: 'CouchDB',
   3306: 'MySQL',
   1433: 'SQL Server',
   27017: 'MongoDB',

@@ -156,8 +156,49 @@ describe('tradutor: grupos de segurança e porta de segurança', () => {
       { adminIp: ADMIN },
     );
     assert.deepEqual(regras(p), []);
-    assert.deepEqual(portas(p)[0]!.portasSensiveis, [5432]);
-    assert.ok(portas(p).slice(1).every((r) => r.destino === 'nao-existe' && r.portasSensiveis.length === 10));
+    assert.deepEqual(portas(p)[0]!.portasSensiveis, [5432, 5984]);
+    assert.ok(portas(p).slice(1).every((r) => r.destino === 'nao-existe' && r.portasSensiveis.length === Object.keys(PORTAS_SENSIVEIS).length));
+  });
+
+  it('revisão 1: origem por variável resolve-se; 0.0.0.0/0 escondido numa variável é recusado na mesma', () => {
+    const tf = { ...tfCom({ ingress: [{ from_port: 5432, to_port: 5432, protocol: 'tcp', cidr_blocks: ['${var.aberto}'] }] }), variable: { aberto: { default: '0.0.0.0/0' } } };
+    const p = traduzir(tf, { adminIp: ADMIN });
+    assert.deepEqual(regras(p), []);
+    assert.deepEqual(portas(p).map((r) => [r.inicio, r.fonte, r.destino]), [[5432, '0.0.0.0/0', 'nao-existe']]);
+  });
+
+  it('revisão 1: origem que não se resolve num CIDR -> sinalizada e sem regra (falha fechado)', () => {
+    for (const fonte of ['${var.sem_valor}', '${local.rede}', 'qualquer-coisa']) {
+      const p = traduzir(tfCom({ ingress: [{ from_port: 80, to_port: 80, protocol: 'tcp', cidr_blocks: [fonte] }] }), { adminIp: ADMIN });
+      assert.deepEqual(regras(p), [], `regra criada com ${fonte}`);
+      assert.ok(p.sinalizar.some((s) => s.titulo === `origem ${fonte} por resolver`));
+    }
+  });
+
+  it('revisão 2: cidr_blocks como referência a uma lista resolve-se; sem valor -> sinalizado', () => {
+    const comLista = { ...tfCom({ ingress: [{ from_port: 5432, to_port: 5432, protocol: 'tcp', cidr_blocks: '${var.lista}' }] }), variable: { lista: { default: ['0.0.0.0/0', '198.51.100.0/24'] } } };
+    const p = traduzir(comLista, { adminIp: ADMIN });
+    assert.deepEqual(regras(p), [{ protocol: 'TCP', startPort: 5432, endPort: 5432, source: '198.51.100.0/24' }]);
+    assert.deepEqual(portas(p).map((r) => r.fonte), ['0.0.0.0/0']);
+
+    const semValor = traduzir(tfCom({ ingress: [{ from_port: 443, to_port: 443, protocol: 'tcp', cidr_blocks: '${var.lista}' }] }), { adminIp: ADMIN });
+    assert.deepEqual(regras(semValor), []);
+    assert.ok(semValor.sinalizar.some((s) => s.titulo === 'origem ${var.lista} por resolver'));
+  });
+
+  it('revisão 3: CouchDB (5984) é porta sensível, como em docs/arquitetura.md e defesa/detetar.ts', () => {
+    assert.equal(PORTAS_SENSIVEIS[5984], 'CouchDB');
+    assert.deepEqual(Object.keys(PORTAS_SENSIVEIS).map(Number).sort((a, b) => a - b), [22, 23, 445, 1433, 3306, 3389, 5432, 5984, 6379, 9200, 27017]);
+    const p = traduzir(tfCom({ ingress: [aberta(5984)] }), { adminIp: ADMIN });
+    assert.deepEqual(regras(p), []);
+    assert.equal(portas(p)[0]!.destino, 'nao-existe');
+  });
+
+  it('revisão 4: 1-65535 ao mundo é recusado inteiro e o porquê diz que as portas web também ficam de fora', () => {
+    const p = traduzir(tfCom({ ingress: [{ from_port: 1, to_port: 65535, protocol: 'tcp', cidr_blocks: ['0.0.0.0/0'] }] }), { adminIp: ADMIN });
+    assert.deepEqual(regras(p), []);
+    assert.match(portas(p)[0]!.porque, /também as web, 80 e 443\) ficam de fora; recria à parte/);
+    assert.ok(resumoPlano(p).length <= 600);
   });
 
   it('porta sensível só para uma rede privada -> copiada tal e qual, com aviso de rede', () => {

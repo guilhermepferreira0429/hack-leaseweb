@@ -12,7 +12,7 @@ function listar(itens: string[]): string {
 }
 
 function nomesPortas(portas: number[]): string {
-  return portas.map((p) => `${PORTAS_SENSIVEIS[p] ?? 'porta'} (${p})`).join(', ');
+  return listar(portas.map((p) => `${PORTAS_SENSIVEIS[p] ?? 'porta'} (${p})`));
 }
 
 const ONDE: Record<'user_data' | 'tags' | 'atributo', string> = {
