@@ -65,13 +65,13 @@ describe('migrador de código', () => {
     const p = await proporAlteracao(dirApp, usos);
     assert.deepEqual(p.alteracoes.map((a) => a.ficheiro).sort(), [FICHEIRO_CONFIG, 'src/armazenamento.ts']);
     const s3 = p.alteracoes.find((a) => a.ficheiro === 'src/armazenamento.ts')!;
-    assert.match(s3.depois, /new S3Client\(\{\n  forcePathStyle: true, \/\/ o MinIO na Leaseweb usa path-style\n  region: process\.env\.AWS_REGION,/);
+    assert.match(s3.depois, /new S3Client\(\{\n  forcePathStyle: true, \/\/ MinIO on Leaseweb uses path-style\n  region: process\.env\.AWS_REGION,/);
     const config = p.alteracoes.find((a) => a.ficheiro === FICHEIRO_CONFIG)!;
     assert.equal(config.antes, null);
     assert.match(config.depois, /DATABASE_URL=postgres:\/\/<utilizador>:<senha>@<postgres-na-leaseweb>:5432\/<base>/);
     assert.match(config.depois, /# AWS_SECRET_ACCESS_KEY/);
-    assert.ok(p.fora.some((f) => /SQS → RabbitMQ: a app chama o SQS diretamente/.test(f)), 'trocar o cliente SQS fica fora (nível B)');
-    assert.ok(p.fora.some((f) => /\.env\.example:1: endereço ou ARN da AWS/.test(f)));
+    assert.ok(p.fora.some((f) => /SQS → RabbitMQ: the app calls SQS directly/.test(f)), 'trocar o cliente SQS fica fora (nível B)');
+    assert.ok(p.fora.some((f) => /\.env\.example:1: AWS address or ARN hard-coded/.test(f)));
     assert.deepEqual(validarAlteracao(p, usos), []);
     assert.ok(!p.diff.includes(SENHA) && !p.diff.includes(CHAVE));
     assert.match(p.diff, /\+  forcePathStyle: true/);
@@ -92,16 +92,16 @@ describe('migrador de código', () => {
       ],
     };
     const problemas = validarAlteracao(mau, usos);
-    assert.ok(problemas.some((x) => /leaseweb\.env\.example: uma linha nova parece ter um segredo/.test(x)));
-    assert.ok(problemas.some((x) => /src\/armazenamento\.ts: o PR apagaria código/.test(x)));
-    assert.ok(problemas.some((x) => /src\/outro\.ts: ficheiro fora do esperado/.test(x)));
+    assert.ok(problemas.some((x) => /leaseweb\.env\.example: a new line looks like a secret/.test(x)));
+    assert.ok(problemas.some((x) => /src\/armazenamento\.ts: the PR would delete code/.test(x)));
+    assert.ok(problemas.some((x) => /src\/outro\.ts: unexpected file/.test(x)));
   });
 
   it('sem testes a passar não há PR; por omissão o PR é simulado (diff num ficheiro)', async () => {
     const { raiz, dirApp } = await appLegada();
     const sem = await migrarCodigo(dirApp, { raizRepo: raiz, id: 'ab12cd34', testesOk: false });
     assert.equal(sem.pr, undefined);
-    assert.ok(sem.problemas.some((p) => /testes da app não passaram/.test(p)));
+    assert.ok(sem.problemas.some((p) => /app tests did not pass/.test(p)));
 
     const sim = await migrarCodigo(dirApp, { raizRepo: raiz, id: 'ab12cd34', testesOk: true });
     assert.equal(sim.pr?.simulado, true);
@@ -146,7 +146,7 @@ describe('migrador de código', () => {
         real: true,
         executar: async (cmd, args) => (comandos.push(`${cmd} ${args.join(' ')}`), 'outra versão'),
       }),
-      /no origin\/main não é igual ao local/,
+      /on origin\/main differs from the local copy/,
     );
     assert.ok(!comandos.some((c) => /worktree add|push/.test(c)), 'não cria ramo nem faz push');
   });
@@ -204,10 +204,10 @@ describe('migrador de código', () => {
     assert.match(config, /OPENBAO_ADDR=http:\/\/<openbao-na-leaseweb>:8200/);
     assert.match(config, /AWS_REGION=us-east-1/);
     assert.ok(!p.alteracoes.some((a) => a.ficheiro === 'src/mais.ts'), 'mais.ts não muda: nada de forcePathStyle duplicado');
-    assert.ok(p.fora.some((f) => /src\/mais\.ts:8: o cliente S3 é criado a partir de uma variável/.test(f)));
+    assert.ok(p.fora.some((f) => /src\/mais\.ts:8: the S3 client is built from a variable/.test(f)));
     assert.ok(p.fora.some((f) => /rds-signer/.test(f)));
-    assert.ok(p.fora.some((f) => /pré-assinados/.test(f)));
-    assert.ok(p.fora.some((f) => /Outros serviços da AWS no código \(src\/mais\.ts\)/.test(f)));
+    assert.ok(p.fora.some((f) => /pre-signed/.test(f)));
+    assert.ok(p.fora.some((f) => /Other AWS services in the code \(src\/mais\.ts\)/.test(f)));
     assert.deepEqual(validarAlteracao(p, todos), []);
   });
 
@@ -219,7 +219,7 @@ describe('migrador de código', () => {
     const config = p.alteracoes.find((a) => a.ficheiro === FICHEIRO_CONFIG)!;
     assert.match(config.depois, /VALKEY_URL=redis:\/\/:<senha>@<valkey-na-leaseweb>:6379/);
     const mau = { ...p, alteracoes: [{ ...config, depois: `${config.depois}X=redis://:abc123@h:6379\n` }] };
-    assert.ok(validarAlteracao(mau, usos).some((x) => /parece ter um segredo/.test(x)));
+    assert.ok(validarAlteracao(mau, usos).some((x) => /looks like a secret/.test(x)));
   });
 
   it('revisão 2: região e endpoint do SDK ficam; dois URLs no mesmo JSON; valores entre aspas; o ficheiro gerado não volta a contar', async () => {
@@ -288,7 +288,7 @@ describe('migrador de código', () => {
           return '';
         },
       }),
-      /não é igual ao local/,
+      /differs from the local copy/,
     );
   });
 
@@ -318,11 +318,11 @@ describe('migrador de código', () => {
 
     // Uma correção adulterada (mexe noutra coisa ou continua aberta) é recusada.
     const mau = { ...p, alteracoes: p.alteracoes.map((a) => (a.tipo === 'infra' ? { ...a, depois: a.depois.replace('"name": "base_dados"', '"name": "outra"') } : a)) };
-    assert.ok(validarAlteracao(mau, usos).some((x) => /mudou mais do que as origens/.test(x)));
+    assert.ok(validarAlteracao(mau, usos).some((x) => /changed more than the rule sources/.test(x)));
 
     const r = await migrarCodigo(dirApp, { raizRepo: raiz, id: 'x', testesOk: true });
     assert.equal(r.causas, 1);
-    assert.match(await readFile(r.pr!.diffEm!, 'utf8'), /Segurança \(a causa da falha que a defesa fechou pela API da Leaseweb\)/);
+    assert.match(await readFile(r.pr!.diffEm!, 'utf8'), /Security \(the cause of the issue the defense closed through the Leaseweb API\)/);
   });
 
   it('aprovarPR faz squash merge pela API e apaga só o ramo do migrador; reverterPR abre um PR com o revert', async () => {
@@ -362,12 +362,12 @@ describe('migrador de código', () => {
     assert.ok(linhas.some((l) => l.includes('revert --no-edit abc1234def')));
     assert.ok(linhas.includes(`git push origin ${v.ramo}:${v.ramo}`));
     assert.ok(!linhas.some((l) => /git push\b.*\bmain\b/.test(l)), 'o revert também vai por PR, nunca direto para main');
-    await assert.rejects(reverterPR('dono/app', 7, undefined, { executar }), /não sei que commit reverter/);
+    await assert.rejects(reverterPR('dono/app', 7, undefined, { executar }), /I do not know which commit to revert/);
   });
 
   it('a app tem de estar dentro do repo', async () => {
     const { dirApp } = await appLegada();
     const fora = await mkdtemp(join(tmpdir(), 'outro-repo-'));
-    await assert.rejects(migrarCodigo(dirApp, { raizRepo: fora, id: 'x', testesOk: true }), /a app tem de estar dentro do repo/);
+    await assert.rejects(migrarCodigo(dirApp, { raizRepo: fora, id: 'x', testesOk: true }), /the app must be inside the repo/);
   });
 });

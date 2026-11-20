@@ -1,4 +1,4 @@
-// Resumo curto do plano, em português simples, para o pedido de migração no Telegram.
+// Resumo curto do plano, em inglês simples (a demo é em inglês), para o pedido de migração no Telegram.
 // Determinístico: sai só do plano. A IA explica depois; isso não é feito aqui.
 import type { ItemRecusar, PlanoTraducao } from './tipos';
 import { PORTAS_SENSIVEIS } from './tabelas';
@@ -8,27 +8,27 @@ const MAX_POR_LISTA = 3;
 function listar(itens: string[]): string {
   const unicos = [...new Set(itens)];
   if (unicos.length <= MAX_POR_LISTA) return unicos.join(', ');
-  return `${unicos.slice(0, MAX_POR_LISTA).join(', ')} e mais ${unicos.length - MAX_POR_LISTA}`;
+  return `${unicos.slice(0, MAX_POR_LISTA).join(', ')} and ${unicos.length - MAX_POR_LISTA} more`;
 }
 
 function juntar(itens: string[]): string {
-  return itens.length <= 1 ? itens.join('') : `${itens.slice(0, -1).join(', ')} e ${itens.at(-1)}`;
+  return itens.length <= 1 ? itens.join('') : `${itens.slice(0, -1).join(', ')} and ${itens.at(-1)}`;
 }
 
 function nomesPortas(portas: number[]): string {
-  return listar(portas.map((p) => `${PORTAS_SENSIVEIS[p] ?? 'porta'} (${p})`));
+  return listar(portas.map((p) => `${PORTAS_SENSIVEIS[p] ?? 'port'} (${p})`));
 }
 
 const ONDE: Record<'user_data' | 'tags' | 'atributo', string> = {
-  user_data: 'arranque',
+  user_data: 'startup script',
   tags: 'tags',
   atributo: 'Terraform',
 };
 
 export function resumoPlano(plano: PlanoTraducao): string {
-  const linhas = ['Plano para a Leaseweb (nada criado ainda).'];
+  const linhas = ['Plan for Leaseweb (nothing created yet).'];
 
-  // Move-se hoje
+  // Moves today
   const hoje: string[] = [];
   for (const c of plano.criar.filter((c) => c.acao === 'criar-instancia')) hoje.push(c.descricao);
   const regras = plano.criar
@@ -37,11 +37,11 @@ export function resumoPlano(plano: PlanoTraducao): string {
   const abertas = regras
     .filter((r) => (r.source === '0.0.0.0/0' || r.source === '::/0') && r.startPort !== undefined)
     .map((r) => (r.startPort === r.endPort ? `${r.startPort}` : `${r.startPort}-${r.endPort}`));
-  if (abertas.length > 0) hoje.push(`abertas a todos: ${listar(abertas)}`);
+  if (abertas.length > 0) hoje.push(`Open to all: ${listar(abertas)}`);
   const recusas = plano.recusar.filter((r): r is Extract<ItemRecusar, { tipo: 'porta-aberta' }> => r.tipo === 'porta-aberta');
   const soAdmin = recusas.filter((r) => r.destino === 'so-admin').flatMap((r) => r.portasSensiveis);
-  if (soAdmin.length > 0) hoje.push(`${nomesPortas([...new Set(soAdmin)])} só para o teu IP`);
-  // Trocas por alternativas abertas, juntas por alternativa (ex.: Secrets Manager e SSM → OpenBao).
+  if (soAdmin.length > 0) hoje.push(`${nomesPortas([...new Set(soAdmin)])} only from your IP`);
+  // Trocas por alternativas abertas, juntas por alternativa (ex.: Secrets Manager and SSM → OpenBao).
   const porAlternativa = new Map<string, { servicos: string[]; soPlano: boolean }>();
   for (const s of plano.substituir) {
     const alternativa = s.alternativa.split(' ')[0]!;
@@ -52,17 +52,17 @@ export function resumoPlano(plano: PlanoTraducao): string {
     porAlternativa.set(alternativa, atual);
   }
   const trocas = [...porAlternativa].map(
-    ([alternativa, { servicos, soPlano }]) => `${juntar(servicos)} → ${alternativa}${soPlano ? ' (só plano)' : ''}`,
+    ([alternativa, { servicos, soPlano }]) => `${juntar(servicos)} → ${alternativa}${soPlano ? ' (plan only)' : ''}`,
   );
   if (trocas.length > 0) hoje.push(trocas.join(', '));
-  if (hoje.length > 0) linhas.push(`Move-se hoje: ${hoje.join('. ')}.`);
+  if (hoje.length > 0) linhas.push(`Moves today: ${hoje.join('. ')}.`);
 
-  // Recusei copiar
+  // Not copied
   const recusei: string[] = [];
   const fechadas = [...new Set(recusas.filter((r) => r.destino === 'nao-existe').flatMap((r) => r.portasSensiveis))];
-  if (fechadas.length > 0) recusei.push(`${nomesPortas(fechadas)} aberto a todos: fechado`);
+  if (fechadas.length > 0) recusei.push(`${nomesPortas(fechadas)} open to all: closed`);
   const semAdmin = [...new Set(recusas.filter((r) => r.destino === 'admin-ip-em-falta').flatMap((r) => r.portasSensiveis))];
-  if (semAdmin.length > 0) recusei.push(`${nomesPortas(semAdmin)} fechado sem ADMIN_IP no .env`);
+  if (semAdmin.length > 0) recusei.push(`${nomesPortas(semAdmin)} closed until ADMIN_IP is set in .env`);
   // Segredos: um só total, com os nomes agrupados por sítio.
   const grupos = (['user_data', 'tags', 'atributo'] as const).flatMap((onde) => {
     const nomes = [...new Set(plano.recusar.flatMap((r) => (r.tipo === 'segredo' && r.onde === onde ? [r.nome] : [])))];
@@ -70,15 +70,15 @@ export function resumoPlano(plano: PlanoTraducao): string {
   });
   const totalSegredos = grupos.reduce((n, g) => n + g.nomes.length, 0);
   if (totalSegredos > 0)
-    recusei.push(`${totalSegredos} ${totalSegredos === 1 ? 'segredo não copiado' : 'segredos não copiados'}: ${grupos.map((g) => g.texto).join('; ')}`);
-  if (recusei.length > 0) linhas.push(`Recusei copiar: ${recusei.join('. ')}.`);
+    recusei.push(`${totalSegredos} ${totalSegredos === 1 ? 'secret' : 'secrets'} not copied: ${grupos.map((g) => g.texto).join('; ')}`);
+  if (recusei.length > 0) linhas.push(`I refused to copy: ${recusei.join('. ')}.`);
 
-  // Precisa de redesenho / avisos
+  // Needs redesign / warnings
   const redesenho = plano.sinalizar.filter((s) => s.assunto === 'iam' || s.assunto === 'lock-in' || s.assunto === 'ami-custom');
-  if (redesenho.length > 0) linhas.push(`Precisa de redesenho: ${listar(redesenho.map((s) => s.titulo))}.`);
+  if (redesenho.length > 0) linhas.push(`Needs redesign: ${listar(redesenho.map((s) => s.titulo))}.`);
   // O aviso 'segredo' (valor guardado num cofre) já está coberto pela troca para o OpenBao.
   const avisos = plano.sinalizar.filter((s) => !redesenho.includes(s) && s.assunto !== 'segredo');
-  if (avisos.length > 0) linhas.push(`Avisos: ${listar(avisos.map((s) => s.titulo))}.`);
+  if (avisos.length > 0) linhas.push(`Warnings: ${listar(avisos.map((s) => s.titulo))}.`);
 
   return linhas.join('\n');
 }

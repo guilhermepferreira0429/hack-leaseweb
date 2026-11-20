@@ -55,12 +55,12 @@ export async function abrirPR(
 ): Promise<ResultadoPR> {
   const pasta = pedido.dirAppNoRepo;
   // Vazio = a app está na raiz do repo. Absoluto ou com .. = fora do repo: recusa.
-  if (isAbsolute(pasta) || pasta.split('/').includes('..')) throw new Error(`a app tem de estar dentro do repo: ${pasta}`);
+  if (isAbsolute(pasta) || pasta.split('/').includes('..')) throw new Error(`the app must be inside the repo: ${pasta}`);
   const noRepo = (ficheiro: string) => (pasta ? `${pasta}/${ficheiro}` : ficheiro);
   const ramo = nomeRamo(pedido.id, opcoes.agora);
   const ficheiros = pedido.alteracoes.map((a) => noRepo(a.ficheiro));
-  if (ficheiros.length === 0) throw new Error('não há nada para mudar: o PR não se abre');
-  if (ficheiros.some((f) => f.split('/').includes('..'))) throw new Error('um ficheiro do PR sai da pasta da app');
+  if (ficheiros.length === 0) throw new Error('nothing to change: the PR is not opened');
+  if (ficheiros.some((f) => f.split('/').includes('..'))) throw new Error('a PR file is outside the app folder');
 
   if (!opcoes.real) {
     const tmp = await mkdtemp(join(tmpdir(), 'migrador-pr-'));
@@ -77,7 +77,7 @@ export async function abrirPR(
     // CRLF (Windows, core.autocrlf) e LF contam como iguais.
     const normal = (t: string) => t.replace(/\r\n/g, '\n').trim();
     if (noGitHub === undefined || normal(noGitHub) !== normal(a.antes)) {
-      throw new Error(`${noRepo(a.ficheiro)} no ${BASE} não é igual ao local: falta o push do revisor antes do PR`);
+      throw new Error(`${noRepo(a.ficheiro)} on ${BASE} differs from the local copy: push first, then open the PR`);
     }
   }
 
@@ -168,8 +168,8 @@ export async function abrirPRNoRepoDaApp(
   if (!/^[\w.-]+\/[\w.-]+$/.test(opcoes.repo)) throw new Error(`repo inválido: ${opcoes.repo}`);
   const ramo = nomeRamoApp(opcoes.agora);
   const ficheiros = pedido.alteracoes.map((a) => a.ficheiro);
-  if (ficheiros.length === 0) throw new Error('não há nada para mudar: o PR não se abre');
-  if (ficheiros.some((f) => isAbsolute(f) || f.split('/').includes('..'))) throw new Error('um ficheiro do PR sai da pasta da app');
+  if (ficheiros.length === 0) throw new Error('nothing to change: the PR is not opened');
+  if (ficheiros.some((f) => isAbsolute(f) || f.split('/').includes('..'))) throw new Error('a PR file is outside the app folder');
 
   if (!opcoes.real) {
     const tmp = await mkdtemp(join(tmpdir(), 'migrador-pr-'));
@@ -190,7 +190,7 @@ export async function abrirPRNoRepoDaApp(
       if (a.antes === null) continue;
       const noRepo = await readFile(join(arvore, a.ficheiro), 'utf8').catch(() => undefined);
       if (noRepo === undefined || normal(noRepo) !== normal(a.antes)) {
-        throw new Error(`${a.ficheiro} no ${opcoes.repo} não é igual ao local: atualizem o repo da app antes do PR`);
+        throw new Error(`${a.ficheiro} on ${opcoes.repo} differs from the local copy: update the app repo before the PR`);
       }
     }
     await git('git', ['checkout', '-b', ramo], arvore, env);
@@ -251,7 +251,7 @@ export async function reverterPR(
   opcoes: { token?: string; executar?: Executar; agora?: Date; api?: ApiGitHub } = {},
 ): Promise<{ url?: string; ramo: string }> {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !(numero > 0)) throw new Error(`PR inválido: ${repo}#${numero}`);
-  if (!commit || !/^[0-9a-f]{7,40}$/.test(commit)) throw new Error(`não sei que commit reverter do PR #${numero}`);
+  if (!commit || !/^[0-9a-f]{7,40}$/.test(commit)) throw new Error(`I do not know which commit to revert for PR #${numero}`);
   const git = opcoes.executar ?? executarReal;
   const env = ambienteDoToken(opcoes.token);
   const ramo = `${PREFIXO_RAMO_APP}reverter-${numero}-${(opcoes.agora ?? new Date()).toISOString().replace(/\D/g, '').slice(0, 14)}`;
@@ -262,8 +262,8 @@ export async function reverterPR(
     await git('git', ['checkout', '-b', ramo], arvore, env);
     await git('git', ['-c', 'user.name=Migrador hack-leaseweb', '-c', 'user.email=migrador@users.noreply.github.com', 'revert', '--no-edit', commit], arvore, env);
     await git('git', ['push', 'origin', `${ramo}:${ramo}`], arvore, env);
-    const titulo = `Reverter o PR #${numero} (pedido pelo dono com /desfazer)`;
-    const corpo = `Desfaz o PR #${numero}, a pedido do dono no Telegram. O ramo principal só muda quando alguém fizer merge deste PR.`;
+    const titulo = `Revert PR #${numero} (requested by the owner with /desfazer)`;
+    const corpo = `Undoes PR #${numero}, as the owner asked in Telegram. The main branch only changes when someone merges this PR.`;
     const api = apiDe(opcoes);
     if (api) {
       const pr = (await api('POST', `/repos/${repo}/pulls`, { title: titulo, head: ramo, base: 'main', body: corpo })) as { html_url?: string };

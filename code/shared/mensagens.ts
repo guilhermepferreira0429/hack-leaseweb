@@ -1,59 +1,60 @@
 // Mensagens fixas da demo, passo a passo. Fonte: docs/agentes/mensagens-demo.md (quem muda o texto, muda lá primeiro).
 // O texto fixo é a base e o recurso quando o LLM falha; a IA só pode melhorar a explicação.
-// Só factos medidos: cada função recebe valores do estado e da auditoria; o que faltar sai como "não medido".
+// Só factos medidos: cada função recebe valores do estado e da auditoria; o que faltar sai como "not measured".
+// Textos em inglês: a demo e o pitch são em inglês (decisão do Guilherme às 13:05).
 // Nenhuma mensagem promete uma ação: as ações só acontecem pelos botões.
 import type { Agente } from './bus';
 import type { Acao } from './tipos';
 
 export type PassoDemo = 'abertura' | 'plano' | 'confirmacao' | 'migrar' | 'atacar' | 'defender' | 'codigo' | 'validar' | 'relatorio';
 
-/** Linha "a pensar" do painel: texto fixo por passo, não o raciocínio do modelo. */
+/** Linha "a pensar" do painel: texto fixo por passo, não o raciocínio do modelo. Em inglês (decisão das 13:05). */
 export const PENSAR: Record<PassoDemo, { agente: Agente; texto: string }> = {
-  abertura: { agente: 'chefe', texto: 'A preparar a equipa.' },
-  plano: { agente: 'migrador', texto: 'A ler a app e a decidir onde fica cada serviço.' },
-  confirmacao: { agente: 'chefe', texto: 'À espera da aprovação.' },
-  migrar: { agente: 'migrador', texto: 'A copiar os dados e a comparar checksums.' },
-  atacar: { agente: 'atacante', texto: 'A ver o que se vê de fora nas nossas máquinas.' },
-  defender: { agente: 'defesa', texto: 'A explicar o risco e a preparar o fecho reversível.' },
-  codigo: { agente: 'migrador', texto: 'A corrigir o código para apontar para a Leaseweb e fechar a causa.' },
-  validar: { agente: 'chefe', texto: 'A confirmar que está tudo de pé.' },
-  relatorio: { agente: 'chefe', texto: 'A escrever o certificado a partir da auditoria.' },
+  abertura: { agente: 'chefe', texto: 'Getting the team ready.' },
+  plano: { agente: 'migrador', texto: 'Reading the app and deciding where each service goes.' },
+  confirmacao: { agente: 'chefe', texto: 'Waiting for approval.' },
+  migrar: { agente: 'migrador', texto: 'Copying the data and comparing checksums.' },
+  atacar: { agente: 'atacante', texto: 'Checking what our machines show to the outside.' },
+  defender: { agente: 'defesa', texto: 'Explaining the risk and preparing a reversible fix.' },
+  codigo: { agente: 'migrador', texto: 'Fixing the code to point at Leaseweb and close the cause.' },
+  validar: { agente: 'chefe', texto: 'Checking that everything is up.' },
+  relatorio: { agente: 'chefe', texto: 'Writing the certificate from the audit log.' },
 };
 
-export const NAO_MEDIDO = 'não medido';
+export const NAO_MEDIDO = 'not measured';
 
 export type Valor = string | number | boolean | undefined;
 
 function formatar(v: Valor): string {
   if (v === undefined || v === '') return NAO_MEDIDO;
   if (typeof v === 'boolean') return v ? '✓' : '✗';
-  if (typeof v === 'number') return Number.isFinite(v) ? String(v).replace('.', ',') : NAO_MEDIDO;
+  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : NAO_MEDIDO;
   return v;
 }
 
-/** Troca cada {chave} pelo valor. Sem valor -> "não medido"; boolean -> ✓ / ✗; números com vírgula decimal. */
+/** Troca cada {chave} pelo valor. Sem valor -> "not measured"; boolean -> ✓ / ✗. */
 export function preencher(modelo: string, vars: Record<string, Valor>): string {
   return modelo.replace(/\{([a-z0-9_]+)\}/gi, (_, chave: string) => formatar(Object.hasOwn(vars, chave) ? vars[chave] : undefined));
 }
 
-/** Os modelos, tal como estão no mensagens-demo.md. */
+/** Os modelos, em inglês (a demo e o pitch são em inglês). A estrutura segue o mensagens-demo.md. */
 export const MODELOS = {
-  abertura: 'Bom dia. Vamos tirar a app {app} da AWS e trazê-la para a Leaseweb, com segurança. Eu aviso em cada passo.',
-  plano: 'Encontrei {n_servicos} serviços da AWS na app: {lista_servicos}.\nProposta:\n{linhas_proposta}\nA VM tem {ram_livre} GB livres. {motivo_regra}',
+  abertura: 'Good morning. We are moving the {app} app from AWS to Leaseweb, safely. I will report at every step.',
+  plano: 'I found {n_servicos} AWS services in the app: {lista_servicos}.\nProposal:\n{linhas_proposta}\nThe VM has {ram_livre} GB free. {motivo_regra}',
   linhaProposta: '· {servico} → {destino} ({self_ou_gerido})',
-  planoAprovado: 'Plano aprovado por {quem} às {hora}. @migrador, avança.',
+  planoAprovado: 'Plan approved by {quem} at {hora}. @migrador, go ahead.',
   migracao:
-    'Migração concluída.\n· Ficheiros: {n_objetos} copiados · checksum {ok_s3}\n· Base de dados: {n_linhas} linhas · checksum {ok_bd}\n· Testes da app: antes {ok_antes} · depois {ok_depois}\nA infraestrutura nova está no ar. @atacante, a tua vez.',
-  ataque: 'Encontrei a base de dados nova aberta a toda a Internet (porta {porta}).\nGravidade: {gravidade}. Qualquer pessoa pode tentar entrar.\n@defesa',
-  defesaExplicacao: 'A base de dados com os dados da empresa está aberta a toda a Internet.\nAlguém de fora pode tentar adivinhar a palavra-passe e entrar.',
-  defesaProposta: 'Proponho fechar o acesso de fora e deixar só a vossa app. Guardo como voltar atrás.',
-  fechado: 'Fechado às {hora_fecho} e confirmado. Tempo exposto: {segundos} s.\nGuardei como voltar atrás: /desfazer {pedido_id}\n@atacante, confirma.',
-  atacanteConfirma: 'Confirmo. Já não chego lá.',
+    'Migration complete.\n· Files: {n_objetos} copied · checksum {ok_s3}\n· Database: {n_linhas} rows · checksum {ok_bd}\n· App tests: before {ok_antes} · after {ok_depois}\nThe new infrastructure is live. @atacante, your turn.',
+  ataque: 'I found the new database open to the whole Internet (port {porta}).\nSeverity: {gravidade}. Anyone can try to get in.\n@defesa',
+  defesaExplicacao: 'The database with the company data is open to the whole Internet.\nSomeone outside could try to guess the password and get in.',
+  defesaProposta: 'I propose closing outside access and allowing only your app. I keep a way to undo it.',
+  fechado: 'Closed at {hora_fecho} and confirmed. Time exposed: {segundos} s.\nUndo saved: /desfazer {pedido_id}\n@atacante, please confirm.',
+  atacanteConfirma: 'Confirmed. I can no longer reach it.',
   codigo:
-    'Abri o PR #{numero}: {n_ficheiros} ficheiros alterados, testes a passar.\n· A app passa a usar a Leaseweb em vez da AWS.\n· Corrigi a configuração que deixava a base de dados aberta, para não voltar no próximo deploy.',
-  validacao: 'Validação final: testes {testes}, nada exposto {nada_exposto}, dados iguais {dados_iguais}.',
+    'I opened PR #{numero}: {n_ficheiros} files changed, tests passing.\n· The app now uses Leaseweb instead of AWS.\n· I fixed the configuration that left the database open, so it does not come back on the next deploy.',
+  validacao: 'Final check: tests {testes}, nothing exposed {nada_exposto}, data identical {dados_iguais}.',
   fimRelatorio:
-    'Em {minutos} min saímos da AWS para a Leaseweb, fechámos {n_falhas} falha(s) e corrigimos a causa no código. Nada saiu da UE.',
+    'In {minutos} min we moved from AWS to Leaseweb, closed {n_falhas} issue(s) and fixed the cause in the code. Nothing left the EU.',
 } as const;
 
 // 0. Abertura (Chefe)
@@ -69,7 +70,11 @@ export function msgPlano(v: {
 }): string {
   const servicos = v.servicos ?? [];
   const linhas = servicos.map((s) =>
-    preencher(MODELOS.linhaProposta, { servico: s.servico, destino: s.destino, self_ou_gerido: s.selfOuGerido }),
+    preencher(MODELOS.linhaProposta, {
+      servico: s.servico,
+      destino: s.destino,
+      self_ou_gerido: s.selfOuGerido === 'gerido' ? 'managed' : s.selfOuGerido,
+    }),
   );
   return preencher(MODELOS.plano, {
     n_servicos: v.servicos ? servicos.length : undefined,
@@ -147,19 +152,19 @@ export function msgFimRelatorio(v: { minutos?: number; nFalhas?: number; certifi
 
 /** Respostas fixas úteis (fim do mensagens-demo.md). */
 export const RESPOSTAS_FIXAS = {
-  foraDoEstado: 'Não tenho essa informação. Escreva /estado para ver o ponto da situação.',
-  pedidoIgnorado: 'Ok, fica como está. Fica registado que decidiu não fechar.',
-  erroApi: 'A Leaseweb não respondeu a tempo. Não mudei nada. Vou tentar outra vez.',
+  foraDoEstado: "I don't have that information. Type /estado to see the current status.",
+  pedidoIgnorado: 'OK, leaving it as it is. Your decision not to close it is logged.',
+  erroApi: 'Leaseweb did not answer in time. I changed nothing. I will try again.',
 } as const;
 
 /** Texto dos botões de um pedido. "Tudo self-hosted" e "Porquê?" ficam de fora (decisão da equipa). */
 export function botoesPara(acao: Acao): { aprovar: string; ignorar: string } {
   switch (acao.tipo) {
     case 'migrar':
-      return { aprovar: 'Aprovar plano', ignorar: 'Ignorar' };
+      return { aprovar: 'Approve plan', ignorar: 'Ignore' };
     case 'remover_regra':
-      return { aprovar: 'Fechar', ignorar: 'Ignorar' };
+      return { aprovar: 'Close', ignorar: 'Ignore' };
     case 'aprovar_pr':
-      return { aprovar: 'Aprovar PR', ignorar: 'Ignorar' };
+      return { aprovar: 'Approve PR', ignorar: 'Ignore' };
   }
 }

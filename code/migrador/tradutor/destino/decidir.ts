@@ -51,7 +51,7 @@ export type Decisao = {
   servicoAws: string;
   alternativa: string;
   destino: 'self-hosted' | 'gerido';
-  /** Quem aloja: 'Leaseweb' no self-hosted; no gerido, o fornecedor escolhido (ou 'por escolher' se a tabela não tiver). */
+  /** Quem aloja: 'Leaseweb' no self-hosted; no gerido, o fornecedor escolhido (ou 'to be chosen' se a tabela não tiver). */
   fornecedor: string;
   plano?: string;
   /** Custo mensal estimado, só quando se pode calcular a partir da tabela (nunca inventado). */
@@ -73,11 +73,11 @@ export type Decisao = {
 };
 
 export const REGRAS = {
-  1: 'Serviço crítico que precisa de alta disponibilidade: fica num serviço gerido.',
-  2: 'Não cabe na VM deixando 25% da RAM livre: fica num serviço gerido.',
-  3: 'Tem dados pessoais e não há backups: fica num serviço gerido, com backups e cifra.',
-  4: 'Cabe na VM e não precisa de mais: fica self-hosted na VM da Leaseweb.',
-  0: 'O dono escolheu tudo self-hosted.',
+  1: 'Critical service that needs high availability: it goes to a managed service.',
+  2: 'It does not fit on the VM while keeping 25% of the RAM free: it goes to a managed service.',
+  3: 'It holds personal data and there are no backups: it goes to a managed service, with backups and encryption.',
+  4: 'It fits on the VM and needs nothing more: it stays self-hosted on the Leaseweb VM.',
+  0: 'The owner chose everything self-hosted.',
 } as const;
 
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -104,19 +104,19 @@ function arred(v: number): number {
 
 export function formatarNumero(v: number): string {
   const [inteiro, decimais = ''] = v.toFixed(5).replace(/0+$/, '').replace(/\.$/, '').split('.');
-  return `${inteiro},${decimais.padEnd(2, '0')}`;
+  return `${inteiro}.${decimais.padEnd(2, '0')}`;
 }
 
 /** Quantidade sem casas decimais inúteis: 125 -> "125", 0,75 -> "0,75". */
 export function formatarQuantidade(v: number): string {
-  return formatarNumero(arred(v)).replace(/,00$/, '');
+  return formatarNumero(arred(v)).replace(/\.00$/, '');
 }
 
 function precoUnidade(o: OpcaoGerida): string | undefined {
   const p = o.preco;
   if (p.tipo !== 'gb-uso' && p.tipo !== 'gb-mes') return undefined;
-  const valor = p.moeda === 'EUR' ? `€ ${formatarNumero(p.valor)}` : `${formatarNumero(p.valor)} $`;
-  return p.tipo === 'gb-uso' ? `${valor}/GB` : `${valor}/GB/mês`;
+  const valor = p.moeda === 'EUR' ? `€${formatarNumero(p.valor)}` : `${formatarNumero(p.valor)}`;
+  return p.tipo === 'gb-uso' ? `${valor}/GB` : `${valor}/GB/month`;
 }
 
 /**
@@ -146,22 +146,22 @@ function escolherGerido(
   const leaseweb = GERIDO_LEASEWEB[servico];
   if (leaseweb) return { opcao: leaseweb, avisos };
   if (LEASEWEB_POR_CONFIRMAR.has(servico))
-    avisos.push('Gerido da Leaseweb por confirmar: não o encontrámos na Public Cloud; se existir, passa a ser a escolha.');
+    avisos.push('Leaseweb managed service to be confirmed: we did not find it in the Public Cloud; if it exists, it becomes the choice.');
 
   let candidatas = (GERIDO_EUROPEU[servico] ?? []).filter((o) => o.ue);
   if (candidatas.length === 0) {
-    avisos.push('Não há serviço gerido europeu na tabela para isto: decide à mão.');
+    avisos.push('There is no European managed service in the table for this: decide by hand.');
     return { avisos };
   }
   if (precisaHA) {
     const semExcluir = candidatas.filter((o) => o.altaDisponibilidade !== false);
     if (semExcluir.length > 0) candidatas = semExcluir;
-    else avisos.push('Nenhuma opção da tabela garante alta disponibilidade.');
+    else avisos.push('No option in the table guarantees high availability.');
   }
 
   const opcao = ordenarGeridos(candidatas, dadosGb, paisCliente)[0]!;
   if (precisaHA && opcao.altaDisponibilidade !== true)
-    avisos.push(`Alta disponibilidade a confirmar com a ${opcao.fornecedor}.`);
+    avisos.push(`High availability to be confirmed with ${opcao.fornecedor}.`);
   return { opcao, avisos };
 }
 
@@ -179,9 +179,9 @@ export function decidirDestino(entrada: EntradaDecisor): Decisao[] {
     const precisa = necessidade(e.servico, e.dadosGb ?? 0);
     const cabe = precisa.ramGb <= ramLivre + 1e-9 && precisa.discoGb <= discoLivre + 1e-9;
     const avisos: string[] = [];
-    if (e.dadosGb === undefined) avisos.push('Tamanho dos dados desconhecido: o disco contou como 0 GB.');
+    if (e.dadosGb === undefined) avisos.push('Data size unknown: disk counted as 0 GB.');
     if (r.nota) avisos.push(r.nota);
-    const naoCabe = `Precisa de ${formatarQuantidade(precisa.ramGb)} GB de RAM e ${formatarQuantidade(precisa.discoGb)} GB de disco; a VM tem ${formatarQuantidade(ramLivre)} GB de RAM utilizáveis (com a margem de 25%) e ${formatarQuantidade(discoLivre)} GB de disco.`;
+    const naoCabe = `Needs ${formatarQuantidade(precisa.ramGb)} GB of RAM and ${formatarQuantidade(precisa.discoGb)} GB of disk; the VM has ${formatarQuantidade(ramLivre)} GB of usable RAM (with the 25% margin) and ${formatarQuantidade(discoLivre)} GB of disk.`;
 
     const base = {
       servico: e.servico,
@@ -199,7 +199,7 @@ export function decidirDestino(entrada: EntradaDecisor): Decisao[] {
         ...base,
         destino: 'self-hosted',
         fornecedor: 'Leaseweb',
-        plano: `${r.alternativa} na VM`,
+        plano: `${r.alternativa} on the VM`,
         precoAConfirmar: false,
         numeroRegra,
         regra: REGRAS[numeroRegra],
@@ -208,9 +208,9 @@ export function decidirDestino(entrada: EntradaDecisor): Decisao[] {
     };
 
     if (tudoSelf) {
-      if (!cabe) avisos.push(`Não cabe: ${naoCabe} Precisa de uma VM maior.`);
-      if (dadosPessoais && !entrada.temBackups) avisos.push('Tem dados pessoais e não há backups: liga os backups antes de migrar.');
-      if (precisaHA) avisos.push('É crítico e fica sem alta disponibilidade.');
+      if (!cabe) avisos.push(`Does not fit: ${naoCabe} It needs a bigger VM.`);
+      if (dadosPessoais && !entrada.temBackups) avisos.push('Holds personal data and there are no backups: turn on backups before migrating.');
+      if (precisaHA) avisos.push('It is critical and stays without high availability.');
       return selfHosted(0);
     }
 
@@ -224,7 +224,7 @@ export function decidirDestino(entrada: EntradaDecisor): Decisao[] {
     const decisao: Decisao = {
       ...base,
       destino: 'gerido',
-      fornecedor: opcao?.fornecedor ?? 'por escolher',
+      fornecedor: opcao?.fornecedor ?? 'to be chosen',
       precoAConfirmar: true,
       numeroRegra,
       regra: REGRAS[numeroRegra],

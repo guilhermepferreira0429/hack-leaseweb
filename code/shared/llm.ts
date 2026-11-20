@@ -128,10 +128,10 @@ function descreverErro(erro: unknown, timeoutMs: number): string {
 // ---------- explicar (contrato de docs/interfaces.md) ----------
 
 export const PROMPT_SISTEMA = [
-  'Explicas problemas de segurança a donos de pequenas empresas, sem formação técnica.',
-  'Responde em português de Portugal, no máximo 3 frases curtas e 600 caracteres:',
-  '1) o que está aberto, 2) o que um atacante podia fazer, 3) o que acontece se o dono aprovar (fechamos só esse acesso, e pode desfazer-se).',
-  'Sem jargão, sem comandos, sem listas, sem inventar dados que não estejam no achado.',
+  'You explain security problems to small-business owners with no technical background.',
+  'Answer in plain English, in at most 3 short sentences and 600 characters:',
+  '1) what is open, 2) what an attacker could do, 3) what happens if the owner approves (we close only that access, and it can be undone).',
+  'No jargon, no commands, no lists, and never invent data that is not in the finding.',
 ].join(' ');
 
 /** Fica com as 3 primeiras frases. Devolve undefined se o resultado não servir (vazio ou longo demais). */
@@ -148,7 +148,7 @@ export function limitarTresFrases(texto: string): string | undefined {
 
 let clientePorDefeito: ClienteLLM | undefined;
 
-/** 3 frases em português simples. Nunca lança: se o LLM falhar, devolve textoFixo(achado). */
+/** 3 frases em inglês simples (a demo é em inglês). Nunca lança: se o LLM falhar, devolve textoFixo(achado). */
 export async function explicar(achado: Achado, cliente?: ClienteLLM): Promise<string> {
   const llm = cliente ?? (clientePorDefeito ??= ClienteLLM.doEnv());
   if (!llm.configurado) return textoFixo(achado);
@@ -163,7 +163,7 @@ export async function explicar(achado: Achado, cliente?: ClienteLLM): Promise<st
   try {
     const { texto } = await llm.conversar([
       { role: 'system', content: PROMPT_SISTEMA },
-      { role: 'user', content: `Achado: ${JSON.stringify(dados)}` },
+      { role: 'user', content: `Finding: ${JSON.stringify(dados)}` },
     ]);
     return limitarTresFrases(texto) ?? textoFixo(achado);
   } catch (erro) {
@@ -175,26 +175,26 @@ export async function explicar(achado: Achado, cliente?: ClienteLLM): Promise<st
 // ---------- texto fixo por tipo de achado ----------
 
 function servicoEPorta(a: Achado): string {
-  return `${a.servico ?? 'um serviço'} (porta ${a.porta})`;
+  return `${a.servico ?? 'a service'} (port ${a.porta})`;
 }
 
 const TEXTO_FIXO: Record<TipoAchado, (a: Achado) => string> = {
   'porta-exposta': (a) =>
-    `No servidor ${a.alvo}, o acesso a ${servicoEPorta(a)} está aberto a qualquer pessoa na internet. ` +
-    'Alguém mal-intencionado pode usar esta porta para tentar entrar ou para copiar dados. ' +
-    'Se aprovar, fechamos apenas este acesso, e pode desfazer-se com um clique.',
+    `On server ${a.alvo}, access to ${servicoEPorta(a)} is open to anyone on the Internet. ` +
+    'Someone with bad intentions can use this port to try to get in or to copy data. ' +
+    'If you approve, we close only this access, and it can be undone with one click.',
   'servico-exposto': (a) =>
-    `Conseguimos falar com ${servicoEPorta(a)} no servidor ${a.alvo} a partir da internet. ` +
-    'Este serviço devia estar visível só para as nossas máquinas, não para toda a gente. ' +
-    'Se aprovar, fechamos o acesso que o deixa visível, e pode desfazer-se com um clique.',
+    `We can reach ${servicoEPorta(a)} on server ${a.alvo} from the Internet. ` +
+    'This service should only be visible to our own machines, not to everyone. ' +
+    'If you approve, we close the access that makes it visible, and it can be undone with one click.',
   'credenciais-por-defeito': (a) =>
-    `No servidor ${a.alvo}, ${servicoEPorta(a)} aceita a palavra-passe de fábrica que toda a gente conhece. ` +
-    'Qualquer pessoa que a experimente consegue entrar e ver ou alterar os dados. ' +
-    'Se aprovar, fechamos já o acesso pela internet; a seguir convém mudar a palavra-passe.',
+    `On server ${a.alvo}, ${servicoEPorta(a)} accepts the factory default password that everyone knows. ` +
+    'Anyone who tries it can get in and read or change the data. ' +
+    'If you approve, we close Internet access right away; after that, the password should be changed.',
   'isco-tocado': (a) =>
-    `Alguém tentou entrar no nosso servidor isco (${a.alvo}), que existe só para apanhar curiosos. ` +
-    'É sinal de que andam a procurar portas abertas nas nossas máquinas. ' +
-    'Se aprovar, fechamos o acesso que foi tocado, e pode desfazer-se com um clique.',
+    `Someone tried to log into our honeypot server (${a.alvo}), which exists only to catch snoopers. ` +
+    'It means someone is scanning our machines for open ports. ' +
+    'If you approve, we close the access that was touched, and it can be undone with one click.',
 };
 
 /** Texto fixo e simples para o tipo do achado. Nunca falha. */

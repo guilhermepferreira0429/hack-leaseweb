@@ -117,19 +117,19 @@ function passoDe(pedidoId: string, eventos: Evento[]): Passo {
 
 /** Nome simples do que está na porta, para o dono perceber sem saber o que é um security group. */
 const NOME_PORTA: Record<number, string> = {
-  22: 'o acesso remoto ao servidor',
-  23: 'o acesso remoto antigo (Telnet)',
-  80: 'o site',
-  443: 'o site',
-  445: 'a partilha de ficheiros',
-  1433: 'a base de dados',
-  3306: 'a base de dados',
-  3389: 'o ambiente de trabalho remoto',
-  5432: 'a base de dados',
-  5984: 'a base de dados',
-  6379: 'a cache',
-  9200: 'a pesquisa',
-  27017: 'a base de dados',
+  22: 'remote access to the server',
+  23: 'old-style remote access (Telnet)',
+  80: 'the website',
+  443: 'the website',
+  445: 'file sharing',
+  1433: 'the database',
+  3306: 'the database',
+  3389: 'remote desktop',
+  5432: 'the database',
+  5984: 'the database',
+  6379: 'the cache',
+  9200: 'search',
+  27017: 'the database',
 };
 
 /** Porta (ou intervalo) que o passo mexeu, para nenhuma linha/ botão ser igual a outro. */
@@ -144,9 +144,9 @@ function portasDoPasso(p: Passo, achado?: AchadoLido): { numero?: number; texto?
 
 /** Duração em linguagem de pessoa: segundos, minutos ou horas. */
 function duracao(total: number): string {
-  if (total < 60) return `${total} segundos`;
+  if (total < 60) return `${total} ${total === 1 ? 'second' : 'seconds'}`;
   const minutos = Math.round(total / 60);
-  if (minutos < 60) return `${minutos} minutos`;
+  if (minutos < 60) return `${minutos} ${minutos === 1 ? 'minute' : 'minutes'}`;
   const horas = Math.floor(minutos / 60);
   const resto = minutos % 60;
   return resto ? `${horas} h ${resto} min` : `${horas} h`;
@@ -154,38 +154,38 @@ function duracao(total: number): string {
 
 /** Linha "• …" de um passo, no tom do formato acordado. */
 function linha(p: Passo, achado: AchadoLido | undefined): string {
-  const ip = texto(p.dados?.ip) ?? achado?.ipOrigem ?? 'o IP do atacante';
+  const ip = texto(p.dados?.ip) ?? achado?.ipOrigem ?? 'the attacker IP';
   const utilizador = texto(p.dados?.utilizador) ?? achado?.utilizador ?? '?';
   const { numero, texto: portas } = portasDoPasso(p, achado);
   const nome = numero !== undefined ? NOME_PORTA[numero] : undefined;
-  const onde = nome && portas ? `${nome} (porta ${portas})` : portas ? `a porta ${portas}` : 'a entrada aberta';
+  const onde = nome && portas ? `${nome} (port ${portas})` : portas ? `port ${portas}` : 'the open entry';
   // [o que foi feito, o que não foi feito]
   const frases: Record<string, [string, string]> = {
-    bloquear_ip: [`bloqueei o acesso do atacante (${ip}) ao servidor`, `não bloqueei o acesso do atacante (${ip}) ao servidor`],
-    terminar_sessoes: ['terminei a sessão que o atacante tinha aberta', 'não terminei a sessão que o atacante tinha aberta'],
-    bloquear_utilizador: [`bloqueei a conta "${utilizador}" que ele usou`, `não bloqueei a conta "${utilizador}" que ele usou`],
-    desligar_ssh_senha: ['desliguei a entrada por palavra-passe (agora só com chave)', 'não desliguei a entrada por palavra-passe'],
-    fechar_ssh_mundo: ['fechei o acesso remoto ao servidor à Internet (só o vosso IP entra)', 'não fechei o acesso remoto ao servidor à Internet'],
-    remover_regra: [`fechei ${onde} à Internet na firewall da Leaseweb`, `não fechei ${onde} à Internet na firewall da Leaseweb`],
+    bloquear_ip: [`blocked the attacker (${ip}) from the server`, `did not block the attacker (${ip}) from the server`],
+    terminar_sessoes: ['ended the session the attacker had open', 'did not end the session the attacker had open'],
+    bloquear_utilizador: [`locked the account "${utilizador}" they used`, `did not lock the account "${utilizador}" they used`],
+    desligar_ssh_senha: ['turned off password login (keys only now)', 'did not turn off password login'],
+    fechar_ssh_mundo: ['closed remote access to the server from the Internet (only your IP gets in)', 'did not close remote access to the server from the Internet'],
+    remover_regra: [`closed ${onde} to the Internet on the Leaseweb firewall`, `did not close ${onde} to the Internet on the Leaseweb firewall`],
     // TODO(David/Enio): não há ação de quarentena na lista fechada (shared/tipos.ts). Quando houver,
     // confirmar o nome da ação e o campo com o número de ficheiros (aqui assume-se `ficheiros`).
     quarentena: [
-      `pus de lado ${String(Array.isArray(p.dados?.ficheiros) ? p.dados.ficheiros.length : (p.dados?.ficheiros ?? '?'))} ficheiro(s) que ele deixou`,
-      'não pus de lado os ficheiros que ele deixou',
+      `set aside ${String(Array.isArray(p.dados?.ficheiros) ? p.dados.ficheiros.length : (p.dados?.ficheiros ?? '?'))} file(s) they left behind`,
+      'did not set aside the files they left behind',
     ],
   };
-  const [feito, naoFeito] = frases[p.acao] ?? [`fiz: ${p.acao}`, `não fiz: ${p.acao}`];
+  const [feito, naoFeito] = frases[p.acao] ?? [`did: ${p.acao}`, `did not do: ${p.acao}`];
   switch (p.resultado) {
     case 'feito':
-      return `• ${feito}${p.reversivel ? '' : ' (não se pode desfazer)'}`;
+      return `• ${feito}${p.reversivel ? '' : ' (cannot be undone)'}`;
     case 'desfeito':
-      return `• ${feito}, e desfiz às ${hora(p.hora)}`;
+      return `• ${feito}, and undid it at ${hora(p.hora)}`;
     case 'falhou':
-      return `• ${naoFeito}: falhou${p.motivo ? ` (${p.motivo})` : ''}`;
+      return `• ${naoFeito}: failed${p.motivo ? ` (${p.motivo})` : ''}`;
     case 'ignorado':
-      return `• ${naoFeito}: o pedido foi recusado`;
+      return `• ${naoFeito}: the request was declined`;
     case 'pendente':
-      return `• ${naoFeito}: ainda à espera de aprovação`;
+      return `• ${naoFeito}: still awaiting approval`;
   }
 }
 
@@ -193,14 +193,14 @@ function rotuloDesfazer(p: Passo, achado: AchadoLido | undefined): string {
   const ip = texto(p.dados?.ip) ?? achado?.ipOrigem;
   const { texto: portas } = portasDoPasso(p, achado);
   const r: Record<string, string> = {
-    bloquear_ip: `Desfazer bloqueio do atacante${ip ? ` (${ip})` : ''}`,
-    bloquear_utilizador: 'Desfazer bloqueio da conta',
-    desligar_ssh_senha: 'Voltar a aceitar palavra-passe',
-    fechar_ssh_mundo: 'Desfazer fecho do acesso remoto',
-    remover_regra: portas ? `Desfazer fecho da porta ${portas}` : 'Desfazer fecho da porta',
-    quarentena: 'Desfazer quarentena',
+    bloquear_ip: `Undo blocking the attacker${ip ? ` (${ip})` : ''}`,
+    bloquear_utilizador: 'Undo locking the account',
+    desligar_ssh_senha: 'Allow password login again',
+    fechar_ssh_mundo: 'Undo closing remote access',
+    remover_regra: portas ? `Undo closing port ${portas}` : 'Undo closing the port',
+    quarentena: 'Undo quarantine',
   };
-  return r[p.acao] ?? `Desfazer ${p.acao}`;
+  return r[p.acao] ?? `Undo ${p.acao}`;
 }
 
 /** Assinatura da alteração: dois pedidos que mexem na mesma coisa contam como um passo. */
@@ -284,35 +284,35 @@ export function montarRelatorio(achadoId: string, eventos: EventoAuditoria[] = a
   const horaTitulo = feitos.length ? (fim ?? ultimoEvento) : (ultimoEvento ?? inicio);
   l.push(
     feitos.length
-      ? `🛡️ Incidente contido — ${hora(horaTitulo ?? new Date().toISOString())}`
-      : `⚠️ Incidente por conter — ${hora(horaTitulo ?? new Date().toISOString())}`,
+      ? `🛡️ Incident contained — ${hora(horaTitulo ?? new Date().toISOString())}`
+      : `⚠️ Incident not contained yet — ${hora(horaTitulo ?? new Date().toISOString())}`,
   );
   l.push('');
 
   // RELATORIO_NOME_SERVIDOR permite o nome amigável na demo; sem ele, fica o alvo real (IP/ID).
   const servidor = process.env.RELATORIO_NOME_SERVIDOR?.trim() || achado?.alvo || '?';
   if (achado?.utilizador && achado.ipOrigem) {
-    l.push(`Alguém entrou no servidor ${servidor} como "${achado.utilizador}" vindo de ${achado.ipOrigem}${achado.tentativas ? ',' : '.'}`);
-    if (achado.tentativas) l.push(`depois de ${achado.tentativas} tentativas falhadas.`);
+    l.push(`Someone logged into server ${servidor} as "${achado.utilizador}" from ${achado.ipOrigem}${achado.tentativas ? ',' : '.'}`);
+    if (achado.tentativas) l.push(`after ${achado.tentativas} failed attempts.`);
   } else if (achado && (achado.tipo === 'porta-exposta' || achado.tipo === 'servico-exposto')) {
     const nome = NOME_PORTA[achado.porta];
     l.push(
       nome
-        ? `Encontrei uma porta aberta a qualquer pessoa na Internet no servidor ${servidor}: ${nome} (porta ${achado.porta}).`
-        : `Encontrei a porta ${achado.porta} aberta a qualquer pessoa na Internet no servidor ${servidor}.`,
+        ? `I found a port open to anyone on the Internet on server ${servidor}: ${nome} (port ${achado.porta}).`
+        : `I found port ${achado.porta} open to anyone on the Internet on server ${servidor}.`,
     );
   } else if (achado?.tipo === 'credenciais-por-defeito') {
-    l.push(`Encontrei credenciais de fábrica no servidor ${servidor} (porta ${achado.porta}).`);
+    l.push(`I found factory-default credentials on server ${servidor} (port ${achado.porta}).`);
   } else if (achado?.tipo === 'isco-tocado') {
-    l.push(`O servidor ${servidor} recebeu tentativas de entrada.`);
+    l.push(`Server ${servidor} received login attempts.`);
   } else {
-    l.push(`Encontrei um problema no servidor ${servidor}${achado ? ` (porta ${achado.porta})` : ''}.`);
+    l.push(`I found a problem on server ${servidor}${achado ? ` (port ${achado.porta})` : ''}.`);
   }
   l.push('');
 
-  l.push(segundos !== undefined ? `Em ${duracao(segundos)} fiz, por esta ordem:` : 'Por esta ordem:');
+  l.push(segundos !== undefined ? `In ${duracao(segundos)} I did the following, in order:` : 'In this order:');
   for (const p of unicos) l.push(linha(p, achado));
-  if (!unicos.length) l.push('• nenhum passo registado na auditoria');
+  if (!unicos.length) l.push('• no step recorded in the audit log');
   l.push('');
 
   // Prova, só com o que está na auditoria: quem aprovou, a verificação de fora, a confirmação do atacante
@@ -323,8 +323,8 @@ export function montarRelatorio(achadoId: string, eventos: EventoAuditoria[] = a
   if (aprovacao) {
     prova.push(
       aprovacao.quem === 'modo-noite'
-        ? `• aprovado pelo modo noite às ${hora(aprovacao.hora)} (sem resposta do dono)`
-        : `• aprovado por uma pessoa no Telegram às ${hora(aprovacao.hora)}`,
+        ? `• approved by night mode at ${hora(aprovacao.hora)} (no answer from the owner)`
+        : `• approved by a person in Telegram at ${hora(aprovacao.hora)}`,
     );
   }
   const verificado = todos
@@ -333,35 +333,35 @@ export function montarRelatorio(achadoId: string, eventos: EventoAuditoria[] = a
   if (verificado?.estado) {
     prova.push(
       verificado.estado === 'open'
-        ? `• verifiquei de fora: a porta ${verificado.porta ?? '?'} continua a responder ✗`
-        : `• verifiquei de fora: a porta ${verificado.porta ?? '?'} já não responde (${verificado.estado}) ✓`,
+        ? `• checked from outside: port ${verificado.porta ?? '?'} still answers ✗`
+        : `• checked from outside: port ${verificado.porta ?? '?'} no longer answers (${verificado.estado}) ✓`,
     );
   }
   const confirmacao = todos.filter((e) => doIncidente(e) && e.tipo === 'confirmacao-atacante').at(-1)?.depois as { chega?: boolean } | undefined;
   if (typeof confirmacao?.chega === 'boolean') {
-    prova.push(confirmacao.chega ? '• o atacante voltou a tentar e ainda chega lá ✗' : '• o atacante voltou a tentar e já não chega lá ✓');
+    prova.push(confirmacao.chega ? '• the attacker tried again and can still reach it ✗' : '• the attacker tried again and can no longer reach it ✓');
   }
   const noAr = fim ? todos.filter((e) => e.tipo === 'infra-no-ar' && e.hora <= fim).at(-1) : undefined;
   if (noAr && fim) {
-    prova.push(`• esteve exposta ${duracao(Math.max(0, Math.round((Date.parse(fim) - Date.parse(noAr.hora)) / 1000)))} desde que a infraestrutura nova ficou no ar`);
+    prova.push(`• it was exposed for ${duracao(Math.max(0, Math.round((Date.parse(fim) - Date.parse(noAr.hora)) / 1000)))} since the new infrastructure went live`);
   }
-  if (prova.length) l.push('Prova:', ...prova, '');
+  if (prova.length) l.push('Proof:', ...prova, '');
 
   // "Mais nada foi alterado" só se a auditoria o confirmar: nenhum outro pedido feito além deste incidente e da migração.
   const outros = [...porPedido.entries()].filter(
     ([id, evs]) => !pedidosDoIncidente.includes(id) && evs.some((e) => resultadoDe(e) === 'feito') && !evs.some((e) => e.tipo === 'pedido' && e.quem === 'migrador') && !evs.some((e) => e.acao?.tipo === 'migrar'),
   ).length;
   const final: string[] = [];
-  if (migracao) final.push(`A migração terminou às ${hora(migracao)}.`);
+  if (migracao) final.push(`The migration finished at ${hora(migracao)}.`);
   // Decidido (David): quando há outras alterações, dizê-lo com o número, em vez de "Mais nada".
-  const mais = outros === 1 ? '1 alteração registada' : `${outros} alterações registadas`;
-  final.push(outros ? `Além deste incidente, há ${mais} na auditoria.` : 'Mais nada foi alterado.');
+  const mais = outros === 1 ? 'is 1 other change recorded' : `are ${outros} other changes recorded`;
+  final.push(outros ? `Besides this incident, there ${mais} in the audit log.` : 'Nothing else was changed.');
   l.push(final.join(' '));
 
   const botoes: BotaoDesfazer[] = unicos
     .filter((p) => p.resultado === 'feito' && p.reversivel)
     .map((p) => ({ texto: rotuloDesfazer(p, achado), pedidoId: p.pedidoId }));
-  if (botoes.length) l.push('Desfazer qualquer passo: usa os botões abaixo.');
+  if (botoes.length) l.push('To undo any step, use the buttons below.');
 
   return { texto: l.join('\n'), botoes, passos: unicos };
 }

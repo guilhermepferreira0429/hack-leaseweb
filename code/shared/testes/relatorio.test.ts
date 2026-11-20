@@ -43,24 +43,24 @@ describe('shared/relatorio', () => {
     assert.equal(
       r.texto,
       [
-        '🛡️ Incidente contido — ' + new Date(t(14)).toTimeString().slice(0, 5),
+        '🛡️ Incident contained — ' + new Date(t(14)).toTimeString().slice(0, 5),
         '',
-        'Alguém entrou no servidor vitima-01 como "deploy" vindo de 203.0.113.7,',
-        'depois de 37 tentativas falhadas.',
+        'Someone logged into server vitima-01 as "deploy" from 203.0.113.7,',
+        'after 37 failed attempts.',
         '',
-        'Em 4 segundos fiz, por esta ordem:',
-        '• bloqueei o acesso do atacante (203.0.113.7) ao servidor',
-        '• terminei a sessão que o atacante tinha aberta (não se pode desfazer)',
-        '• não fechei o acesso remoto ao servidor à Internet: falhou (precisa de reiniciar a VM)',
+        'In 4 seconds I did the following, in order:',
+        '• blocked the attacker (203.0.113.7) from the server',
+        '• ended the session the attacker had open (cannot be undone)',
+        '• did not close remote access to the server from the Internet: failed (precisa de reiniciar a VM)',
         '',
-        'Prova:',
-        '• aprovado por uma pessoa no Telegram às ' + new Date(t(13)).toTimeString().slice(0, 5),
+        'Proof:',
+        '• approved by a person in Telegram at ' + new Date(t(13)).toTimeString().slice(0, 5),
         '',
-        'A migração terminou às ' + new Date(t(5)).toTimeString().slice(0, 5) + '. Mais nada foi alterado.',
-        'Desfazer qualquer passo: usa os botões abaixo.',
+        'The migration finished at ' + new Date(t(5)).toTimeString().slice(0, 5) + '. Nothing else was changed.',
+        'To undo any step, use the buttons below.',
       ].join('\n'),
     );
-    assert.deepEqual(r.botoes, [{ texto: 'Desfazer bloqueio do atacante (203.0.113.7)', pedidoId: 'p1' }]);
+    assert.deepEqual(r.botoes, [{ texto: 'Undo blocking the attacker (203.0.113.7)', pedidoId: 'p1' }]);
   });
 
   it('prova da porta fechada: verificação de fora, confirmação do atacante e exposição desde a infra no ar', () => {
@@ -76,7 +76,7 @@ describe('shared/relatorio', () => {
       { hora: t(42), pedidoId: 'd1', tipo: 'confirmacao-atacante', quem: 'atacante', depois: { chega: false } },
     ] as unknown as EventoAuditoria[];
     const r = montarRelatorio('a2', eventos);
-    assert.match(r.texto, /Prova:\n• aprovado por uma pessoa no Telegram às \d\d:\d\d\n• verifiquei de fora: a porta 5432 já não responde \(filtered\) ✓\n• o atacante voltou a tentar e já não chega lá ✓\n• esteve exposta 38 segundos desde que a infraestrutura nova ficou no ar/);
+    assert.match(r.texto, /Proof:\n• approved by a person in Telegram at \d\d:\d\d\n• checked from outside: port 5432 no longer answers \(filtered\) ✓\n• the attacker tried again and can no longer reach it ✓\n• it was exposed for 38 seconds since the new infrastructure went live/);
     assert.equal(r.botoes.length, 1, 'um Desfazer para o fecho');
   });
 
@@ -86,8 +86,8 @@ describe('shared/relatorio', () => {
       { hora: t(1), pedidoId: 'p1', tipo: 'ignorado', quem: '42' },
     ] as unknown as EventoAuditoria[];
     const r = montarRelatorio('a1', eventos);
-    assert.match(r.texto, /^⚠️ Incidente por conter/);
-    assert.match(r.texto, /• não fiz: desconhecida: o pedido foi recusado/);
+    assert.match(r.texto, /^⚠️ Incident not contained yet/);
+    assert.match(r.texto, /• did not do: desconhecida: the request was declined/);
     assert.equal(r.botoes.length, 0);
   });
 
@@ -111,8 +111,8 @@ describe('shared/relatorio', () => {
     process.env.RELATORIO_NOME_SERVIDOR = 'vitima-demo';
     try {
       const r = montarRelatorio('porta1', eventos);
-      assert.match(r.texto, /Encontrei uma porta aberta a qualquer pessoa na Internet no servidor vitima-demo: a base de dados \(porta 5432\)\./);
-      assert.doesNotMatch(r.texto, /Alguém entrou/);
+      assert.match(r.texto, /I found a port open to anyone on the Internet on server vitima-demo: the database \(port 5432\)\./);
+      assert.doesNotMatch(r.texto, /Someone logged into/);
     } finally {
       if (antes === undefined) delete process.env.RELATORIO_NOME_SERVIDOR;
       else process.env.RELATORIO_NOME_SERVIDOR = antes;
@@ -127,8 +127,8 @@ describe('shared/relatorio', () => {
       { hora: t(4), pedidoId: 'outro', tipo: 'feito' },
     ] as unknown as EventoAuditoria[];
     const r = montarRelatorio('a1', eventos);
-    assert.match(r.texto, /Além deste incidente, há 1 alteração registada na auditoria\./);
-    assert.doesNotMatch(r.texto, /Mais nada foi alterado/);
+    assert.match(r.texto, /Besides this incident, there is 1 other change recorded in the audit log\./);
+    assert.doesNotMatch(r.texto, /Nothing else was changed/);
   });
 
   it('dois pedidos que fecham a mesma regra contam como um passo e um botão', () => {
@@ -142,8 +142,8 @@ describe('shared/relatorio', () => {
     const r = montarRelatorio('a1', eventos);
     assert.equal(r.passos.length, 1);
     assert.equal(r.botoes.length, 1);
-    assert.equal((r.texto.match(/fechei a base de dados \(porta 5432\)/g) ?? []).length, 1);
-    assert.deepEqual(r.botoes, [{ texto: 'Desfazer fecho da porta 5432', pedidoId: 'r1' }]);
+    assert.equal((r.texto.match(/closed the database \(port 5432\)/g) ?? []).length, 1);
+    assert.deepEqual(r.botoes, [{ texto: 'Undo closing port 5432', pedidoId: 'r1' }]);
   });
 
   it('duas portas diferentes aparecem e distinguem-se na linha e no botão', () => {
@@ -156,11 +156,11 @@ describe('shared/relatorio', () => {
     ] as unknown as EventoAuditoria[];
     const r = montarRelatorio('a1', eventos);
     assert.equal(r.passos.length, 2);
-    assert.match(r.texto, /fechei a base de dados \(porta 5432\) à Internet na firewall da Leaseweb/);
-    assert.match(r.texto, /fechei o acesso remoto ao servidor \(porta 22\) à Internet na firewall da Leaseweb/);
+    assert.match(r.texto, /closed the database \(port 5432\) to the Internet on the Leaseweb firewall/);
+    assert.match(r.texto, /closed remote access to the server \(port 22\) to the Internet on the Leaseweb firewall/);
     assert.deepEqual(
       r.botoes.map((b) => b.texto),
-      ['Desfazer fecho da porta 5432', 'Desfazer fecho da porta 22'],
+      ['Undo closing port 5432', 'Undo closing port 22'],
     );
   });
 

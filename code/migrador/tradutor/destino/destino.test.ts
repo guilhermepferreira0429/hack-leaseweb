@@ -25,7 +25,7 @@ describe('decisor de destino: as 4 regras, pela ordem', () => {
     const [d] = decidir({ servicos: [{ servico: 's3', dadosGb: 100 }], vm: { ramLivreGb: 8, vcpuLivres: 2, discoLivreGb: 50 } });
     assert.equal(d!.numeroRegra, 2);
     assert.equal(d!.destino, 'gerido');
-    assert.ok(d!.avisos.some((a) => a.includes('Precisa de 1 GB de RAM e 120 GB de disco') && a.includes('50 GB de disco')));
+    assert.ok(d!.avisos.some((a) => a.includes('Needs 1 GB of RAM and 120 GB of disk') && a.includes('50 GB of disk')));
   });
 
   it('regra 3: dados pessoais sem backups -> gerido; com backups -> self-hosted (regra 4)', () => {
@@ -39,7 +39,7 @@ describe('decisor de destino: as 4 regras, pela ordem', () => {
 
   it('regra 4: cabe e não é crítico -> self-hosted na VM da Leaseweb, sem preço extra', () => {
     const [d] = decidir({ servicos: [{ servico: 'fila', nome: 'encomendas' }] });
-    assert.deepEqual([d!.numeroRegra, d!.destino, d!.fornecedor, d!.plano], [4, 'self-hosted', 'Leaseweb', 'RabbitMQ na VM']);
+    assert.deepEqual([d!.numeroRegra, d!.destino, d!.fornecedor, d!.plano], [4, 'self-hosted', 'Leaseweb', 'RabbitMQ on the VM']);
     assert.equal(d!.precoMes, undefined);
   });
 
@@ -87,8 +87,8 @@ describe('decisor de destino: escolher o gerido', () => {
   it('PostgreSQL: gerido da Leaseweb "por confirmar"; escolhe o europeu mais barato em euros (Scaleway DB-DEV-S)', () => {
     const [d] = decidir({ servicos: [{ servico: 'postgres', nome: 'encomendas', dadosGb: 5 }] });
     assert.deepEqual([d!.fornecedor, d!.plano, d!.precoMes, d!.precoVistoEm], ['Scaleway', 'DB-DEV-S (2 vCPU, 2 GB)', 11.39, '2026-11-20']);
-    assert.ok(d!.avisos.some((a) => a.startsWith('Gerido da Leaseweb por confirmar')));
-    assert.ok(d!.avisos.some((a) => a.includes('Alta disponibilidade a confirmar')));
+    assert.ok(d!.avisos.some((a) => a.startsWith('Leaseweb managed service to be confirmed')));
+    assert.ok(d!.avisos.some((a) => a.includes('High availability to be confirmed')));
   });
 
   it('precisa de alta disponibilidade: exclui opções que a tabela diz não terem (UpCloud 1 nó)', () => {
@@ -123,8 +123,8 @@ describe('decisor de destino: escolher o gerido', () => {
 
   it('sem gerido na tabela (DynamoDB) -> "por escolher", sem inventar fornecedor nem preço', () => {
     const [d] = decidir({ servicos: [{ servico: 'dynamodb', dadosGb: 1 }] });
-    assert.deepEqual([d!.destino, d!.fornecedor, d!.plano, d!.precoMes], ['gerido', 'por escolher', undefined, undefined]);
-    assert.match(mensagemDestino([d!], GRANDE), /decide à mão/);
+    assert.deepEqual([d!.destino, d!.fornecedor, d!.plano, d!.precoMes], ['gerido', 'to be chosen', undefined, undefined]);
+    assert.match(mensagemDestino([d!], GRANDE), /decide by hand/);
   });
 });
 
@@ -135,7 +135,7 @@ describe('decisor de destino: preços', () => {
     assert.equal(aos30.precoAConfirmar, false);
     const aos31 = decidir({ servicos, hoje: new Date('2026-12-21T12:00:00Z') })[0]!;
     assert.deepEqual([aos31.precoAConfirmar, aos31.precoMes, aos31.fornecedor], [true, undefined, 'Scaleway']);
-    assert.match(mensagemDestino([aos31], GRANDE), /proponho Scaleway DB-DEV-S \(2 vCPU, 2 GB\), preço a confirmar\./);
+    assert.match(mensagemDestino([aos31], GRANDE), /I propose Scaleway DB-DEV-S \(2 vCPU, 2 GB\), price to be confirmed\./);
   });
 
   it('serviço que existe mas sem preço publicado (Secret Manager) -> preço a confirmar', () => {
@@ -145,8 +145,8 @@ describe('decisor de destino: preços', () => {
 
   it('preço por uso não vira mensal: mostra o preço por GB com a data', () => {
     const [d] = decidir({ servicos: [{ servico: 'fila', criticidade: 'alta' }] });
-    assert.deepEqual([d!.precoMes, d!.precoUnidade], [undefined, '€ 0,01/GB']);
-    assert.match(mensagemDestino([d!], GRANDE), /€ 0,01\/GB \(preço visto a 20\/11\/2026\)/);
+    assert.deepEqual([d!.precoMes, d!.precoUnidade], [undefined, '€0.01/GB']);
+    assert.match(mensagemDestino([d!], GRANDE), /€0\.01\/GB \(price seen on 20\/11\/2026\)/);
   });
 });
 
@@ -163,12 +163,12 @@ describe('decisor de destino: tudo self-hosted', () => {
       ['self-hosted', 0],
     ]);
     const pg = d[1]!;
-    assert.ok(pg.avisos.some((a) => a.startsWith('Não cabe')));
-    assert.ok(pg.avisos.some((a) => a.includes('não há backups')));
-    assert.ok(pg.avisos.some((a) => a.includes('sem alta disponibilidade')));
+    assert.ok(pg.avisos.some((a) => a.startsWith('Does not fit')));
+    assert.ok(pg.avisos.some((a) => a.includes('there are no backups')));
+    assert.ok(pg.avisos.some((a) => a.includes('without high availability')));
     const m = mensagemDestino(d, { ramLivreGb: 2, vcpuLivres: 2, discoLivreGb: 100 });
-    assert.match(m, /O MinIO e o PostgreSQL ficam nela\. Escolheste tudo self-hosted\./);
-    assert.match(m, /Atenção: o PostgreSQL não cabe/);
+    assert.match(m, /MinIO and PostgreSQL stay on it\. You chose everything self-hosted\./);
+    assert.match(m, /Warning: PostgreSQL does not fit/);
   });
 
   it('recomendado com VM grande, backups e nada crítico -> tudo self-hosted pelas regras', () => {
@@ -202,8 +202,8 @@ describe('decisor de destino: serviços novos (OpenBao, Valkey, ScyllaDB)', () =
   it('mensagem: um porquê por regra diferente, no fim', () => {
     const vm: CapacidadeVm = { ramLivreGb: 8, vcpuLivres: 2, discoLivreGb: 100 };
     const m = mensagemDestino(decidir({ servicos: [{ servico: 'postgres', nome: 'encomendas', dadosGb: 5 }, { servico: 'segredos', nome: 'db' }], vm }), vm);
-    assert.equal(m.match(/Porquê:/g)!.length, 1);
-    assert.match(m, /O Secrets Manager \(db\): proponho Scaleway Secret Manager, preço a confirmar\. Porquê: /);
+    assert.equal(m.match(/Why:/g)!.length, 1);
+    assert.match(m, /Secrets Manager \(db\): I propose Scaleway Secret Manager, price to be confirmed\. Why: /);
   });
 });
 
@@ -226,9 +226,9 @@ describe('decisor de destino: ligação ao tradutor e mensagem', () => {
     const m = mensagemDestino(decidir({ servicos, vm }), vm);
     assert.equal(
       m,
-      'A tua VM tem 8 GB de RAM livres. O MinIO e o RabbitMQ ficam nela. ' +
-        'A base de dados encomendas é crítica e tem dados pessoais: proponho Scaleway DB-DEV-S (2 vCPU, 2 GB), ' +
-        'cerca de € 11,39/mês (preço visto a 20/11/2026). Porquê: ' +
+      'Your VM has 8 GB of free RAM. MinIO and RabbitMQ stay on it. ' +
+        'The encomendas database is critical and holds personal data: I propose Scaleway DB-DEV-S (2 vCPU, 2 GB), ' +
+        'about €11.39/month (price seen on 20/11/2026). Why: ' +
         REGRAS[1],
     );
     assert.equal(mensagemDestino(decidir({ servicos, vm }), vm), m);
@@ -241,17 +241,17 @@ describe('decisor de destino: mensagem sem nomes repetidos', () => {
   it('nome igual ao serviço (ou o nome por omissão) não se repete', () => {
     for (const nome of ['Secrets Manager', 'secrets manager', 'segredos', 'OpenBao', undefined]) {
       const m = mensagemDestino(decidir({ servicos: [{ servico: 'segredos', nome }], vm }), vm);
-      assert.match(m, /O Secrets Manager: proponho Scaleway Secret Manager, preço a confirmar\./, String(nome));
-      assert.doesNotMatch(m, /\(/, String(nome));
+      assert.match(m, /Secrets Manager: I propose Scaleway Secret Manager, price to be confirmed\./, String(nome));
+      assert.doesNotMatch(m, /Manager \(/, String(nome));
     }
     const pg = mensagemDestino(decidir({ servicos: [{ servico: 'postgres', nome: 'postgres', dadosGb: 5 }], vm }), vm);
-    assert.match(pg, /A base de dados é crítica e tem dados pessoais: proponho Scaleway/);
+    assert.match(pg, /The database is critical and holds personal data: I propose Scaleway/);
   });
 
   it('um nome próprio continua a aparecer', () => {
     const m = mensagemDestino(decidir({ servicos: [{ servico: 'segredos', nome: 'db, api_token' }, { servico: 'postgres', nome: 'encomendas', dadosGb: 5 }], vm }), vm);
-    assert.match(m, /O Secrets Manager \(db, api_token\): proponho/);
-    assert.match(m, /A base de dados encomendas é crítica/);
+    assert.match(m, /Secrets Manager \(db, api_token\): I propose/);
+    assert.match(m, /The encomendas database is critical/);
   });
 
   it('Leaseweb primeiro: Postgres e segredos vão para a Scaleway só porque a tabela não tem gerido da Leaseweb para eles', () => {

@@ -45,7 +45,7 @@ export const RECURSOS: Record<ServicoDestino, Recursos> = {
     ramGb: 1,
     disco: { tipo: 'fator', fator: 1.5 },
     baseDeDados: true,
-    nota: '2 GB de RAM recomendados; backups por nossa conta.',
+    nota: '2 GB of RAM recommended; backups are on us.',
   },
   mysql: { servicoAws: 'RDS MySQL', alternativa: 'MariaDB', ramGb: 1, disco: { tipo: 'fator', fator: 1.5 }, baseDeDados: true },
   cache: { servicoAws: 'ElastiCache', alternativa: 'Valkey', ramGb: { dadosVezes: 1.5 }, disco: { tipo: 'baixo' }, baseDeDados: false },
@@ -55,7 +55,7 @@ export const RECURSOS: Record<ServicoDestino, Recursos> = {
     ramGb: 2,
     disco: { tipo: 'fator', fator: 2 },
     baseDeDados: true,
-    nota: 'Pesado para VMs pequenas.',
+    nota: 'Heavy for small VMs.',
   },
   documentdb: { servicoAws: 'DocumentDB', alternativa: 'FerretDB', ramGb: 1, disco: { tipo: 'fator', fator: 1.5 }, baseDeDados: true },
   nats: { servicoAws: 'SNS', alternativa: 'NATS', ramGb: 0.25, disco: { tipo: 'baixo' }, baseDeDados: false },
@@ -66,7 +66,7 @@ export const RECURSOS: Record<ServicoDestino, Recursos> = {
     ramGb: 2,
     disco: { tipo: 'alto' },
     baseDeDados: false,
-    nota: 'Raramente vale a pena self-hosted numa PME.',
+    nota: 'Rarely worth self-hosting for a small business.',
   },
   segredos: {
     servicoAws: 'Secrets Manager',
@@ -75,7 +75,7 @@ export const RECURSOS: Record<ServicoDestino, Recursos> = {
     disco: { tipo: 'baixo' },
     baseDeDados: false,
     criticoPorOmissao: true,
-    nota: 'Crítico: perder isto é perder tudo.',
+    nota: 'Critical: losing this means losing everything.',
   },
   ecr: { servicoAws: 'ECR', alternativa: 'Harbor', ramGb: 2, disco: { tipo: 'fator', fator: 1.2 }, baseDeDados: false },
   logs: { servicoAws: 'CloudWatch Logs', alternativa: 'Loki + Grafana', ramGb: 1, disco: { tipo: 'fator', fator: 1 }, baseDeDados: false },
@@ -86,7 +86,7 @@ export const RECURSOS: Record<ServicoDestino, Recursos> = {
     ramGb: 1,
     disco: { tipo: 'baixo' },
     baseDeDados: false,
-    nota: 'Entregabilidade difícil em self-hosted.',
+    nota: 'Deliverability is hard when self-hosted.',
   },
   dns: { servicoAws: 'Route 53', alternativa: 'PowerDNS', ramGb: 0.25, disco: { tipo: 'baixo' }, baseDeDados: false },
   balanceador: { servicoAws: 'ELB', alternativa: 'HAProxy', ramGb: 0.25, disco: { tipo: 'baixo' }, baseDeDados: false },
@@ -146,7 +146,7 @@ export const GERIDO_LEASEWEB: Partial<Record<ServicoDestino, OpcaoGerida>> = {
     altaDisponibilidade: 'desconhecido',
     vistoEm: VISTO,
     fonte: 'kb.leaseweb.com (load balancer of Public Cloud)',
-    nota: 'Corre numa instância: paga-se o preço da instância escolhida.',
+    nota: 'Runs on an instance: you pay the price of the chosen instance.',
   },
   kubernetes: {
     fornecedor: 'Leaseweb',
@@ -157,7 +157,7 @@ export const GERIDO_LEASEWEB: Partial<Record<ServicoDestino, OpcaoGerida>> = {
     altaDisponibilidade: 'desconhecido',
     vistoEm: VISTO,
     fonte: 'leaseweb.com/en/configure/vc/product/entityKey/KUBERNETES/2001',
-    nota: 'Preço base; vCPU a € 0,0038/h e RAM a € 0,0019/GB/h à parte.',
+    nota: 'Base price; vCPU at €0.0038/h and RAM at €0.0019/GB/h extra.',
   },
 };
 
@@ -177,7 +177,7 @@ const DB_DEV_S = scaleway({
   plano: 'DB-DEV-S (2 vCPU, 2 GB)',
   preco: { tipo: 'hora', valor: 0.0156, moeda: 'EUR' },
   fonte: 'scaleway.com/en/pricing/managed-databases-pricing',
-  nota: 'Backups à parte: € 0,03/GB/mês.',
+  nota: 'Backups extra: €0.03/GB/month.',
 });
 
 /** Geridos europeus quando a Leaseweb não tem. */
@@ -211,7 +211,7 @@ export const GERIDO_EUROPEU: Partial<Record<ServicoDestino, OpcaoGerida[]>> = {
       plano: 'RED1-MICRO (2 vCPU, 2 GB)',
       preco: { tipo: 'hora', valor: 0.048, moeda: 'EUR' },
       fonte: 'scaleway.com/fr/tarifs/managed-databases',
-      nota: 'Preço "desde".',
+      nota: 'Price "from".',
     }),
   ],
   documentdb: [
@@ -219,7 +219,7 @@ export const GERIDO_EUROPEU: Partial<Record<ServicoDestino, OpcaoGerida[]>> = {
       plano: 'MGDB-PLAY2-NANO (2 vCPU, 4 GB)',
       preco: { tipo: 'hora', valor: 0.1077, moeda: 'EUR' },
       fonte: 'scaleway.com/en/pricing/managed-databases-pricing',
-      nota: 'Armazenamento à parte.',
+      nota: 'Storage extra.',
     }),
   ],
   fila: [scaleway({ plano: 'Queues (compatível com SQS)', preco: { tipo: 'gb-uso', valor: 0.01, moeda: 'EUR' }, fonte: 'scaleway.com/en/pricing/managed-databases-pricing' })],
@@ -228,7 +228,7 @@ export const GERIDO_EUROPEU: Partial<Record<ServicoDestino, OpcaoGerida[]>> = {
       plano: 'NATS',
       preco: { tipo: 'gb-uso', valor: 0.01, moeda: 'EUR' },
       fonte: 'scaleway.com/en/pricing/managed-databases-pricing',
-      nota: 'Persistência cerca de € 0,14/GB/mês à parte.',
+      nota: 'Persistence about €0.14/GB/month extra.',
     }),
   ],
   kafka: [
@@ -261,7 +261,7 @@ export const GERIDO_EUROPEU: Partial<Record<ServicoDestino, OpcaoGerida[]>> = {
       altaDisponibilidade: 'desconhecido',
       vistoEm: VISTO,
       fonte: 'exoscale.com/object-storage/classes',
-      nota: 'Só para comparação: sede na Suíça, fora da UE.',
+      nota: 'Comparison only: headquartered in Switzerland, outside the EU.',
     },
     {
       fornecedor: 'OVHcloud',
@@ -272,7 +272,7 @@ export const GERIDO_EUROPEU: Partial<Record<ServicoDestino, OpcaoGerida[]>> = {
       altaDisponibilidade: 'desconhecido',
       vistoEm: VISTO,
       fonte: 'pricingsaas.com/companies/ovhcloud.publiccloud',
-      nota: '8,3 $/TiB/mês.',
+      nota: '$8.3/TiB/month.',
     },
   ],
 };
