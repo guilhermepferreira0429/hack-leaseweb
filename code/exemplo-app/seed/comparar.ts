@@ -134,7 +134,9 @@ export async function comparar(lado: Lado, esperado: Esperado = JSON.parse(readF
       const { QueueUrl } = await sqs.send(new GetQueueUrlCommand({ QueueName: fila }));
       const a = await sqs.send(new GetQueueAttributesCommand({ QueueUrl, AttributeNames: ['ApproximateNumberOfMessages', 'ApproximateNumberOfMessagesNotVisible'] }));
       const n = Number(a.Attributes?.ApproximateNumberOfMessages ?? 0) + Number(a.Attributes?.ApproximateNumberOfMessagesNotVisible ?? 0);
-      linhas.push({ tipo: 'sqs', nome: fila, esperado: `${e.mensagens} msg`, encontrado: `${n} msg`, ok: n === e.mensagens });
+      // O migrador MOVE as mensagens para o RabbitMQ: fila vazia na origem não é erro (confere-se no destino).
+      if (n === 0) linhas.push({ tipo: 'sqs', nome: fila, esperado: `${e.mensagens} msg`, encontrado: '0 msg (já migrada? ver --destino)', ok: null });
+      else linhas.push({ tipo: 'sqs', nome: fila, esperado: `${e.mensagens} msg`, encontrado: `${n} msg`, ok: n === e.mensagens });
     } catch (erro) {
       linhas.push({ tipo: 'sqs', nome: fila, esperado: `${e.mensagens} msg`, encontrado: (erro as Error).message || (erro as Error).name, ok: false });
     } finally {
