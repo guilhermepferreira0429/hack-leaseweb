@@ -396,7 +396,7 @@ export function renderizarV2(pedidos: Pedido[], todos: EventoAuditoria[], opcoes
     opcoes.token && fecho && (!pedidoFecho || pedidoFecho.estado === 'feito')
       ? `<form method="post" action="/desfazer" style="margin:0"><input type="hidden" name="id" value="${escapar(fecho.pedidoId)}"><input type="hidden" name="token" value="${escapar(opcoes.token)}"><button class="bt desf">↺ Undo last action</button></form>`
       : '';
-  return `${cabecalho('Migrate without being exposed', CSS)}
+  return `${cabecalho('Migrate without being exposed', CSS).replace('<html lang="pt">', '<html lang="en">')}
 <div class="topo"><div class="marca"><div class="kicker">InfraHack · Leaseweb · live</div><h1>Migrate without being exposed</h1></div>${htmlRelogio(todos, agora)}</div>
 <div class="corpo">${htmlCadeia(eventos)}${htmlServicos(eventos, opcoes.local || 'Leaseweb', agora)}${htmlLogs(eventos)}</div>
 <div class="rodape"><span>Everything comes from auditoria.jsonl and estado.json</span><div class="bts"><a class="bt desc" href="/relatorio.pdf" download>⤓ Download report (PDF)</a>${desfazer}</div></div>

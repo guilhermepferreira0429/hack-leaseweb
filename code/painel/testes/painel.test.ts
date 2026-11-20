@@ -178,9 +178,9 @@ describe('certificado, provas e isco (ecrãs do desenho)', () => {
     assert.equal(ligadaDesde('lixo'), undefined);
     const html = renderizarIsco({ tentativas: 4317, ipsDistintos: 389, desde: '2026-11-20T08:00:00Z', lidoEm: '2026-11-20T10:00:00Z', ligadaEm: '2026-11-20T07:45:00Z' });
     assert.match(html, /4\.317/);
-    assert.match(html, /389 IPs diferentes/);
-    assert.match(html, /ligada às 07:45/);
-    assert.ok(!html.includes('Júri'));
+    assert.match(html, /389 different IPs/);
+    assert.match(html, /up since 07:45/);
+    assert.ok(!html.includes('Júri') && !html.includes('Jury'));
   });
 });
 

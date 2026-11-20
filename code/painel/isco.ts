@@ -144,17 +144,17 @@ export async function cartaoQr(): Promise<string> {
   const url = process.env.TELEGRAM_CONVITE_URL?.trim();
   if (!url || !/^https:\/\/t\.me\//.test(url)) return '';
   const svg = await QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' });
-  return `<div class="qr"><div class="img">${svg}</div><h2>Júri: aprovem vocês</h2><p>Entrem no grupo e carreguem em Fechar quando a Defesa pedir.</p></div>`;
+  return `<div class="qr"><div class="img">${svg}</div><h2>Jury: you approve</h2><p>Join the group and tap Close when the Defender asks.</p></div>`;
 }
 
 export function renderizarIsco(c: ContagemIsco, qr = ''): string {
   const hora = (iso?: string) => (iso ? horaLisboa(iso, false) : '—');
   const desde = c.ligadaEm ?? c.desde;
-  return `${cabecalho('Isco', CSS)}<meta http-equiv="refresh" content="30">
-<div class="numero"><div class="kicker">VM isco · Leaseweb · ligada às ${hora(c.ligadaEm)}</div>
+  return `${cabecalho('Honeypot', CSS).replace('<html lang="pt">', '<html lang="en">')}<meta http-equiv="refresh" content="30">
+<div class="numero"><div class="kicker">Honeypot VM · Leaseweb · up since ${hora(c.ligadaEm)}</div>
 <div class="n">${numero(c.tentativas)}</div>
-<div class="legenda">tentativas de entrada desde as ${hora(desde)}, de ${numero(c.ipsDistintos)} ${c.ipsDistintos === 1 ? 'IP' : 'IPs diferentes'}.</div>
-<div class="nota">medido no auth.log às ${escapar(horaLisboa(c.lidoEm))} · sem contar os nossos logins</div></div>${qr}</body></html>`;
+<div class="legenda">login attempts since ${hora(desde)}, from ${numero(c.ipsDistintos)} ${c.ipsDistintos === 1 ? 'IP' : 'different IPs'}.</div>
+<div class="nota">measured in auth.log at ${escapar(horaLisboa(c.lidoEm))} · excluding our own logins</div></div>${qr}</body></html>`;
 }
 
 export async function paginaIsco(req: IncomingMessage, res: ServerResponse): Promise<void> {
