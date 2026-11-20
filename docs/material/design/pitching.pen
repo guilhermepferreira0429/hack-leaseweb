@@ -2294,6 +2294,730 @@
           ]
         }
       ]
+    },
+    {
+      "type": "frame",
+      "id": "fUg5D",
+      "x": 6120,
+      "y": 1240,
+      "name": "Anexo A4 · Every action, on the record",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
+      "layout": "vertical",
+      "padding": [
+        100,
+        120,
+        64,
+        120
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "r36K3",
+          "name": "Header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 16,
+          "children": [
+            {
+              "type": "text",
+              "id": "x6yW4",
+              "name": "Annex label",
+              "fill": "$purple",
+              "content": "ANNEX A4",
+              "fontFamily": "$font-mono",
+              "fontSize": 24,
+              "fontWeight": "normal",
+              "letterSpacing": 3
+            },
+            {
+              "type": "text",
+              "id": "S9vyg",
+              "name": "Title",
+              "fill": "$text",
+              "content": "Every action, on the record",
+              "fontFamily": "$font-sans",
+              "fontSize": 72,
+              "fontWeight": "800",
+              "letterSpacing": -2
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Rvmkb",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 40,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "MLuKq",
+              "name": "Audit line",
+              "width": "fill_container",
+              "fill": "$bg-2",
+              "cornerRadius": 16,
+              "layout": "vertical",
+              "gap": 14,
+              "padding": [
+                36,
+                44
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "L7GWV6",
+                  "name": "File",
+                  "fill": "$muted",
+                  "content": "auditoria.jsonl · example",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 22,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "M7LDTz",
+                  "name": "hora",
+                  "gap": 20,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "OhTaB",
+                      "name": "Key",
+                      "fill": "$purple",
+                      "textGrowth": "fixed-width",
+                      "width": 180,
+                      "content": "hora",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "WrXJy",
+                      "name": "Value",
+                      "fill": "$text",
+                      "content": "15:52:07",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Us3yI",
+                  "name": "tipo",
+                  "gap": 20,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "a9YsvH",
+                      "name": "Key",
+                      "fill": "$purple",
+                      "textGrowth": "fixed-width",
+                      "width": 180,
+                      "content": "tipo",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "RrW1M",
+                      "name": "Value",
+                      "fill": "$text",
+                      "content": "fechar",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "jbSwb",
+                  "name": "quem",
+                  "gap": 20,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "XRcs6",
+                      "name": "Key",
+                      "fill": "$purple",
+                      "textGrowth": "fixed-width",
+                      "width": 180,
+                      "content": "quem",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "L42jGn",
+                      "name": "Value",
+                      "fill": "$text",
+                      "content": "owner (Telegram)",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "uwmh3",
+                  "name": "antes",
+                  "gap": 20,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "FMJTD",
+                      "name": "Key",
+                      "fill": "$purple",
+                      "textGrowth": "fixed-width",
+                      "width": 180,
+                      "content": "antes",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "sWuGi",
+                      "name": "Value",
+                      "fill": "$text",
+                      "content": "5432/tcp from 0.0.0.0/0",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "wzuzo",
+                  "name": "inverso",
+                  "gap": 20,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "anYHI",
+                      "name": "Key",
+                      "fill": "$purple",
+                      "textGrowth": "fixed-width",
+                      "width": 180,
+                      "content": "inverso",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "I6v84F",
+                      "name": "Value",
+                      "fill": "$green",
+                      "content": "authorizeFirewallRules",
+                      "fontFamily": "$font-mono",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "KizuD",
+              "name": "Note",
+              "fill": "$green",
+              "content": "Who, when, before, and how to undo it. One click.",
+              "fontFamily": "$font-sans",
+              "fontSize": 36,
+              "fontWeight": "600"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "B7Wd03",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "children": [
+            {
+              "type": "text",
+              "id": "OxnF2",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "dIKxu",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "annex A4",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "Iv3Hj",
+      "x": 8160,
+      "y": 1240,
+      "name": "Anexo A5 · The attacker is on a leash",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
+      "layout": "vertical",
+      "padding": [
+        100,
+        120,
+        64,
+        120
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "g6KexY",
+          "name": "Header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 16,
+          "children": [
+            {
+              "type": "text",
+              "id": "OSyFw",
+              "name": "Annex label",
+              "fill": "$purple",
+              "content": "ANNEX A5",
+              "fontFamily": "$font-mono",
+              "fontSize": 24,
+              "fontWeight": "normal",
+              "letterSpacing": 3
+            },
+            {
+              "type": "text",
+              "id": "QhHlN",
+              "name": "Title",
+              "fill": "$text",
+              "content": "The attacker is on a leash",
+              "fontFamily": "$font-sans",
+              "fontSize": 72,
+              "fontWeight": "800",
+              "letterSpacing": -2
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "DjbSC",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 32,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "alWwj",
+              "name": "Item 1",
+              "gap": 24,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "id": "bt4Dx",
+                  "name": "Tick",
+                  "fill": "$purple",
+                  "width": 12,
+                  "height": 12
+                },
+                {
+                  "type": "text",
+                  "id": "mHSqI",
+                  "name": "Text",
+                  "fill": "$text",
+                  "content": "Only the IPs in ALVOS_PERMITIDOS, our own machines",
+                  "fontFamily": "$font-sans",
+                  "fontSize": 40,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ZQl2x",
+              "name": "Item 2",
+              "gap": 24,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "id": "DzY64",
+                  "name": "Tick",
+                  "fill": "$purple",
+                  "width": 12,
+                  "height": 12
+                },
+                {
+                  "type": "text",
+                  "id": "U61vQJ",
+                  "name": "Text",
+                  "fill": "$text",
+                  "content": "At most 20 password attempts",
+                  "fontFamily": "$font-sans",
+                  "fontSize": 40,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "eEE1q",
+              "name": "Item 3",
+              "gap": 24,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "id": "SRNX1",
+                  "name": "Tick",
+                  "fill": "$purple",
+                  "width": 12,
+                  "height": 12
+                },
+                {
+                  "type": "text",
+                  "id": "aLaZ1",
+                  "name": "Text",
+                  "fill": "$text",
+                  "content": "Stops at the first entry: no sudo, no persistence",
+                  "fontFamily": "$font-sans",
+                  "fontSize": 40,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "xz0IA",
+              "name": "Item 4",
+              "gap": 24,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "id": "O9svN6",
+                  "name": "Tick",
+                  "fill": "$purple",
+                  "width": 12,
+                  "height": 12
+                },
+                {
+                  "type": "text",
+                  "id": "Si7RW",
+                  "name": "Text",
+                  "fill": "$text",
+                  "content": "Any other target is refused and logged",
+                  "fontFamily": "$font-sans",
+                  "fontSize": 40,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "H3Nhc5",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "children": [
+            {
+              "type": "text",
+              "id": "a1R7P",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "gvoYq",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "annex A5",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "opNXp",
+      "x": 10200,
+      "y": 1240,
+      "name": "Anexo A6 · Night mode: nobody answers",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
+      "layout": "vertical",
+      "padding": [
+        100,
+        120,
+        64,
+        120
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "vy2k4",
+          "name": "Header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 16,
+          "children": [
+            {
+              "type": "text",
+              "id": "Y93ghe",
+              "name": "Annex label",
+              "fill": "$purple",
+              "content": "ANNEX A6",
+              "fontFamily": "$font-mono",
+              "fontSize": 24,
+              "fontWeight": "normal",
+              "letterSpacing": 3
+            },
+            {
+              "type": "text",
+              "id": "tMHg4",
+              "name": "Title",
+              "fill": "$text",
+              "content": "Night mode: nobody answers",
+              "fontFamily": "$font-sans",
+              "fontSize": 72,
+              "fontWeight": "800",
+              "letterSpacing": -2
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "GkQZL",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 56,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "x95NZt",
+              "name": "Flow",
+              "width": "fill_container",
+              "gap": 20,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "w1jBO",
+                  "name": "Critical finding",
+                  "width": "fill_container",
+                  "cornerRadius": 16,
+                  "stroke": "$line",
+                  "strokeWidth": 2,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 32,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "F47wH6",
+                      "name": "Label",
+                      "fill": "$text",
+                      "content": "Critical finding",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 38,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "H9TOIW",
+                      "name": "Desc",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "owner silent for N min",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 26,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "fylN4",
+                  "name": "Arrow",
+                  "fill": "$muted",
+                  "content": "→",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 44,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "r3nRd",
+                  "name": "Temporary measure",
+                  "width": "fill_container",
+                  "cornerRadius": 16,
+                  "stroke": "$green",
+                  "strokeWidth": 2,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 32,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "AxdKy",
+                      "name": "Label",
+                      "fill": "$green",
+                      "content": "Temporary measure",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 38,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hgvvc",
+                      "name": "Desc",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "port open to known IPs only",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 26,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "O83xbj",
+                  "name": "Arrow",
+                  "fill": "$muted",
+                  "content": "→",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 44,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "hpY98",
+                  "name": "Owner warned",
+                  "width": "fill_container",
+                  "cornerRadius": 16,
+                  "stroke": "$purple",
+                  "strokeWidth": 2,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 32,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "vBlLo",
+                      "name": "Label",
+                      "fill": "$purple",
+                      "content": "Owner warned",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 38,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "m3pvel",
+                      "name": "Desc",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "in Telegram, with undo",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 26,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "QRFQH",
+              "name": "Note",
+              "fill": "$text",
+              "content": "Only actions marked safe without approval. Reversible. Off unless configured.",
+              "fontFamily": "$font-sans",
+              "fontSize": 34,
+              "fontWeight": "600"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "DtdN5",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "children": [
+            {
+              "type": "text",
+              "id": "tTOfw",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "Txb7b",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "annex A6",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
     }
   ],
   "variables": {
