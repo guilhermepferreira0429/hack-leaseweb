@@ -44,16 +44,29 @@ export class ErroLeaseweb extends Error {
 
 /** Pedido cru à API (scripts de infraestrutura, ex.: defesa/vitima.ts). A defesa usa as funções acima. */
 export async function pedido<T>(metodo: 'GET' | 'POST' | 'DELETE' | 'PUT', caminho: string, corpo?: unknown): Promise<T> {
-  const res = await opcoes.fetch(`${base()}${caminho}`, {
-    method: metodo,
-    headers: {
-      'X-LSW-Auth': chave(),
-      Accept: 'application/json',
-      ...(corpo === undefined ? {} : { 'Content-Type': 'application/json' }),
-    },
-    body: corpo === undefined ? undefined : JSON.stringify(corpo),
-    signal: AbortSignal.timeout(opcoes.pedidoTimeoutMs),
-  });
+  let res: Response | undefined;
+  for (let tentativa = 0; !res; tentativa++) {
+    try {
+      res = await opcoes.fetch(`${base()}${caminho}`, {
+        method: metodo,
+        headers: {
+          'X-LSW-Auth': chave(),
+          Accept: 'application/json',
+          ...(corpo === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
+        body: corpo === undefined ? undefined : JSON.stringify(corpo),
+        signal: AbortSignal.timeout(opcoes.pedidoTimeoutMs),
+      });
+    } catch (erro) {
+      // Visto a 20/11 no cérebro: um "fetch failed" isolado a meio do fecho. Ler repete-se sempre (até 3 vezes);
+      // escrever só se a ligação nem abriu (o pedido não chegou à Leaseweb), para nunca repetir um revoke a meio.
+      const codigo = String((erro as { cause?: { code?: string } }).cause?.code ?? (erro as Error).name ?? '');
+      const naoEnviado = /ECONNREFUSED|ENOTFOUND|EAI_AGAIN|UND_ERR_CONNECT_TIMEOUT|ENETUNREACH|EHOSTUNREACH/.test(codigo);
+      const repetir = tentativa < 2 && (metodo === 'GET' || naoEnviado);
+      if (!repetir) throw new ErroLeaseweb(`${metodo} ${caminho} -> erro de rede (${codigo || (erro as Error).message})`);
+      await new Promise((ok) => setTimeout(ok, 500 * 2 ** tentativa));
+    }
+  }
   const texto = await res.text();
   if (!res.ok) {
     // Nunca incluir a chave na mensagem; o corpo da API é curto e útil para depurar.
