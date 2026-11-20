@@ -211,7 +211,7 @@
   top: 54%;
   height: 10px;
   border-radius: 6px;
-  background: var(--lilas);
+  background: var(--coral);
   transform: scaleX(0);
   transform-origin: left;
 }
@@ -259,8 +259,9 @@
   color: var(--muted);
 }
 .barra-valor {
+  font-family: var(--serif);
   font-size: 40px;
-  font-weight: 800;
+  font-weight: 400;
 }
 .barra-pista {
   position: relative;
@@ -276,6 +277,9 @@
 }
 .barra.lilas {
   background: linear-gradient(90deg, color-mix(in srgb, var(--lilas) 60%, transparent), var(--lilas));
+}
+.barra.coral {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--coral) 60%, transparent), var(--coral));
 }
 .slide.ativo .barra.longa {
   animation: encher 1.8s var(--curva) 0.7s both;
@@ -323,7 +327,7 @@
 }
 .telemovel {
   width: 720px;
-  background: #0e1733;
+  background: var(--fundo-2);
   border: 2px solid var(--linha);
   border-radius: 36px;
   padding: 20px;
@@ -350,7 +354,7 @@
   height: 52px;
   border-radius: 50%;
   background: var(--verde);
-  color: #04120c;
+  color: #07100e;
   font-weight: 800;
   font-size: 24px;
   display: grid;
@@ -482,4 +486,28 @@
 .instantaneo .riscado::after,
 .instantaneo .sublinha::after {
   transform: none;
+}
+
+/* Replay: cada peça entra no segundo indicado em --t. */
+
+.lv-in {
+
+  opacity: 0;
+
+}
+
+.slide.ativo .lv-in {
+
+  animation: entrar 0.55s var(--curva) both;
+
+  animation-delay: calc(var(--t, 0) * 1s);
+
+}
+
+.instantaneo .lv-in {
+
+  opacity: 1;
+
+  animation: none;
+
 }

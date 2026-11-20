@@ -1,59 +1,93 @@
-/* Marca do deck: azul-marinho de fundo, verde e lilás como acentos (o mesmo do pitching.pen). */
+/* Marca do deck: o verde-escuro, a menta, o azul e o coral do web.pen (site/painel). */
 
 @font-face {
-  font-family: 'Inter';
-  src: url('../fontes/inter.woff2') format('woff2-variations');
-  font-weight: 100 900;
-  font-display: block;
+    font-family: "Geist";
+    src: url("../fontes/geist.woff2") format("woff2");
+    font-weight: 100 900;
+    font-display: swap;
 }
 @font-face {
-  font-family: 'JetBrains Mono';
-  src: url('../fontes/jetbrains-mono.woff2') format('woff2-variations');
-  font-weight: 100 800;
-  font-display: block;
+    font-family: "Geist Mono";
+    src: url("../fontes/geist-mono.woff2") format("woff2");
+    font-weight: 100 900;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Instrument Serif";
+    src: url("../fontes/instrument-serif.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Inter";
+    src: url("../fontes/inter.woff2") format("woff2-variations");
+    font-weight: 100 900;
+    font-display: swap;
+}
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("../fontes/jetbrains-mono.woff2") format("woff2-variations");
+    font-weight: 100 800;
+    font-display: swap;
 }
 
 :root {
-  --fundo: #0a1128;
-  --fundo-2: #121c40;
-  --linha: #26325e;
-  --verde: #2ee59d;
-  --lilas: #b9a6ff;
-  --texto: #f4f6fb;
-  --muted: #8c96b8;
-  --sans: 'Inter', system-ui, 'Segoe UI', sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+    --fundo: #0c1715;
+    --fundo-2: #12211e;
+    --linha: #1f3330;
+    --verde: #7dd3a8;
+    --azul: #8db8ff;
+    /* Nome antigo das classes; no web.pen o acento é o azul do migrador. */
+    --lilas: var(--azul);
+    --coral: #ff8a7a;
+    --texto: #f5f3ee;
+    --muted: #9fb3ac;
+    --faint: #5e7670;
+    --sans: "Geist", "Inter", system-ui, "Segoe UI", sans-serif;
+    --mono: "Geist Mono", "JetBrains Mono", ui-monospace, Consolas, monospace;
+    --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
 }
 
 * {
-  box-sizing: border-box;
+    box-sizing: border-box;
 }
 html,
 body {
-  margin: 0;
-  height: 100%;
-  background: #05091a;
-  color: var(--texto);
-  font-family: var(--sans);
-  -webkit-font-smoothing: antialiased;
+    margin: 0;
+    height: 100%;
+    background: #07100e;
+    color: var(--texto);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
 }
 .verde {
-  color: var(--verde);
+    color: var(--verde);
+}
+.azul {
+    color: var(--azul);
 }
 .lilas {
-  color: var(--lilas);
+    color: var(--lilas);
+}
+.coral {
+    color: var(--coral);
 }
 .muted {
-  color: var(--muted);
+    color: var(--muted);
 }
 .mono {
-  font-family: var(--mono);
+    font-family: var(--mono);
+}
+.serif {
+    font-family: var(--serif);
+    font-weight: 400;
 }
 kbd {
-  font-family: var(--mono);
-  background: var(--fundo-2);
-  border: 1px solid var(--linha);
-  border-radius: 6px;
-  padding: 2px 8px;
-  font-size: 0.9em;
+    font-family: var(--mono);
+    background: var(--fundo-2);
+    border: 1px solid var(--linha);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.9em;
 }
