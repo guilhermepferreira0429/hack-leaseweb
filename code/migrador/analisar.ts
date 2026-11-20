@@ -8,7 +8,7 @@ export type ServicoAws = 's3' | 'postgres' | 'fila';
 export const ALTERNATIVA: Record<ServicoAws, string> = {
   s3: 'MinIO',
   postgres: 'PostgreSQL',
-  fila: 'NATS',
+  fila: 'RabbitMQ',
 };
 
 /** Nome do serviço AWS como o dono o conhece. */
