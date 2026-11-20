@@ -98,8 +98,17 @@ async function main(): Promise<void> {
   const consola = args.has("--consola") ? criarConsola() : undefined;
   const canal = consola ?? { telegram, bus };
 
-  const painel = iniciarPainel(Number(process.env.PORT ?? 3000), {
+  const porta = Number(process.env.PORT ?? 3000);
+  const painel = iniciarPainel(porta, {
     desfazer: (id) => defesa.desfazer(id, canal.telegram.notificar),
+  });
+  // Um painel que já esteja a correr na mesma porta não pode matar a demo: avisa e segue sem este painel.
+  painel.on("error", (erro: NodeJS.ErrnoException) => {
+    if (erro.code === "EADDRINUSE") {
+      console.warn(`[orquestrador] a porta ${porta} já está ocupada (outro painel?). A demo segue sem este painel; usa PORT=<outra>.`);
+    } else {
+      console.warn("[orquestrador] painel:", erro.message);
+    }
   });
 
   const orquestrador = criarOrquestrador(
