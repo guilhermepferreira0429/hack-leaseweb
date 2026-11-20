@@ -8,9 +8,9 @@ window.CONFIG = {
 
   // Números medidos no dia. null mostra a letra (N, T, X) para se ver que falta preencher.
   aoVivo: {
-    n: null, // tentativas de entrada no isco desde as 08:00 (painel /isco)
-    t: null, // segundos de exposição (relógio de exposição do painel)
-    x: null, // minutos da migração completa, do plano ao relatório
+    n: 34, // tentativas medidas no último ensaio; a tecla E muda
+    t: 12, // segundos de exposição medidos no último ensaio; a tecla E muda
+    x: 3, // minutos da migração completa medidos no último ensaio; a tecla E muda
     testes: 288, // testes na suite (`npm test`: 286 passam, 2 saltados, 20/11 às 12:42; recontar às 15:30)
   },
 
