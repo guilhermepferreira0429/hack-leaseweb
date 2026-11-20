@@ -20,8 +20,11 @@ function tempoAteFechar(pedidoId: string, eventos: EventoAuditoria[]): number | 
   return Date.parse(fim.hora) - Date.parse(inicio.hora);
 }
 
+const doPasso = (pedidos: Pedido[], passo: 's3' | 'postgres' | 'fila') =>
+  pedidos.find((p) => p.acao.tipo === 'migrar' && p.acao.passo === passo);
+
 function linhaMigracao(pedidos: Pedido[], eventos: EventoAuditoria[]): string | undefined {
-  const m = pedidos.find((p) => p.acao.tipo === 'migrar');
+  const m = doPasso(pedidos, 's3');
   if (!m) return undefined;
   if (m.estado === 'ignorado') return 'Migração não aprovada: ficou tudo como estava.';
   if (m.estado !== 'feito') return 'Migração por concluir: vejam o painel.';
@@ -29,12 +32,18 @@ function linhaMigracao(pedidos: Pedido[], eventos: EventoAuditoria[]): string | 
     | { objetos?: number }
     | undefined;
   const n = typeof prova?.objetos === 'number' ? `${plural(prova.objetos, 'ficheiro', 'ficheiros')}, ` : '';
-  return `Migração concluída: ${n}checksums iguais e testes a passar dos dois lados.`;
+  const pg = doPasso(pedidos, 'postgres');
+  const provaPg = pg?.estado === 'feito' ? (eventos.filter((e) => e.pedidoId === pg.id && e.tipo === 'feito').at(-1)?.depois as { tabelas?: number } | undefined) : undefined;
+  const base = provaPg ? ` Base de dados copiada${typeof provaPg.tabelas === 'number' ? ` (${plural(provaPg.tabelas, 'tabela', 'tabelas')})` : ''}, também com checksums iguais.` : '';
+  return `Migração concluída: ${n}checksums iguais e testes a passar dos dois lados.${base}`;
 }
 
 function linhaDefesa(pedidos: Pedido[], eventos: EventoAuditoria[]): string {
   const falhas = pedidos.filter((p) => p.acao.tipo === 'remover_regra');
-  if (falhas.length === 0) return 'Nenhuma porta ficou aberta a toda a internet.';
+  // Diz o que a defesa viu, não uma garantia. Se a deteção falhou, não viu nada: não se diz que está tudo fechado.
+  const detecaoFalhou = eventos.some((e) => e.tipo === 'erro' && (e.depois as { fase?: string } | undefined)?.fase === 'deteção pela API');
+  if (falhas.length === 0 && detecaoFalhou) return 'A defesa não conseguiu verificar os security groups: não sabemos se há portas abertas.';
+  if (falhas.length === 0) return 'A defesa não encontrou portas abertas a toda a internet.';
   const feitos = falhas.filter((p) => p.estado === 'feito');
   const desfeitos = falhas.filter((p) => p.estado === 'desfeito');
   const ignorados = falhas.filter((p) => p.estado === 'ignorado');
@@ -62,7 +71,8 @@ export function resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string {
     linhaMigracao(pedidos, eventos),
     linhaDefesa(pedidos, eventos),
     erros > 0 ? `Houve ${plural(erros, 'problema', 'problemas')} pelo caminho; estão no painel.` : undefined,
-    'Cada alteração tem o inverso guardado na auditoria.',
+    // Só se diz se for verdade: pelo menos um inverso registado na auditoria.
+    eventos.some((e) => e.inverso) ? 'Cada alteração tem o inverso guardado na auditoria.' : undefined,
   ]
     .filter(Boolean)
     .join(' ');

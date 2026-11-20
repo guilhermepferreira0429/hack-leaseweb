@@ -9,6 +9,7 @@
 //   resumir  chefe.resumir
 // Cortes (docs/plano.md): sem migrador e/ou sem atacante; a defesa pela API fica sempre.
 // Uma falha numa fase é auditada e avisada, e o fluxo continua: a demo não pára.
+import { isIP } from 'node:net';
 import type { Achado, Agente, Decisao, EventoAuditoria, Mensagem, Pedido, EstadoPedido } from '@mwbe/shared';
 
 export interface Dependencias {
@@ -40,8 +41,19 @@ export interface Dependencias {
     analisar(dirApp: string): Promise<{ servicos: ('s3' | 'postgres' | 'fila')[]; plano: string }>;
     migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }>;
     verificar(): Promise<{ antes: boolean; depois: boolean }>;
+    /** Nível B: RDS PostgreSQL -> PostgreSQL na Leaseweb, com prova por tabela. */
+    migrarPostgres?(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolean }>;
+    /** Resumo do tradutor AWS (Terraform) -> Leaseweb, só plano. undefined = não há configuração AWS para traduzir. */
+    planoInfra?(): Promise<string | undefined>;
+    /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
+    planoDestino?(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<string | undefined>;
   };
-  chefe: { resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string; estadoAtual(pedidos: Pedido[]): string };
+  chefe: {
+    resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
+    estadoAtual(pedidos: Pedido[]): string;
+    /** Certificado de migração (ideia wow 3), dito pelo chefe no fim. */
+    certificado?(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
+  };
 }
 
 export interface Opcoes {
@@ -51,9 +63,13 @@ export interface Opcoes {
   alvos: string[];
   /** Se definido, só aceita decisões e comandos deste utilizador (defesa em profundidade; o telegram.ts já filtra). */
   donoId?: string;
+  /** Quanto se espera pelas decisões do dono antes de seguir (por omissão ESPERA_DECISAO_MS = 10 min). */
+  esperaDecisaoMs?: number;
   agora?: () => Date;
   log?: (...args: unknown[]) => void;
 }
+
+export const ESPERA_DECISAO_MS = 10 * 60_000;
 
 export type Resultado = 'feito' | 'ignorado' | 'falhou' | 'aprovado';
 
@@ -63,24 +79,55 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   const agora = opcoes.agora ?? (() => new Date());
   const log = opcoes.log ?? ((...a: unknown[]) => console.log('[orquestrador]', ...a));
   const espera = new Map<string, (r: Resultado) => void>();
+  /** Achado que deu origem a cada pedido da defesa (para o atacante confirmar no alvo certo). */
+  const achadoDoPedido = new Map<string, Achado>();
 
   const hora = () => agora().toISOString();
   const horaCurta = () =>
     agora().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' });
-  const falar = (de: Agente, para: Mensagem['para'], texto: string) => deps.bus.enviar({ de, para, texto });
+  // As peças dos outros podem ainda ser stubs que lançam de forma síncrona: nada disso pode parar a demo.
+  function falar(de: Agente, para: Mensagem['para'], texto: string): void {
+    try {
+      deps.bus.enviar({ de, para, texto });
+    } catch (erro) {
+      log(`bus falhou (${de} -> ${para}):`, mensagem(erro), '|', texto);
+    }
+  }
+
+  /** Cópia local do que se auditou: se a auditoria falhar, o resumo do chefe continua a ter números. */
+  const eventosLocais: EventoAuditoria[] = [];
 
   function auditar(e: Omit<EventoAuditoria, 'hora'>): void {
+    const evento = { hora: hora(), ...e };
+    eventosLocais.push(evento);
     try {
-      deps.auditoria.registar({ hora: hora(), ...e });
+      deps.auditoria.registar(evento);
     } catch (erro) {
       log('auditoria falhou:', mensagem(erro));
+    }
+  }
+
+  function lerAuditoria(): EventoAuditoria[] {
+    try {
+      return deps.auditoria.ler();
+    } catch (erro) {
+      log('auditoria.ler falhou, a usar a cópia local:', mensagem(erro));
+      return eventosLocais;
+    }
+  }
+
+  async function notificar(texto: string): Promise<void> {
+    try {
+      await deps.telegram.notificar(texto);
+    } catch (erro) {
+      log('notificar falhou:', mensagem(erro), '|', texto);
     }
   }
 
   async function falha(fase: string, erro: unknown): Promise<void> {
     log(`${fase} falhou:`, mensagem(erro));
     auditar({ pedidoId: '-', tipo: 'erro', quem: 'orquestrador', depois: { fase, erro: mensagem(erro) } });
-    await deps.telegram.notificar(`Falha em ${fase}: ${mensagem(erro)}. A demo continua.`).catch(() => {});
+    await notificar(`Falha em ${fase}: ${mensagem(erro)}. A demo continua.`);
   }
 
   /** Respostas que chegaram antes de alguém estar à espera (o dono pode ser mais rápido do que o fluxo). */
@@ -93,6 +140,15 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       return Promise.resolve(ja);
     }
     return new Promise((resolve) => espera.set(pedidoId, resolve));
+  }
+
+  /** Espera por `p`, mas no máximo esperaDecisaoMs: o dono pode nunca responder. */
+  function comLimite<T>(p: Promise<T>): Promise<T | 'sem-resposta'> {
+    let relogio: ReturnType<typeof setTimeout> | undefined;
+    const limite = new Promise<'sem-resposta'>((r) => {
+      relogio = setTimeout(() => r('sem-resposta'), opcoes.esperaDecisaoMs ?? ESPERA_DECISAO_MS);
+    });
+    return Promise.race([p, limite]).finally(() => clearTimeout(relogio));
   }
 
   function concluir(pedidoId: string, r: Resultado): void {
@@ -132,7 +188,8 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       falar('defesa', 'dono', `Não consegui fechar "${pedido.titulo}". Nada foi alterado sem confirmação; vejam o painel.`);
       return concluir(pedidoId, 'falhou');
     }
-    falar('defesa', 'atacante', `Fechado às ${horaCurta()} e confirmado. Guardei como voltar atrás. @atacante, podes confirmar?`);
+    // O aviso "Fechado e confirmado às HH:MM ... /desfazer <id>" já vem do corrigir(); aqui só se passa a vez ao atacante.
+    falar('defesa', 'atacante', `@atacante, fechei "${pedido.titulo}" às ${horaCurta()} e guardei como voltar atrás. Podes confirmar?`);
     if (opcoes.atacar) await confirmarFecho(pedido);
     concluir(pedidoId, 'feito');
   }
@@ -141,9 +198,13 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   async function confirmarFecho(pedido: Pedido): Promise<void> {
     if (pedido.acao.tipo !== 'remover_regra') return;
     const { startPort, endPort } = pedido.acao.regra;
+    // Com o IP do alvo conhecido, só conta esse alvo: outra máquina da allowlist com a mesma porta
+    // aberta (o isco tem a 22) não é sinal de que o fecho falhou. Sem IP (só instanceId), conta a porta.
+    const alvo = achadoDoPedido.get(pedido.id)?.alvo;
+    const doAlvo = (a: Achado) => !alvo || !isIP(alvo) || a.alvo === alvo;
     try {
       const achados = await deps.atacante.reconhecer(opcoes.alvos);
-      const ainda = achados.filter((a) => a.porta >= startPort && a.porta <= endPort);
+      const ainda = achados.filter((a) => doAlvo(a) && a.porta >= startPort && a.porta <= endPort);
       falar(
         'atacante',
         'todos',
@@ -159,15 +220,16 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   async function aoMensagemDoDono(agente: Agente | null, texto: string): Promise<void> {
     const t = texto.trim();
     if (t === '/estado' || t.startsWith('/estado@')) {
-      await deps.telegram.notificar(deps.chefe.estadoAtual(deps.estado.listarPedidos()));
+      await notificar(deps.chefe.estadoAtual(deps.estado.listarPedidos()));
       return;
     }
     const desfazer = t.match(/^\/desfazer(?:@\S+)?\s+(\S+)/);
     if (desfazer) {
       const id = desfazer[1];
       try {
+        // O aviso "Desfeito às HH:MM: a regra voltou (...)" já vem do desfazer() da defesa.
         await deps.defesa.desfazer(id);
-        falar('defesa', 'dono', `Desfeito: a regra do pedido ${id} foi reposta e confirmada.`);
+        log(`pedido ${id} desfeito`);
       } catch (erro) {
         await falha(`desfazer ${id}`, erro);
       }
@@ -179,27 +241,43 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
 
   // ---------- fases ----------
 
+  /** O tradutor só informa (dry-run): um erro dele não trava a migração dos dados. */
+  async function mostrarPlanoInfra(): Promise<void> {
+    if (!deps.migrador.planoInfra) return;
+    try {
+      const resumo = await deps.migrador.planoInfra();
+      if (!resumo) return;
+      auditar({ pedidoId: '-', tipo: 'migracao-plano-infra', quem: 'migrador', depois: { resumo } });
+      falar('migrador', 'dono', `Li a configuração da AWS (Terraform) e traduzi-a para a Leaseweb. Por agora é só o plano, ainda não criei nada:
+${resumo}`);
+    } catch (erro) {
+      await falha('tradução da configuração AWS', erro);
+    }
+  }
+
+  /** Onde fica cada serviço (regras do decisor, preços com data). Só informa; um erro não trava a migração. */
+  async function mostrarPlanoDestino(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<void> {
+    if (!deps.migrador.planoDestino) return;
+    try {
+      const texto = await deps.migrador.planoDestino(servicos);
+      if (!texto) return;
+      auditar({ pedidoId: '-', tipo: 'migracao-plano-destino', quem: 'migrador', depois: { texto } });
+      falar('migrador', 'dono', texto);
+    } catch (erro) {
+      await falha('decisor de destino', erro);
+    }
+  }
+
   async function faseMigrar(): Promise<void> {
     const { servicos, plano } = await deps.migrador.analisar(opcoes.dirApp);
     const nomes = servicos.map((s) => NOME_SERVICO[s]).join(', ');
     falar('migrador', 'dono', `Encontrei ${servicos.length} serviços AWS na app: ${nomes}. Começo pelo S3 para MinIO na Leaseweb.`);
+    await mostrarPlanoInfra();
+    await mostrarPlanoDestino(servicos);
     if (!servicos.includes('s3')) return;
 
-    const pedido: Pedido = {
-      id: deps.defesa.novoIdPedido(),
-      titulo: 'Migrar ficheiros do S3 para MinIO na Leaseweb',
-      texto: plano,
-      acao: { tipo: 'migrar', passo: 's3' },
-      estado: 'pendente',
-    };
-    deps.estado.guardarPedido(pedido);
-    auditar({ pedidoId: pedido.id, tipo: 'pedido', quem: 'migrador', depois: { servicos, plano } });
-    const decisao = esperarResultado(pedido.id);
-    await deps.telegram.pedirAprovacao('migrador', pedido);
-    if ((await decisao) !== 'aprovado') {
-      falar('migrador', 'dono', 'Migração não aprovada. Fica tudo como estava.');
-      return;
-    }
+    const pedido = await pedirMigracao('s3', 'Migrar ficheiros do S3 para MinIO na Leaseweb', plano, { servicos, plano });
+    if (!pedido) return;
 
     const copia = await deps.migrador.migrarS3();
     const testes = await deps.migrador.verificar();
@@ -213,11 +291,68 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
         `testes ${testes.antes && testes.depois ? 'a passar dos dois lados' : `antes ${testes.antes ? 'ok' : 'falharam'}, depois ${testes.depois ? 'ok' : 'falharam'}`}. ` +
         '@atacante, a infraestrutura nova está no ar.',
     );
+
+    if (servicos.includes('postgres') && deps.migrador.migrarPostgres) await migrarBaseDados();
+  }
+
+  /** Nível B: segunda aprovação, cópia da base de dados com prova por tabela e os mesmos testes outra vez. */
+  async function migrarBaseDados(): Promise<void> {
+    const texto = [
+      'Copio a base de dados (RDS PostgreSQL) para um PostgreSQL na Leaseweb, tabela a tabela.',
+      'Para cada tabela comparo o número de linhas e a impressão digital (sha256) dos dois lados.',
+      'No fim volto a correr os testes da app, agora contra a base de dados nova. Nada é apagado na AWS.',
+    ].join('\n');
+    const pedido = await pedirMigracao('postgres', 'Copiar a base de dados para PostgreSQL na Leaseweb', texto, {});
+    if (!pedido) return;
+    try {
+      const copia = await deps.migrador.migrarPostgres!();
+      const testes = await deps.migrador.verificar();
+      const ok = copia.checksumsOk && testes.antes && testes.depois;
+      deps.estado.mudarEstado(pedido.id, ok ? 'feito' : 'aprovado');
+      auditar({ pedidoId: pedido.id, tipo: ok ? 'feito' : 'erro', quem: 'migrador', depois: { ...copia, testes } });
+      falar(
+        'migrador',
+        'dono',
+        `Base de dados: ${copia.tabelas} ${copia.tabelas === 1 ? 'tabela' : 'tabelas'} e ${copia.linhas} linhas copiadas, checksums ${copia.checksumsOk ? 'iguais' : 'DIFERENTES'}, ` +
+          `testes ${testes.antes && testes.depois ? 'a passar com a base de dados nova' : 'a falhar: vejam o painel'}.`,
+      );
+    } catch (erro) {
+      await falha('migração da base de dados', erro);
+    }
+  }
+
+  /**
+   * Pede aprovação para um passo de migração e espera (com limite). Devolve o pedido aprovado, ou undefined.
+   * Sem resposta: fecha o pedido, para um clique tardio não arrancar uma migração a meio da demo.
+   */
+  async function pedirMigracao(passo: 's3' | 'postgres' | 'fila', titulo: string, texto: string, prova: object): Promise<Pedido | undefined> {
+    const pedido: Pedido = { id: deps.defesa.novoIdPedido(), titulo, texto, acao: { tipo: 'migrar', passo }, estado: 'pendente' };
+    deps.estado.guardarPedido(pedido);
+    auditar({ pedidoId: pedido.id, tipo: 'pedido', quem: 'migrador', depois: prova });
+    const decisao = esperarResultado(pedido.id);
+    await deps.telegram.pedirAprovacao('migrador', pedido);
+    const r = await comLimite(decisao);
+    if (r === 'sem-resposta') {
+      deps.estado.mudarEstado(pedido.id, 'ignorado');
+      auditar({ pedidoId: pedido.id, tipo: 'sem-resposta', quem: 'migrador' });
+      falar('migrador', 'dono', `Sem resposta ao pedido de migração: não migro (${titulo.toLowerCase()}). Fica tudo como estava.`);
+      return undefined;
+    }
+    if (r !== 'aprovado') {
+      falar('migrador', 'dono', `Migração não aprovada (${titulo.toLowerCase()}). Fica tudo como estava.`);
+      return undefined;
+    }
+    return pedido;
   }
 
   async function faseAtacar(): Promise<Achado[]> {
     const achados = await deps.atacante.reconhecer(opcoes.alvos);
-    auditar({ pedidoId: '-', tipo: 'reconhecimento', quem: 'atacante', depois: { alvos: opcoes.alvos, achados: achados.length } });
+    auditar({
+      pedidoId: '-',
+      tipo: 'reconhecimento',
+      quem: 'atacante',
+      depois: { alvos: opcoes.alvos, achados: achados.length, portas: achados.map((a) => ({ alvo: a.alvo, porta: a.porta, servico: a.servico })) },
+    });
     falar('atacante', 'defesa', textoAtacante(achados));
     return achados;
   }
@@ -229,7 +364,14 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     } catch (erro) {
       await falha('deteção pela API', erro);
     }
-    const achados = deps.defesa.correlacionar(daApi, doAtacante);
+    let achados: Achado[];
+    try {
+      achados = deps.defesa.correlacionar(daApi, doAtacante);
+    } catch (erro) {
+      // Sem correlação ficam só os achados da API: são os que trazem a regra a fechar.
+      log('correlacionar falhou, a usar só os achados da API:', mensagem(erro));
+      achados = daApi;
+    }
     const acionaveis = achados.filter((a) => deps.defesa.acaoPara(a));
     if (acionaveis.length === 0) {
       falar('defesa', 'dono', achados.length === 0 ? 'Não encontrei nada aberto a toda a internet.' : 'Há portas visíveis, mas nenhuma regra nossa para fechar.');
@@ -239,6 +381,7 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     for (const achado of acionaveis) {
       try {
         const pedido = await deps.defesa.tratar(achado);
+        achadoDoPedido.set(pedido.id, achado);
         resultados.push(esperarResultado(pedido.id));
       } catch (erro) {
         await falha(`pedido para ${achado.alvo}:${achado.porta}`, erro);
@@ -248,21 +391,43 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   }
 
   async function correr(): Promise<void> {
+    // A auditoria acumula todos os ensaios do dia: o chefe só fala deste ciclo.
+    const inicioCiclo = hora();
+    const doCiclo = () => lerAuditoria().filter((e) => e.hora >= inicioCiclo);
     if (opcoes.migrar) await faseMigrar().catch((e) => falha('migração', e));
+    // Daqui em diante a infraestrutura nova conta como "no ar": é o início do relógio de exposição (ideia wow 2).
+    auditar({ pedidoId: '-', tipo: 'infra-no-ar', quem: 'orquestrador' });
     let doAtacante: Achado[] = [];
     if (opcoes.atacar) doAtacante = await faseAtacar().catch(async (e) => (await falha('reconhecimento', e), []));
     const resultados = await faseDefender(doAtacante);
-    await Promise.all(resultados);
-    falar('chefe', 'dono', deps.chefe.resumir(deps.auditoria.ler(), deps.estado.listarPedidos()));
+    // Os pedidos sem resposta ficam "por decidir" no resumo; um Aprovar tardio ainda fecha (foi um humano).
+    if ((await comLimite(Promise.all(resultados))) === 'sem-resposta') log('há pedidos sem resposta; resumo na mesma');
+    falar('chefe', 'dono', deps.chefe.resumir(doCiclo(), deps.estado.listarPedidos()));
+    if (deps.chefe.certificado) {
+      try {
+        falar('chefe', 'dono', deps.chefe.certificado(doCiclo(), deps.estado.listarPedidos()));
+      } catch (erro) {
+        await falha('certificado de migração', erro);
+      }
+    }
   }
 
+  /** Regista os callbacks do canal. Se o canal ainda for stub, avisa e o fluxo segue (sem decisões, só o resumo). */
   function ligar(): void {
-    deps.telegram.aoResponder((id, decisao, quem) => {
-      aoResponder(id, decisao, quem).catch((e) => falha('resposta do dono', e));
-    });
-    deps.telegram.aoMensagemDoDono((agente, texto) => {
-      aoMensagemDoDono(agente, texto).catch((e) => falha('mensagem do dono', e));
-    });
+    try {
+      deps.telegram.aoResponder((id, decisao, quem) => {
+        aoResponder(id, decisao, quem).catch((e) => falha('resposta do dono', e));
+      });
+    } catch (erro) {
+      void falha('ligar as respostas do dono (aoResponder)', erro);
+    }
+    try {
+      deps.telegram.aoMensagemDoDono((agente, texto) => {
+        aoMensagemDoDono(agente, texto).catch((e) => falha('mensagem do dono', e));
+      });
+    } catch (erro) {
+      void falha('ligar as mensagens do dono (aoMensagemDoDono)', erro);
+    }
   }
 
   return { ligar, correr, aoResponder, aoMensagemDoDono };

@@ -70,18 +70,54 @@ reconhecer(alvos: string[]): Promise<Achado[]>   // recusa IPs fora de ALVOS_PER
 ```
 
 ```ts
-// defesa/
-detetar(): Promise<Achado[]>                 // regras com source 0.0.0.0/0 ou ::/0
-tratar(achado: Achado): Promise<Pedido>      // explica e pede aprovação
-corrigir(pedido: Pedido): Promise<void>      // executa a Acao, verifica, audita
-desfazer(pedidoId: string): Promise<void>    // aplica o inverso guardado
+// defesa/   (parâmetros opcionais acrescentados a 20/11; as chamadas antigas continuam válidas)
+detetar(): Promise<Achado[]>                 // regras com source 0.0.0.0/0 ou ::/0; lança se LSW_SG_GERIDOS estiver vazio
+correlacionar(daApi: Achado[], doAtacante: Achado[], mapa?: Record<string, string[]>): Achado[]  // mapa: sg -> IPs
+tratar(achado: Achado, pedirAprovacao?: (agente, pedido) => Promise<void>): Promise<Pedido>  // explica e pede aprovação
+corrigir(pedido: Pedido, avisar?: (texto: string) => Promise<void>): Promise<void>  // executa a Acao, verifica, audita
+desfazer(pedidoId: string, avisar?: (texto: string) => Promise<void>): Promise<void>  // aplica o inverso guardado
+// pedirAprovacao/avisar: por omissão o Telegram; o orquestrador passa o canal (Telegram ou --consola)
 ```
 
 ```ts
 // migrador/
 analisar(dirApp: string): Promise<{ servicos: ('s3' | 'postgres' | 'fila')[]; plano: string }>
 migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }>
+migrarPostgres(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolean }>  // nível B, prova por tabela
 verificar(): Promise<{ antes: boolean; depois: boolean }>   // mesmos testes nos dois lados
+```
+
+```ts
+// migrador/tradutor/   (só plano, não chama APIs)
+traduzir(tf: string | TerraformJson, opcoes?: { adminIp?: string }): PlanoTraducao  // criar, substituir, sinalizar, recusar
+resumoPlano(plano: PlanoTraducao): string                      // texto curto para o Telegram
+decidirDestino(entrada: EntradaDecisor): Decisao[]             // self-hosted ou gerido europeu (docs/decisor-destino.md)
+mensagemDestino(decisoes: Decisao[], vm: CapacidadeVm): string
+```
+
+```ts
+// shared/estado.ts   (pedidos em memória do processo; a auditoria é o registo permanente)
+guardarPedido(p: Pedido): void
+obterPedido(id: string): Pedido | undefined
+mudarEstado(id: string, e: EstadoPedido): Pedido
+listarPedidos(): Pedido[]
+```
+
+```ts
+// chefe/   (só números medidos, sem IA)
+resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string
+estadoAtual(pedidos: Pedido[]): string                          // resposta ao /estado
+relogioExposicao(eventos, agora?): { inicio; fim?; segundos; aindaExposta } | undefined  // do último 'infra-no-ar' ao primeiro fecho
+certificado(eventos, pedidos, localDados?, agora?): string      // certificado de migração (LOCAL_DADOS)
+```
+
+```ts
+// orquestrador.ts   (criarOrquestrador(deps, opcoes); index.ts liga os módulos reais)
+// Dependências opcionais (sem elas o passo não acontece): migrador.migrarPostgres, migrador.planoInfra,
+// migrador.planoDestino, chefe.certificado.
+// Eventos que o orquestrador escreve na auditoria: 'pedido', 'aprovado', 'ignorado', 'sem-resposta', 'feito',
+// 'erro' (depois.fase), 'reconhecimento' (depois.portas), 'infra-no-ar', 'migracao-plano-infra', 'migracao-plano-destino'.
+// Opções: --sem-migrador, --sem-atacante, --consola, --uma-vez; ESPERA_DECISAO_MS (10 min).
 ```
 
 ```ts

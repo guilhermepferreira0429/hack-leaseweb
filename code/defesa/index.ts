@@ -4,3 +4,4 @@ export * from './explicar';
 export * from './aprovar';
 export * from './corrigir';
 export * from './desfazer';
+export * from './modo-noite';

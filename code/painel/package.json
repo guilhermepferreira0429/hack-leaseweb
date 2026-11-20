@@ -8,6 +8,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
+    "@mwbe/chefe": "*",
+    "@mwbe/defesa": "*",
     "@mwbe/shared": "*"
   }
 }

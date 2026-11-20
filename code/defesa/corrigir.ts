@@ -19,16 +19,22 @@ export function inversoDe(pedido: Pedido): Inverso | undefined {
 export const horaCurta = (d = new Date()) =>
   d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' });
 
-/** Avisar no Telegram nunca pode partir o ciclo: a porta já está fechada e auditada. */
-async function avisar(texto: string): Promise<void> {
+export type Avisar = (texto: string) => Promise<void>;
+
+/** Avisar o dono nunca pode partir o ciclo: a porta já está fechada e auditada. */
+export async function avisarSemFalhar(avisar: Avisar, texto: string): Promise<void> {
   try {
-    await telegram.notificar(texto);
+    await avisar(texto);
   } catch (erro) {
     console.warn('[defesa] aviso no Telegram falhou:', erro instanceof Error ? erro.message : erro);
   }
 }
 
-export async function corrigir(pedido: Pedido): Promise<void> {
+/**
+ * `avisar`: o canal do dono (por omissão telegram.notificar). O orquestrador passa o da consola no plano B,
+ * para o "Fechado e confirmado ... /desfazer <id>" aparecer também em --consola.
+ */
+export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.notificar(t)): Promise<void> {
   if (pedido.estado !== 'aprovado') throw new Error(`Pedido ${pedido.id} não está aprovado (estado: ${pedido.estado})`);
   if (!(TIPOS_ACAO as readonly string[]).includes(pedido.acao.tipo)) throw new Error(`Ação fora da lista: ${pedido.acao.tipo}`);
 
@@ -45,20 +51,20 @@ export async function corrigir(pedido: Pedido): Promise<void> {
 
   const inverso = inversoDe(pedido);
   // O inverso fica no disco ANTES de se mexer na infraestrutura: se algo cair a meio, o Desfazer sabe o que repor.
-  auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'a-aplicar', antes: acao.regra, inverso });
+  auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'a-aplicar', quem: 'defesa', antes: acao.regra, inverso });
 
   let antes;
   try {
     ({ antes } = await leaseweb.removerRegra(acao.securityGroupId, acao.regra.id));
   } catch (erro) {
     const msg = erro instanceof Error ? erro.message : String(erro);
-    auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'falhou', depois: msg });
-    await avisar(`Não consegui fechar "${pedido.titulo}": ${msg}`);
+    auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'falhou', quem: 'defesa', depois: msg });
+    await avisarSemFalhar(avisar, `Não consegui fechar "${pedido.titulo}": ${msg}`);
     throw erro;
   }
 
   const depois = await leaseweb.listarRegras(acao.securityGroupId);
-  auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'feito', antes, depois, inverso });
+  auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'feito', quem: 'defesa', antes, depois, inverso });
   if (estado.obterPedido(pedido.id)) estado.mudarEstado(pedido.id, 'feito');
-  await avisar(`Fechado e confirmado às ${horaCurta()}: ${pedido.titulo}. Para voltar atrás: /desfazer ${pedido.id}`);
+  await avisarSemFalhar(avisar, `Fechado e confirmado às ${horaCurta()}: ${pedido.titulo}. Para voltar atrás: /desfazer ${pedido.id}`);
 }

@@ -30,6 +30,7 @@ describe('migrador: analisar', () => {
     assert.deepEqual(servicos, ['s3', 'postgres', 'fila']);
     assert.match(plano, /MinIO/);
     assert.match(plano, /sha256/);
+    assert.match(plano, /SQS → RabbitMQ/);
     const linhas = plano.split('\n');
     assert.ok(linhas.length >= 2 && linhas.length <= 4, `plano com ${linhas.length} linhas`);
   });

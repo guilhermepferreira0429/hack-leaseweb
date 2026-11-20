@@ -27,11 +27,24 @@ type Cenario = {
   quem?: string;
   migrarFalha?: boolean;
   portaFechada?: boolean;
+  /** bus, auditoria, notificar e correlacionar a lançar de forma síncrona, como os stubs naoImplementado. */
+  stubs?: boolean;
+  /** aoResponder e aoMensagemDoDono a lançar, como o telegram.ts ainda em stub. */
+  canalStub?: boolean;
+  /** Outra máquina da allowlist (o isco) com a mesma porta aberta, antes e depois do fecho. */
+  outroAlvoAberto?: boolean;
+  /** Eventos de ensaios anteriores já no auditoria.jsonl (append-only, o dia inteiro). */
+  historico?: EventoAuditoria[];
+};
+
+const stub = (): never => {
+  throw new Error('Ainda não implementado');
 };
 
 function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
   const falas: Mensagem[] = [];
-  const eventos: EventoAuditoria[] = [];
+  const eventos: EventoAuditoria[] = [...(cenario.historico ?? [])];
+  const vistoPeloChefe: EventoAuditoria[][] = [];
   const pedidos = new Map<string, Pedido>();
   const pedidosEnviados: { agente: Agente; pedido: Pedido }[] = [];
   const corrigidos: string[] = [];
@@ -49,13 +62,15 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
         const d = (cenario.decisao ?? (() => 'aprovar'))(pedido);
         if (d) setImmediate(() => aoResponder?.(pedido.id, d, cenario.quem ?? DONO));
       },
-      aoResponder: (cb) => (aoResponder = cb),
-      aoMensagemDoDono: (cb) => (aoMensagem = cb),
-      async notificar(t) {
-        notificacoes.push(t);
-      },
+      aoResponder: cenario.canalStub ? stub : (cb) => void (aoResponder = cb),
+      aoMensagemDoDono: cenario.canalStub ? stub : (cb) => void (aoMensagem = cb),
+      notificar: cenario.stubs
+        ? stub
+        : async (t) => {
+            notificacoes.push(t);
+          },
     },
-    bus: { enviar: (m) => falas.push(m) },
+    bus: { enviar: cenario.stubs ? stub : (m) => void falas.push(m) },
     estado: {
       guardarPedido: (p) => void pedidos.set(p.id, { ...p }),
       obterPedido: (id) => pedidos.get(id),
@@ -66,10 +81,10 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
       },
       listarPedidos: () => [...pedidos.values()],
     },
-    auditoria: { registar: (e) => void eventos.push(e), ler: () => eventos },
+    auditoria: cenario.stubs ? { registar: stub, ler: stub } : { registar: (e) => void eventos.push(e), ler: () => eventos },
     defesa: {
       detetar: async () => [achadoApi],
-      correlacionar: (api, atk) => [...api, ...atk.filter((a) => !api.some((b) => b.alvo === a.alvo && b.porta === a.porta))],
+      correlacionar: cenario.stubs ? stub : (api, atk) => [...api, ...atk.filter((a) => !api.some((b) => b.alvo === a.alvo && b.porta === a.porta))],
       acaoPara,
       async tratar(achado) {
         const pedido = montarPedido(achado, 'Três frases.', acaoPara(achado)!);
@@ -89,7 +104,8 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
     atacante: {
       async reconhecer() {
         reconhecimentos++;
-        return fechado ? [] : [achadoAtacante];
+        const isco = cenario.outroAlvoAberto ? [{ ...achadoAtacante, id: 'isco', alvo: '203.0.113.99' }] : [];
+        return fechado ? isco : [achadoAtacante, ...isco];
       },
     },
     migrador: {
@@ -100,7 +116,7 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
       },
       verificar: async () => ({ antes: true, depois: true }),
     },
-    chefe: { resumir: () => 'RESUMO', estadoAtual: () => 'ESTADO' },
+    chefe: { resumir: (e) => (vistoPeloChefe.push(e), 'RESUMO'), estadoAtual: () => 'ESTADO', certificado: (e) => `CERT ${e.some((x) => x.tipo === 'infra-no-ar') ? 'com relógio' : 'sem relógio'}` },
   };
 
   const orq = criarOrquestrador(deps, {
@@ -114,6 +130,8 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
   });
   orq.ligar();
   return {
+    vistoPeloChefe,
+    deps,
     orq,
     falas,
     eventos,
@@ -146,10 +164,12 @@ describe('orquestrador', () => {
     assert.equal(t.corrigidos.length, 1);
     assert.match(textos(t.falas, 'migrador').at(-1)!, /12 ficheiros copiados, checksums iguais, testes a passar dos dois lados/);
     assert.match(textos(t.falas, 'atacante')[0], /PostgreSQL na porta 5432/);
-    assert.match(textos(t.falas, 'defesa').at(-1)!, /Fechado às \d\d:\d\d e confirmado/);
+    assert.match(textos(t.falas, 'defesa').at(-1)!, /@atacante, fechei "PostgreSQL aberto a toda a internet" às \d\d:\d\d/);
     assert.equal(textos(t.falas, 'atacante').at(-1), 'Confirmo. Já não chego lá.');
     assert.equal(t.falas.at(-1)?.de, 'chefe');
-    assert.equal(t.falas.at(-1)?.texto, 'RESUMO');
+    assert.deepEqual(t.falas.slice(-2).map((f) => f.texto), ['RESUMO', 'CERT com relógio']);
+    const recon = t.eventos.find((e) => e.tipo === 'reconhecimento')?.depois as { portas?: unknown[] };
+    assert.equal(recon.portas?.length, 1, 'as portas encontradas ficam na auditoria para o certificado');
     assert.ok(t.eventos.some((e) => e.tipo === 'aprovado' && e.quem === DONO));
   });
 
@@ -209,6 +229,118 @@ describe('orquestrador', () => {
     assert.equal(t.falas.at(-1)?.de, 'chefe');
   });
 
+  it('peças ainda em stub (lançam de forma síncrona) não param o fluxo', async () => {
+    const t = montar({ stubs: true, migrarFalha: true }, { atacar: false });
+    await t.orq.correr();
+    // bus, auditoria, notificar e correlacionar rebentam; a migração falha; mesmo assim a defesa fecha.
+    assert.equal(t.corrigidos.length, 1);
+  });
+
+  it('canal em stub: ligar() não rebenta e avisa', () => {
+    const t = montar({ canalStub: true }, { migrar: false, atacar: false });
+    // montar() já chamou ligar(); se lançasse, nem chegávamos aqui.
+    assert.ok(t.notificacoes.some((n) => /aoResponder/.test(n)));
+    assert.ok(t.notificacoes.some((n) => /aoMensagemDoDono/.test(n)));
+  });
+
+  it('a confirmação do fecho só olha para o alvo do achado, não para outras máquinas', async () => {
+    const t = montar({ outroAlvoAberto: true }, { migrar: false });
+    await t.orq.correr();
+    assert.equal(textos(t.falas, 'atacante').at(-1), 'Confirmo. Já não chego lá.');
+  });
+
+  it('sem resposta do dono: não migra, resume na mesma e deixa a porta por decidir', async () => {
+    const t = montar({ decisao: () => undefined }, { atacar: false, esperaDecisaoMs: 20 });
+    await t.orq.correr();
+    assert.match(textos(t.falas, 'migrador').at(-1)!, /Sem resposta ao pedido de migração: não migro/);
+    const migracao = t.pedidosEnviados.find((p) => p.agente === 'migrador')!.pedido;
+    assert.equal(t.pedidos.get(migracao.id)?.estado, 'ignorado');
+    assert.equal(t.corrigidos.length, 0);
+    assert.equal(t.falas.at(-1)?.de, 'chefe');
+    // Um clique tardio na migração já não conta; na porta ainda fecha (foi um humano a aprovar).
+    const porta = t.pedidosEnviados.find((p) => p.agente === 'defesa')!.pedido;
+    t.responder(migracao.id, 'aprovar');
+    t.responder(porta.id, 'aprovar');
+    await esperar();
+    await esperar();
+    assert.equal(t.corrigidos.length, 1);
+  });
+
+  it('tradutor: o plano da infraestrutura sai antes do pedido de migração; se falhar, migra na mesma', async () => {
+    const ok = montar({}, { atacar: false });
+    ok.deps.migrador.planoInfra = async () => 'Move-se hoje: 1 VM.';
+    await ok.orq.correr();
+    const iPlano = ok.falas.findIndex((f) => /Move-se hoje: 1 VM/.test(f.texto));
+    assert.ok(iPlano >= 0, 'o plano foi dito');
+    assert.match(ok.falas[iPlano].texto, /só o plano, ainda não criei nada/);
+
+    const falha = montar({}, { atacar: false });
+    falha.deps.migrador.planoInfra = async () => {
+      throw new Error('segredo detetado');
+    };
+    await falha.orq.correr();
+    assert.ok(falha.notificacoes.some((n) => /tradução da configuração AWS/.test(n)));
+    assert.ok(falha.falas.some((f) => /ficheiros copiados/.test(f.texto)), 'a migração S3 continuou');
+  });
+
+  it('o chefe só vê a auditoria deste ciclo, não os ensaios anteriores do dia', async () => {
+    const antigo = (tipo: string): EventoAuditoria => ({ hora: '2026-11-20T09:00:00.000Z', pedidoId: 'velho', tipo });
+    const t = montar({ historico: [antigo('infra-no-ar'), antigo('erro'), antigo('feito')] }, { atacar: false });
+    await t.orq.correr();
+    const vistos = t.vistoPeloChefe.at(-1)!;
+    assert.ok(vistos.length > 0);
+    assert.ok(vistos.every((e) => e.pedidoId !== 'velho'), 'nenhum evento de ensaios anteriores');
+    assert.ok(vistos.some((e) => e.tipo === 'infra-no-ar'), 'o deste ciclo está lá');
+  });
+
+  it('decisor de destino: fala antes do pedido com os serviços do analisar; se falhar, migra na mesma', async () => {
+    const ok = montar({}, { atacar: false });
+    let recebidos: string[] = [];
+    ok.deps.migrador.planoDestino = async (s) => ((recebidos = s), 'O PostgreSQL vai para gerido.');
+    await ok.orq.correr();
+    assert.deepEqual(recebidos, ['s3', 'postgres', 'fila']);
+    const iDestino = ok.falas.findIndex((f) => f.texto === 'O PostgreSQL vai para gerido.');
+    const iCopia = ok.falas.findIndex((f) => /ficheiros copiados/.test(f.texto));
+    assert.ok(iDestino >= 0 && iDestino < iCopia);
+
+    const falha = montar({}, { atacar: false });
+    falha.deps.migrador.planoDestino = async () => {
+      throw new Error('tabela de preços');
+    };
+    await falha.orq.correr();
+    assert.ok(falha.notificacoes.some((n) => /decisor de destino/.test(n)));
+    assert.ok(falha.falas.some((f) => /ficheiros copiados/.test(f.texto)));
+  });
+
+  it('base de dados (nível B): segunda aprovação, cópia com prova e testes outra vez', async () => {
+    const t = montar({}, { atacar: false });
+    let copias = 0;
+    t.deps.migrador.migrarPostgres = async () => (copias++, { tabelas: 1, linhas: 20, checksumsOk: true });
+    await t.orq.correr();
+    assert.equal(copias, 1);
+    const migracoes = t.pedidosEnviados.filter((p) => p.pedido.acao.tipo === 'migrar').map((p) => (p.pedido.acao as { passo: string }).passo);
+    assert.deepEqual(migracoes, ['s3', 'postgres']);
+    assert.ok(t.falas.some((f) => /Base de dados: 1 tabela e 20 linhas copiadas, checksums iguais, testes a passar com a base de dados nova/.test(f.texto)));
+    const pg = t.pedidosEnviados.find((p) => (p.pedido.acao as { passo?: string }).passo === 'postgres')!.pedido;
+    assert.equal(t.pedidos.get(pg.id)?.estado, 'feito');
+  });
+
+  it('base de dados: não se pergunta se o S3 não foi aprovado; um erro na cópia não trava o resto', async () => {
+    const recusa = montar({ decisao: (p) => (p.acao.tipo === 'migrar' ? 'ignorar' : 'aprovar') }, { atacar: false });
+    recusa.deps.migrador.migrarPostgres = async () => ({ tabelas: 1, linhas: 1, checksumsOk: true });
+    await recusa.orq.correr();
+    assert.equal(recusa.pedidosEnviados.filter((p) => p.pedido.acao.tipo === 'migrar').length, 1);
+
+    const erro = montar({}, { atacar: false });
+    erro.deps.migrador.migrarPostgres = async () => {
+      throw new Error('Postgres de destino não responde');
+    };
+    await erro.orq.correr();
+    assert.ok(erro.notificacoes.some((n) => /migração da base de dados/.test(n)));
+    assert.equal(erro.corrigidos.length, 1, 'a defesa segue');
+    assert.equal(erro.falas.at(-1)?.de, 'chefe');
+  });
+
   it('o atacante diz se ainda chega à porta depois de fechar', async () => {
     const t = montar({ portaFechada: false }, { migrar: false });
     await t.orq.correr();
@@ -223,7 +355,7 @@ describe('orquestrador', () => {
     await esperar();
     assert.ok(t.notificacoes.includes('ESTADO'));
     assert.deepEqual(t.desfeitos, ['abc12345']);
-    assert.match(textos(t.falas, 'defesa').at(-1)!, /Desfeito/);
+    assert.ok(!t.falas.some((f) => /Desfeito/.test(f.texto)), 'o aviso de desfeito vem do desfazer(), não se repete');
   });
 });
 

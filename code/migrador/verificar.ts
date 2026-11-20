@@ -1,9 +1,11 @@
-// Mesmos testes da exemplo-app dos dois lados: antes (LocalStack) e depois (MinIO).
+// Mesmos testes da exemplo-app dos dois lados: antes (LocalStack + Postgres de origem) e depois
+// (Leaseweb: MinIO e, se já foi migrado, o Postgres de destino).
 // Corre os testes de code/exemplo-app/testes num processo à parte, com as variáveis de cada ambiente.
 // VERIFICACAO_ESTRITA=1: com a infraestrutura em baixo ou sem dados, os testes falham em vez de saltar.
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
-import { envDaApp, lerAmbienteMigrador, RAIZ_REPO } from './ambiente';
+import pg from 'pg';
+import { envDaApp, lerAmbienteMigrador, lerPostgres, RAIZ_REPO } from './ambiente';
 import { sondarArmazenamento } from './migrar-dados';
 
 const FICHEIRO_TESTES = join(RAIZ_REPO, 'code', 'exemplo-app', 'testes', 'app.test.ts');
@@ -38,14 +40,44 @@ function correrTestes(envExtra: Record<string, string>): Promise<ResultadoTestes
   });
 }
 
+/** URL do Postgres de destino se o Postgres já foi migrado (o destino responde e tem tabelas). */
+async function postgresMigrado(): Promise<string | undefined> {
+  let destino: string;
+  try {
+    destino = lerPostgres().destino;
+  } catch {
+    return undefined; // nível B não configurado
+  }
+  const c = new pg.Client({ connectionString: destino, connectionTimeoutMillis: 3000 });
+  c.on('error', () => {});
+  try {
+    await c.connect();
+    const { rows } = await c.query<{ n: number }>(
+      "SELECT count(*)::int AS n FROM pg_tables WHERE schemaname = 'public'",
+    );
+    return (rows[0]?.n ?? 0) > 0 ? destino : undefined;
+  } catch {
+    return undefined;
+  } finally {
+    await c.end().catch(() => {});
+  }
+}
+
 /** Versão com o resumo de cada lado (para o CLI e logs). */
-export async function verificarDetalhado(): Promise<{ antes: ResultadoTestes; depois: ResultadoTestes }> {
+export async function verificarDetalhado(): Promise<{
+  antes: ResultadoTestes;
+  depois: ResultadoTestes;
+  /** Serviços que, no "depois", já estão na Leaseweb. */
+  naLeaseweb: ('s3' | 'postgres')[];
+}> {
   await sondarArmazenamento();
   const amb = lerAmbienteMigrador();
-  // Em sequência: os dois lados partilham a base de dados e a fila.
+  const pgDestino = await postgresMigrado();
+  const depoisEnv = { ...envDaApp(amb.destino, amb.bucket), ...(pgDestino ? { DATABASE_URL: pgDestino } : {}) };
+  // Em sequência: os dois lados podem partilhar a base de dados e a fila.
   const antes = await correrTestes(envDaApp(amb.origem, amb.bucket));
-  const depois = await correrTestes(envDaApp(amb.destino, amb.bucket));
-  return { antes, depois };
+  const depois = await correrTestes(depoisEnv);
+  return { antes, depois, naLeaseweb: pgDestino ? ['s3', 'postgres'] : ['s3'] };
 }
 
 export async function verificar(): Promise<{ antes: boolean; depois: boolean }> {

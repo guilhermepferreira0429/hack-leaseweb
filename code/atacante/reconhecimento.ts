@@ -1,45 +1,107 @@
-// Reconhecimento não destrutivo com nmap às nossas VMs: portas abertas, serviço, credenciais por defeito.
-// Sem exploração, sem escrita, sem força bruta (no máximo 1 tentativa por credencial de fábrica conhecida).
+// Reconhecimento leve e não destrutivo: uma ligação TCP curta às portas da demo num alvo da allowlist.
+// Não há exploração, escrita nem força bruta. Visto de fora, uma porta filtrada e uma fechada
+// parecem iguais (timeout): por isso só se reporta "aberta" ou "fechada".
+import { Socket } from 'node:net';
 import type { Achado } from '@mwbe/shared';
-import { naoImplementado } from '@mwbe/shared';
+import { carregarEnv } from '@mwbe/shared';
+import { carregarAllowlist, garantirPermitido } from './alvos';
 
-/** Portas verificadas (as sensíveis de docs/arquitetura.md + as da migração). */
-export const PORTAS_ALVO = [22, 23, 80, 443, 445, 1433, 3306, 3389, 4222, 5432, 5672, 5984, 6379, 9000, 9001, 9200, 15672, 27017] as const;
+/** Portas que a demo observa: SSH, HTTP, HTTPS e o PostgreSQL que ficou exposto por engano. */
+export const PORTAS_ALVO = [22, 80, 443, 5432] as const;
 
-export interface PortaNmap {
-  ip: string;
+/** Tempo máximo por porta. Uma porta filtrada esgota isto; as restantes respondem de imediato. */
+export const TIMEOUT_PORTA_MS = 2_000;
+
+export type EstadoPorta = 'aberta' | 'fechada';
+
+export interface PortaTestada {
+  alvo: string;
   porta: number;
-  estado: 'open' | 'closed' | 'filtered';
-  servico: string | null;
+  estado: EstadoPorta;
 }
 
-/** Credenciais de fábrica, públicas. Nunca segredos nossos. Corta-se primeiro se faltar tempo. */
-export const CREDENCIAIS_POR_DEFEITO = [
-  { servico: 'minio', porta: 9000, utilizador: 'minioadmin', senha: 'minioadmin' },
-  { servico: 'rabbitmq', porta: 15672, utilizador: 'guest', senha: 'guest' },
-] as const;
+/** Nome e gravidade das portas que interessam à demo (docs/arquitetura.md). */
+const SERVICOS: Record<number, { nome: string; severidade: Achado['severidade'] }> = {
+  22: { nome: 'SSH', severidade: 'alta' },
+  80: { nome: 'HTTP', severidade: 'media' },
+  443: { nome: 'HTTPS', severidade: 'media' },
+  5432: { nome: 'PostgreSQL', severidade: 'alta' },
+};
 
-/** Recusa IPs fora de ALVOS_PERMITIDOS; corre nmap aos restantes e devolve os achados. */
-export function reconhecer(alvos: string[]): Promise<Achado[]> {
-  return naoImplementado('reconhecer');
+/** Allowlist a partir do .env. O orquestrador e a CLI também carregam o .env; isto cobre quem chama direto. */
+function allowlistDoAmbiente(): ReadonlySet<string> {
+  carregarEnv();
+  return carregarAllowlist(process.env.ALVOS_PERMITIDOS);
 }
 
-/** nmap -Pn -sT -sV -p <PORTAS_ALVO> -oX - <ip>  (execFile, sem shell). */
-export function correrNmap(ip: string, portas?: readonly number[]): Promise<string> {
-  return naoImplementado('correrNmap');
+/** Uma ligação TCP, curta, sem enviar nada. Erro ou timeout contam como "fechada". */
+function testarPorta(alvo: string, porta: number, timeoutMs: number): Promise<boolean> {
+  return new Promise((concluir) => {
+    const socket = new Socket();
+    let terminado = false;
+    const fim = (aberta: boolean) => {
+      if (terminado) return;
+      terminado = true;
+      socket.destroy();
+      concluir(aberta);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => fim(true));
+    socket.once('timeout', () => fim(false));
+    socket.once('error', () => fim(false));
+    socket.connect({ host: alvo, port: porta });
+  });
 }
 
-/** Lê o XML do nmap. Função pura, testável com uma saída gravada. */
-export function lerSaidaNmap(xml: string): PortaNmap[] {
-  return naoImplementado('lerSaidaNmap');
+/**
+ * Verifica as PORTAS_ALVO de um alvo. A allowlist é conferida antes de cada ligação:
+ * um alvo fora dela lança AlvoRecusadoError e nada é contactado.
+ */
+export async function verificarPortas(
+  alvo: string,
+  allowlist: ReadonlySet<string> = allowlistDoAmbiente(),
+  portas: readonly number[] = PORTAS_ALVO,
+): Promise<PortaTestada[]> {
+  const endereco = alvo.trim();
+  garantirPermitido(endereco, allowlist);
+  return Promise.all(
+    portas.map(async (porta) => {
+      // A guarda repete-se antes de cada ligação: não é uma verificação única no início do processo.
+      garantirPermitido(endereco, allowlist);
+      const aberta = await testarPorta(endereco, porta, TIMEOUT_PORTA_MS);
+      return { alvo: endereco, porta, estado: aberta ? 'aberta' : 'fechada' };
+    }),
+  );
 }
 
 /** Porta aberta -> Achado tipo 'servico-exposto', origem 'atacante'. */
-export function paraAchado(porta: PortaNmap): Achado {
-  return naoImplementado('paraAchado');
+export function paraAchado(porta: PortaTestada): Achado {
+  const servico = SERVICOS[porta.porta];
+  return {
+    id: `atacante-${porta.alvo}-${porta.porta}`,
+    tipo: 'servico-exposto',
+    origem: 'atacante',
+    alvo: porta.alvo,
+    porta: porta.porta,
+    servico: servico?.nome ?? null,
+    severidade: servico?.severidade ?? 'media',
+    detalhe: `TCP ${porta.porta} aceita ligação de fora em ${porta.alvo}`,
+  };
 }
 
-/** Uma tentativa por credencial de fábrica, só leitura. Devolve achados 'credenciais-por-defeito'. */
-export function testarCredenciaisPorDefeito(portas: PortaNmap[]): Promise<Achado[]> {
-  return naoImplementado('testarCredenciaisPorDefeito');
+/** Recusa IPs fora de ALVOS_PERMITIDOS; testa os restantes e devolve só as portas abertas. */
+export async function reconhecer(
+  alvos: string[],
+  allowlist: ReadonlySet<string> = allowlistDoAmbiente(),
+): Promise<Achado[]> {
+  // Primeiro valida todos: se um alvo não estiver na lista, nada é contactado.
+  for (const alvo of alvos) garantirPermitido(alvo, allowlist);
+
+  const achados: Achado[] = [];
+  for (const alvo of alvos) {
+    for (const porta of await verificarPortas(alvo, allowlist)) {
+      if (porta.estado === 'aberta') achados.push(paraAchado(porta));
+    }
+  }
+  return achados;
 }

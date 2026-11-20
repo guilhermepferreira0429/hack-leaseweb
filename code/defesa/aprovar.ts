@@ -4,7 +4,11 @@ import type { Achado, Pedido } from '@mwbe/shared';
 import { auditoria, estado, explicar, telegram } from '@mwbe/shared';
 import { acaoPara, montarPedido } from './explicar';
 
-export async function tratar(achado: Achado): Promise<Pedido> {
+/** `pedirAprovacao` é o Telegram por omissão; o modo --consola do orquestrador passa o seu. */
+export async function tratar(
+  achado: Achado,
+  pedirAprovacao: (agente: 'defesa', pedido: Pedido) => Promise<void> = telegram.pedirAprovacao,
+): Promise<Pedido> {
   const acao = acaoPara(achado);
   if (!acao) throw new Error(`Achado ${achado.id} sem regra associada: não há nada a fechar.`);
   const texto = await explicar(achado);
@@ -17,6 +21,6 @@ export async function tratar(achado: Achado): Promise<Pedido> {
     quem: 'defesa',
     depois: { achado, titulo: pedido.titulo },
   });
-  await telegram.pedirAprovacao('defesa', pedido);
+  await pedirAprovacao('defesa', pedido);
   return pedido;
 }

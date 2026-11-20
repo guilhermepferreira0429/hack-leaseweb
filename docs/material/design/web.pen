@@ -1,0 +1,144 @@
+{
+  "version": "2.22",
+  "children": [
+    {
+      "type": "frame",
+      "id": "WEB01x",
+      "x": 0,
+      "y": 0,
+      "width": 1920,
+      "height": 1080,
+      "name": "Painel · ecrã da demo",
+      "fill": "#0C1715",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 48,
+      "children": [
+        {
+          "type": "frame",
+          "id": "Z01xx",
+          "name": "Relógio de exposição",
+          "fill": "#15171C",
+          "layout": "vertical",
+          "gap": 12,
+          "padding": 32,
+          "children": [
+            {
+              "type": "text",
+              "id": "z0a",
+              "name": "T",
+              "fill": "#FFFFFF",
+              "content": "Relógio de exposição",
+              "fontFamily": "Inter",
+              "fontSize": 36,
+              "fontWeight": "bold"
+            },
+            {
+              "type": "text",
+              "id": "z0b",
+              "name": "T",
+              "fill": "#8B929C",
+              "content": "Exposto 38 s · o isco recebeu X tentativas",
+              "fontFamily": "Inter",
+              "fontSize": 24,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Z02xx",
+          "name": "Linha do tempo",
+          "fill": "#15171C",
+          "layout": "vertical",
+          "gap": 12,
+          "padding": 32,
+          "children": [
+            {
+              "type": "text",
+              "id": "z1a",
+              "name": "T",
+              "fill": "#FFFFFF",
+              "content": "Linha do tempo",
+              "fontFamily": "Inter",
+              "fontSize": 36,
+              "fontWeight": "bold"
+            },
+            {
+              "type": "text",
+              "id": "z1b",
+              "name": "T",
+              "fill": "#8B929C",
+              "content": "Migrador · Atacante · Defesa · Chefe",
+              "fontFamily": "Inter",
+              "fontSize": 24,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Z03xx",
+          "name": "Infraestrutura",
+          "fill": "#15171C",
+          "layout": "vertical",
+          "gap": 12,
+          "padding": 32,
+          "children": [
+            {
+              "type": "text",
+              "id": "z2a",
+              "name": "T",
+              "fill": "#FFFFFF",
+              "content": "Infraestrutura",
+              "fontFamily": "Inter",
+              "fontSize": 36,
+              "fontWeight": "bold"
+            },
+            {
+              "type": "text",
+              "id": "z2b",
+              "name": "T",
+              "fill": "#8B929C",
+              "content": "AWS (simulada) → Leaseweb → vítima",
+              "fontFamily": "Inter",
+              "fontSize": 24,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Z04xx",
+          "name": "Provas",
+          "fill": "#15171C",
+          "layout": "vertical",
+          "gap": 12,
+          "padding": 32,
+          "children": [
+            {
+              "type": "text",
+              "id": "z3a",
+              "name": "T",
+              "fill": "#FFFFFF",
+              "content": "Provas",
+              "fontFamily": "Inter",
+              "fontSize": 36,
+              "fontWeight": "bold"
+            },
+            {
+              "type": "text",
+              "id": "z3b",
+              "name": "T",
+              "fill": "#8B929C",
+              "content": "checksums ✓ · testes ✓ ✓ · nmap open → filtered · Desfazer",
+              "fontFamily": "Inter",
+              "fontSize": 24,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

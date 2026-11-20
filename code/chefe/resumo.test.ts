@@ -27,7 +27,8 @@ const ev = (pedidoId: string, tipo: string, segundo: number, depois?: unknown): 
 
 describe('chefe/resumir', () => {
   it('fluxo da demo: migração feita e uma falha fechada, com tempos reais', () => {
-    const eventos = [ev('m1', 'pedido', 0), ev('m1', 'feito', 5, { objetos: 12, checksumsOk: true }), ev('a1', 'pedido', 10), ev('a1', 'aprovado', 30), ev('a1', 'feito', 50)];
+    const fecho = { ...ev('a1', 'feito', 50), inverso: { tipo: 'criar_regra' as const, securityGroupId: 'sg', regra: { protocol: 'TCP', source: '0.0.0.0/0', startPort: 5432, endPort: 5432 } } };
+    const eventos = [ev('m1', 'pedido', 0), ev('m1', 'feito', 5, { objetos: 12, checksumsOk: true }), ev('a1', 'pedido', 10), ev('a1', 'aprovado', 30), fecho];
     const texto = resumir(eventos, [migrar('feito'), fechar('a1', 'feito')]);
     assert.match(texto, /Migração concluída: 12 ficheiros, checksums iguais/);
     assert.match(texto, /1 falha encontrada e fechada em 40 segundos\./);
@@ -41,16 +42,30 @@ describe('chefe/resumir', () => {
     assert.match(texto, /Houve 1 problema pelo caminho/);
   });
 
+  it('migração com base de dados', () => {
+    const pg: Pedido = { id: 'p1', titulo: 'bd', texto: '', acao: { tipo: 'migrar', passo: 'postgres' }, estado: 'feito' };
+    const texto = resumir([ev('m1', 'feito', 5, { objetos: 3 }), ev('p1', 'feito', 9, { tabelas: 2 })], [migrar('feito'), pg]);
+    assert.match(texto, /3 ficheiros, checksums iguais.*Base de dados copiada \(2 tabelas\), também com checksums iguais\./);
+  });
+
+  it('deteção falhada: não diz que não há portas abertas', () => {
+    const erro = ev('-', 'erro', 1, { fase: 'deteção pela API', erro: 'LSW_SG_GERIDOS vazio' });
+    const texto = resumir([erro], []);
+    assert.match(texto, /não conseguiu verificar os security groups/);
+    assert.doesNotMatch(texto, /não encontrou portas abertas/);
+  });
+
   it('sem falhas e migração não aprovada', () => {
     const texto = resumir([], [migrar('ignorado')]);
     assert.match(texto, /Migração não aprovada/);
-    assert.match(texto, /Nenhuma porta ficou aberta/);
+    assert.match(texto, /A defesa não encontrou portas abertas/);
   });
 
   it('não inventa números que não estão na auditoria', () => {
     const texto = resumir([], [migrar('feito'), fechar('a1', 'feito')]);
     assert.doesNotMatch(texto, /\d+ ficheiros/);
     assert.match(texto, /1 falha encontrada e fechada\./);
+    assert.doesNotMatch(texto, /inverso guardado/, 'sem inverso na auditoria não se promete desfazer');
   });
 });
 

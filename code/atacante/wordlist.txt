@@ -1,0 +1,25 @@
+# Wordlist da demo: palavras-passe fracas e previsíveis, uma por linha.
+# Só para a VM descartável que nós controlamos; nunca para credenciais reais.
+# A leitura ignora comentários (#) e linhas vazias e tem no máximo 20 tentativas.
+# "deploy123" é a palavra-passe fraca combinada para a demo. Se a VM usar outra,
+# define ATACANTE_SENHA_DEMO no .env (não vai para o git) ou troca a linha aqui.
+deploy
+deploy2026
+deploy123
+Password1
+Password123
+password
+123456
+12345678
+admin
+admin123
+ubuntu
+letmein
+welcome
+qwerty
+qwerty123
+iloveyou
+root
+toor
+Porto2026!
+migracao
