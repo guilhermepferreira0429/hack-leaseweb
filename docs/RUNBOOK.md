@@ -160,6 +160,11 @@ available. `/certificado` already has the close in section 3.
 If the close cannot be confirmed, the Defender says so and nothing is marked as done. Do not approve a second
 time; check the dashboard and the API state.
 
+![The dashboard after the close](docs/media/painel-timeline.png)
+
+_The engineering view at `/` after the close: stopped clock, proofs and Undo. **In development** — screenshot to
+be captured._
+
 ## 7. Check the attack continued safely
 
 After the decision, the Attacker continues its sequence:
