@@ -37,7 +37,7 @@ import {
   resumoPlano,
   traduzir,
 } from "./migrador/tradutor/index";
-import { migrarCodigo } from "./migrador/codigo/index";
+import { aprovarPR, migrarCodigo, reverterPR } from "./migrador/codigo/index";
 import { criarConsola, DONO_CONSOLA } from "./consola";
 import { criarOrquestrador } from "./orquestrador";
 
@@ -130,6 +130,13 @@ async function main(): Promise<void> {
         planoInfra,
         planoDestino,
         // PR real no GitHub só com MIGRADOR_PR=real; por omissão é um ensaio (o diff fica numa pasta temporária).
+        // "Aprovar PR" no Telegram: merge no repo da app e, no /desfazer, um PR que reverte. Só com PR real.
+        aprovarPR:
+          process.env.MIGRADOR_PR === "real"
+            ? (repo, numero) => aprovarPR(repo, numero, { token: process.env.GITHUB_TOKEN_EXEMPLO || undefined })
+            : undefined,
+        reverterPR: (repo, numero, commit) =>
+          reverterPR(repo, numero, commit, { token: process.env.GITHUB_TOKEN_EXEMPLO || undefined }),
         migrarCodigo: (planoId, testesOk) =>
           migrarCodigo(`${RAIZ}code/exemplo-app`, {
             raizRepo: RAIZ,

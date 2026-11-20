@@ -88,6 +88,10 @@ export interface Dependencias {
     migrarCache?(): Promise<{ chaves: number; iguais: boolean }>;
     /** Migrador de código: PR com a app a usar a Leaseweb. Só se os testes passaram; nunca push para main. */
     migrarCodigo?(planoId: string, testesOk: boolean): Promise<ResultadoCodigo>;
+    /** Merge do PR no repo da app (botão "Aprovar PR"). Devolve o commit do merge, para o inverso. */
+    aprovarPR?(repo: string, numero: number): Promise<{ commit?: string }>;
+    /** Inverso do merge: abre um PR que reverte o commit (o merge desse volta a ser de uma pessoa). */
+    reverterPR?(repo: string, numero: number, commit?: string): Promise<{ url?: string }>;
     /** Resumo do tradutor AWS (Terraform) -> Leaseweb, só plano. undefined = não há configuração AWS para traduzir. */
     planoInfra?(): Promise<string | undefined>;
     /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
@@ -228,6 +232,8 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   let inicioCiclo = hora();
   /** O que se mediu neste ciclo, para a validação final do chefe. undefined = não medido. */
   let medido: { testes?: boolean; dadosIguais?: boolean; nadaExposto?: boolean } = {};
+  /** Migração aprovada e feita neste ciclo: o PR do código abre depois da defesa (docs/agentes/mensagens-demo.md, passo 6). */
+  let codigoPorFazer: { planoId: string; testesOk: boolean } | undefined;
 
   /** Linha "a pensar" do painel (docs/agentes/mensagens-demo.md): texto fixo por passo, nunca do modelo. */
   function pensar(passo: PassoDemo): void {
@@ -293,6 +299,8 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     if (!aprovado) return concluir(pedidoId, "ignorado");
     // A migração continua no próprio fluxo (faseMigrar está à espera).
     if (pedido.acao.tipo === "migrar") return concluir(pedidoId, "aprovado");
+    if (pedido.acao.tipo === "aprovar_pr")
+      return concluir(pedidoId, await fazerMergePR(pedido as Pedido & { acao: { tipo: "aprovar_pr" } }));
 
     try {
       await deps.defesa.corrigir({ ...pedido, estado: "aprovado" });
@@ -355,6 +363,11 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     if (desfazer) {
       const id = desfazer[1];
       try {
+        const alvo = deps.estado.obterPedido(id);
+        if (alvo?.acao.tipo === "aprovar_pr") {
+          await reverterMergePR(alvo as Pedido & { acao: { tipo: "aprovar_pr" } });
+          return;
+        }
         // O aviso "Desfeito às HH:MM: a regra voltou (...)" já vem do desfazer() da defesa.
         await deps.defesa.desfazer(id);
         log(`pedido ${id} desfeito`);
@@ -535,21 +548,12 @@ ${resumo}`,
       ? "Testes da app a passar dos dois lados"
       : `Testes antes ${testes.antes ? "ok" : "falharam"}, depois ${testes.depois ? "ok" : "falharam"}`;
     const provas = `${feitos.map((f) => f.copia.frase).join(". ")}. ${testesTexto}.`;
-    if (deps.migrador.migrarCodigo) {
-      falar("migrador", "dono", provas);
-      await migrarCodigoDaApp(pedidoPlano.id, testesOk);
-      falar(
-        "migrador",
-        "atacante",
-        "@atacante, a infraestrutura nova está no ar.",
-      );
-    } else {
-      falar(
-        "migrador",
-        "atacante",
-        `${provas} @atacante, a infraestrutura nova está no ar.`,
-      );
-    }
+    if (deps.migrador.migrarCodigo) codigoPorFazer = { planoId: pedidoPlano.id, testesOk };
+    falar(
+      "migrador",
+      "atacante",
+      `${provas} @atacante, a infraestrutura nova está no ar.`,
+    );
   }
 
   /** O código da app passa a apontar para a Leaseweb, por pull request. Um erro aqui não trava a demo. */
@@ -601,9 +605,77 @@ ${resumo}`,
             ? ` Fica fora: ${r.fora.length} ${r.fora.length === 1 ? "ponto" : "pontos"}, explicados no PR.`
             : ""),
       );
+      await pedirAprovarPR(r);
     } catch (erro) {
       await falha("migrador de código", erro);
     }
+  }
+
+  /** "Aprovar PR": só para um PR real, com o merge ligado. Sem resposta, o PR fica aberto e nada muda. */
+  async function pedirAprovarPR(r: ResultadoCodigo): Promise<void> {
+    const pr = lerPR(r.pr?.url);
+    if (!pr || r.pr?.simulado || !deps.migrador.aprovarPR) return;
+    const pedido: Pedido = {
+      id: deps.defesa.novoIdPedido(),
+      titulo: `Aprovar o PR #${pr.numero} no repo da app`,
+      texto: [
+        `PR #${pr.numero}: ${r.ficheiros.length} ${r.ficheiros.length === 1 ? "ficheiro" : "ficheiros"} (${r.ficheiros.join(", ")}), testes a passar, sem segredos.`,
+        r.causas ? "Inclui a correção da regra que deixava a base de dados aberta." : "",
+        `Ao aprovar, faço o merge no ramo principal do repo da app. Para voltar atrás, /desfazer abre um PR que o reverte.`,
+        r.pr?.url ?? "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      acao: { tipo: "aprovar_pr", repo: pr.repo, numero: pr.numero },
+      estado: "pendente",
+    };
+    deps.estado.guardarPedido(pedido);
+    auditar({ pedidoId: pedido.id, tipo: "pedido", quem: "migrador", depois: { repo: pr.repo, numero: pr.numero, url: r.pr?.url } });
+    const decisao = esperarResultado(pedido.id);
+    await deps.telegram.pedirAprovacao("migrador", pedido);
+    if ((await comLimite(decisao)) === "sem-resposta") {
+      falar("migrador", "dono", `O PR #${pr.numero} fica aberto à espera de decisão. Nada mudou no ramo principal.`);
+    }
+  }
+
+  /** Merge do PR aprovado; guarda o inverso (um PR que reverte). */
+  async function fazerMergePR(pedido: Pedido & { acao: { tipo: "aprovar_pr" } }): Promise<Resultado> {
+    const { repo, numero } = pedido.acao;
+    try {
+      const { commit } = await deps.migrador.aprovarPR!(repo, numero);
+      deps.estado.mudarEstado(pedido.id, "feito");
+      auditar({
+        pedidoId: pedido.id,
+        tipo: "feito",
+        quem: "migrador",
+        depois: { repo, numero, commit },
+        inverso: { tipo: "reverter_pr", repo, numero, commit },
+      });
+      falar(
+        "migrador",
+        "dono",
+        `PR #${numero} aprovado e juntado ao ramo principal do repo da app às ${horaCurta()}. Para voltar atrás: /desfazer ${pedido.id}`,
+      );
+      return "feito";
+    } catch (erro) {
+      await falha(`merge do PR #${numero}`, erro);
+      falar("migrador", "dono", `Não consegui fazer o merge do PR #${numero}. O ramo principal ficou como estava.`);
+      return "falhou";
+    }
+  }
+
+  /** /desfazer de um merge: abre um PR que o reverte. Não mexe no ramo principal sozinho. */
+  async function reverterMergePR(pedido: Pedido & { acao: { tipo: "aprovar_pr" } }): Promise<void> {
+    const feito = lerAuditoria().findLast((e) => e.pedidoId === pedido.id && e.tipo === "feito");
+    const inv = feito?.inverso;
+    if (!inv || inv.tipo !== "reverter_pr" || !deps.migrador.reverterPR) {
+      await notificar(`O pedido ${pedido.id} não tem um merge para reverter.`);
+      return;
+    }
+    const { url } = await deps.migrador.reverterPR(inv.repo, inv.numero, inv.commit);
+    deps.estado.mudarEstado(pedido.id, "desfeito");
+    auditar({ pedidoId: pedido.id, tipo: "desfeito", quem: "migrador", depois: { repo: inv.repo, numero: inv.numero, url } });
+    falar("migrador", "dono", `Abri um PR que reverte o PR #${inv.numero}${url ? `: ${url}` : ""}. O ramo principal só muda com o vosso merge.`);
   }
 
   type Copia = { ok: boolean; prova: object; frase: string };
@@ -824,6 +896,7 @@ ${resumo}`,
     inicioCiclo = hora();
     achadosDoCiclo.clear();
     medido = {};
+    codigoPorFazer = undefined;
     pensar("abertura");
     if (opcoes.migrar) {
       falar("chefe", "dono", msgAbertura({ app: opcoes.dirApp.split(/[\\/]/).filter(Boolean).at(-1) }));
@@ -840,6 +913,11 @@ ${resumo}`,
     // Os pedidos sem resposta ficam "por decidir" no resumo; um Aprovar tardio ainda fecha (foi um humano).
     if ((await comLimite(Promise.all(resultados))) === "sem-resposta")
       log("há pedidos sem resposta; resumo na mesma");
+    if (codigoPorFazer) {
+      const { planoId, testesOk } = codigoPorFazer;
+      codigoPorFazer = undefined;
+      await migrarCodigoDaApp(planoId, testesOk);
+    }
     await publicarRelatorios();
     pensar("validar");
     // Só se diz o que foi medido; um valor que falte sai como "não medido".
@@ -935,6 +1013,12 @@ export function textoAtacante(achados: Achado[]): string {
     .join("; ");
   const resto = achados.length > 3 ? ` e mais ${achados.length - 3}` : "";
   return `Recebido. Responde a qualquer pessoa na internet: ${lista}${resto}. Gravidade ${altas.length > 0 ? "alta" : "média"}. @defesa`;
+}
+
+/** Repo e número a partir do URL do PR (https://github.com/dono/repo/pull/12). */
+export function lerPR(url: string | undefined): { repo: string; numero: number } | undefined {
+  const m = url?.match(/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/);
+  return m ? { repo: m[1]!, numero: Number(m[2]) } : undefined;
 }
 
 function mensagem(erro: unknown): string {

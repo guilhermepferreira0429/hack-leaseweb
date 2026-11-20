@@ -621,6 +621,55 @@ describe("orquestrador", () => {
     );
   });
 
+  it('"Aprovar PR": merge depois do clique, inverso guardado; /desfazer abre um PR que reverte; simulado não pede', async () => {
+    const t = montar({}, { atacar: false });
+    const merges: string[] = [];
+    const reverts: string[] = [];
+    t.deps.migrador.migrarCodigo = async () => ({
+      ficheiros: ['leaseweb.env.example', 'infra/main.tf.json'],
+      fora: [],
+      problemas: [],
+      causas: 1,
+      pr: { ramo: 'migracao/leaseweb-1', simulado: false, url: 'https://github.com/dono/app/pull/7' },
+    });
+    t.deps.migrador.aprovarPR = async (repo, numero) => (merges.push(`${repo}#${numero}`), { commit: 'abc1234' });
+    t.deps.migrador.reverterPR = async (repo, numero, commit) => (reverts.push(`${repo}#${numero}@${commit}`), { url: 'https://github.com/dono/app/pull/8' });
+    await t.orq.correr();
+
+    const pedidoPR = t.pedidosEnviados.find((p) => p.pedido.acao.tipo === 'aprovar_pr')?.pedido;
+    assert.ok(pedidoPR, 'pede "Aprovar PR" no Telegram');
+    assert.equal(t.pedidosEnviados.find((p) => p.pedido.acao.tipo === 'aprovar_pr')!.agente, 'migrador');
+    assert.match(pedidoPR!.texto, /Inclui a correção da regra que deixava a base de dados aberta/);
+    assert.deepEqual(merges, ['dono/app#7']);
+    assert.equal(t.pedidos.get(pedidoPR!.id)?.estado, 'feito');
+    const feito = t.eventos.findLast((e) => e.pedidoId === pedidoPR!.id && e.tipo === 'feito')!;
+    assert.deepEqual(feito.inverso, { tipo: 'reverter_pr', repo: 'dono/app', numero: 7, commit: 'abc1234' });
+    assert.ok(t.falas.some((f) => /PR #7 aprovado e juntado ao ramo principal do repo da app às \d\d:\d\d\. Para voltar atrás: \/desfazer/.test(f.texto)));
+    assert.equal(t.corrigidos.length, 1, 'a defesa continua a fechar só regras');
+
+    t.mensagemDoDono(null, `/desfazer ${pedidoPR!.id}`);
+    for (let i = 0; i < 5; i++) await esperar();
+    assert.deepEqual(reverts, ['dono/app#7@abc1234']);
+    assert.equal(t.desfeitos.length, 0, 'o /desfazer de um PR não vai para a defesa');
+    assert.equal(t.pedidos.get(pedidoPR!.id)?.estado, 'desfeito');
+    assert.ok(t.falas.some((f) => /Abri um PR que reverte o PR #7: https:\/\/github\.com\/dono\/app\/pull\/8/.test(f.texto)));
+
+    // Um PR simulado (ensaio sem GitHub) não pede "Aprovar PR".
+    const sim = montar({}, { atacar: false });
+    sim.deps.migrador.migrarCodigo = async () => ({ ficheiros: ['x'], fora: [], problemas: [], pr: { ramo: 'r', simulado: true } });
+    sim.deps.migrador.aprovarPR = async () => ({});
+    await sim.orq.correr();
+    assert.ok(!sim.pedidosEnviados.some((p) => p.pedido.acao.tipo === 'aprovar_pr'));
+
+    // Ignorar: não há merge.
+    const nao = montar({ decisao: (p) => (p.acao.tipo === 'aprovar_pr' ? 'ignorar' : 'aprovar') }, { atacar: false });
+    let tocou = false;
+    nao.deps.migrador.migrarCodigo = t.deps.migrador.migrarCodigo;
+    nao.deps.migrador.aprovarPR = async () => ((tocou = true), {});
+    await nao.orq.correr();
+    assert.equal(tocou, false);
+  });
+
   it("migrador de código: no mesmo plano, depois dos testes; sem PR diz porquê; um erro não trava", async () => {
     const t = montar({}, { atacar: false });
     const chamadas: [string, boolean][] = [];
@@ -655,11 +704,11 @@ describe("orquestrador", () => {
       ),
     );
     assert.ok(iPR > 0, "o PR é anunciado");
-    assert.equal(
-      migrador.at(-1),
-      "@atacante, a infraestrutura nova está no ar.",
-      "a passagem ao atacante continua a ser a última fala",
-    );
+    // Guião (mensagens-demo.md): migrar → atacar → defender → só depois o PR do código.
+    const iPassagem = t.falas.findIndex((f) => /@atacante, a infraestrutura nova está no ar\./.test(f.texto));
+    const iFecho = t.falas.findIndex((f) => f.de === "defesa" && /fechei/.test(f.texto));
+    const iPRGlobal = t.falas.findIndex((f) => /Código: abri um pull request/.test(f.texto));
+    assert.ok(iPassagem >= 0 && iFecho > iPassagem && iPRGlobal > iFecho, "o PR do código vem depois da defesa");
     assert.ok(
       t.eventos.some(
         (e) =>

@@ -159,5 +159,7 @@ export function botoesPara(acao: Acao): { aprovar: string; ignorar: string } {
       return { aprovar: 'Aprovar plano', ignorar: 'Ignorar' };
     case 'remover_regra':
       return { aprovar: 'Fechar', ignorar: 'Ignorar' };
+    case 'aprovar_pr':
+      return { aprovar: 'Aprovar PR', ignorar: 'Ignorar' };
   }
 }

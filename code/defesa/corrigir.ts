@@ -77,9 +77,9 @@ export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.
   if (!(TIPOS_ACAO as readonly string[]).includes(pedido.acao.tipo)) throw new Error(`Ação fora da lista: ${pedido.acao.tipo}`);
 
   const acao = pedido.acao;
-  if (acao.tipo === 'migrar') {
-    // O migrador é do Guilherme; o orquestrador chama-o diretamente. Aqui não se mexe em nada.
-    throw new Error('Ação migrar: tratada pelo orquestrador (migrador), não pela defesa');
+  if (acao.tipo !== 'remover_regra') {
+    // migrar e aprovar_pr são do migrador (Guilherme); o orquestrador chama-o diretamente. Aqui não se mexe em nada.
+    throw new Error(`Ação ${acao.tipo}: tratada pelo orquestrador (migrador), não pela defesa`);
   }
 
   const geridos = securityGroupsGeridos();

@@ -177,3 +177,50 @@ export async function abrirPRNoRepoDaApp(
     await rm(tmp, { recursive: true, force: true }).catch(() => {});
   }
 }
+
+// ---------- Aprovar PR (merge) e o seu inverso (um PR que reverte) ----------
+// Só no repo da app e só depois de uma pessoa carregar em "Aprovar PR" no Telegram. O inverso não reescreve
+// a história: abre um PR novo com o revert, e o merge desse volta a ser decisão de uma pessoa.
+
+export async function aprovarPR(
+  repo: string,
+  numero: number,
+  opcoes: { token?: string; executar?: Executar; cwd?: string } = {},
+): Promise<{ commit?: string }> {
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !(numero > 0)) throw new Error(`PR inválido: ${repo}#${numero}`);
+  const gh = opcoes.executar ?? executarReal;
+  const env = ambienteDoToken(opcoes.token);
+  const cwd = opcoes.cwd ?? tmpdir();
+  await gh('gh', ['pr', 'merge', String(numero), '--repo', repo, '--squash', '--delete-branch'], cwd, env);
+  const commit = await gh('gh', ['pr', 'view', String(numero), '--repo', repo, '--json', 'mergeCommit', '--jq', '.mergeCommit.oid'], cwd, env).catch(
+    () => '',
+  );
+  return { commit: /^[0-9a-f]{7,40}$/.test(commit.trim()) ? commit.trim() : undefined };
+}
+
+export async function reverterPR(
+  repo: string,
+  numero: number,
+  commit: string | undefined,
+  opcoes: { token?: string; executar?: Executar; agora?: Date } = {},
+): Promise<{ url?: string; ramo: string }> {
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !(numero > 0)) throw new Error(`PR inválido: ${repo}#${numero}`);
+  if (!commit || !/^[0-9a-f]{7,40}$/.test(commit)) throw new Error(`não sei que commit reverter do PR #${numero}`);
+  const git = opcoes.executar ?? executarReal;
+  const env = ambienteDoToken(opcoes.token);
+  const ramo = `${PREFIXO_RAMO_APP}reverter-${numero}-${(opcoes.agora ?? new Date()).toISOString().replace(/\D/g, '').slice(0, 14)}`;
+  const tmp = await mkdtemp(join(tmpdir(), 'migrador-pr-'));
+  const arvore = join(tmp, 'app');
+  try {
+    await git('git', ['clone', `https://github.com/${repo}.git`, arvore], tmp, env);
+    await git('git', ['checkout', '-b', ramo], arvore, env);
+    await git('git', ['-c', 'user.name=Migrador hack-leaseweb', '-c', 'user.email=migrador@users.noreply.github.com', 'revert', '--no-edit', commit], arvore, env);
+    await git('git', ['push', 'origin', `${ramo}:${ramo}`], arvore, env);
+    const titulo = `Reverter o PR #${numero} (pedido pelo dono com /desfazer)`;
+    const corpo = `Desfaz o PR #${numero}, a pedido do dono no Telegram. O ramo principal só muda quando alguém fizer merge deste PR.`;
+    const url = await git('gh', ['pr', 'create', '--repo', repo, '--base', 'main', '--head', ramo, '--title', titulo, '--body', corpo], arvore, env);
+    return { url: url.split('\n').at(-1), ramo };
+  } finally {
+    await rm(tmp, { recursive: true, force: true }).catch(() => {});
+  }
+}

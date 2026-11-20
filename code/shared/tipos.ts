@@ -23,12 +23,18 @@ export type Achado = {
 /** Lista fechada de ações. A IA nunca escolhe a ação: só escreve o texto do Pedido. */
 export type Acao =
   | { tipo: 'remover_regra'; securityGroupId: string; regra: Regra }
-  | { tipo: 'migrar'; passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache' };
+  | { tipo: 'migrar'; passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache' }
+  /** Merge do PR do migrador de código, só no repo público da app (MIGRADOR_PR_REPO). */
+  | { tipo: 'aprovar_pr'; repo: string; numero: number };
 
-export const TIPOS_ACAO = ['remover_regra', 'migrar'] as const satisfies readonly Acao['tipo'][];
+export const TIPOS_ACAO = ['remover_regra', 'migrar', 'aprovar_pr'] as const satisfies readonly Acao['tipo'][];
 
 /** Inverso de remover_regra: voltar a criar a mesma regra. */
-export type Inverso = Acao | { tipo: 'criar_regra'; securityGroupId: string; regra: Omit<Regra, 'id'> };
+export type Inverso =
+  | Acao
+  | { tipo: 'criar_regra'; securityGroupId: string; regra: Omit<Regra, 'id'> }
+  /** Inverso de aprovar_pr: um PR novo que reverte o commit do merge (o merge desse volta a ser de uma pessoa). */
+  | { tipo: 'reverter_pr'; repo: string; numero: number; commit?: string };
 
 export type EstadoPedido = 'pendente' | 'aprovado' | 'ignorado' | 'feito' | 'desfeito';
 

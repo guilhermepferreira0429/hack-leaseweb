@@ -22,7 +22,8 @@ export type Achado = {
 
 export type Acao =
   | { tipo: 'remover_regra'; securityGroupId: string; regra: Regra }
-  | { tipo: 'migrar'; passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache' };  // 20/11 ~11:20: + segredos, cache
+  | { tipo: 'migrar'; passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache' }  // 20/11 ~11:20: + segredos, cache
+  | { tipo: 'aprovar_pr'; repo: string; numero: number };  // 20/11 ~12:40: merge do PR do migrador de código (repo da app). Inverso: { tipo: 'reverter_pr', repo, numero, commit } = um PR que reverte
 
 export type Pedido = { id: string; titulo: string; texto: string; acao: Acao; estado: 'pendente' | 'aprovado' | 'ignorado' | 'feito' | 'desfeito' };
 
@@ -87,6 +88,8 @@ migrarPostgres(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolea
 migrarFila(): Promise<{ mensagens: number; iguais: boolean }>  // nível B, SQS -> RabbitMQ: confirma e só depois apaga no SQS
 migrarSegredos(): Promise<{ segredos: number; iguais: boolean }>  // nível B, Secrets Manager + SSM -> OpenBao; nunca um valor em log (hack-leaseweb-1e)
 migrarCache(): Promise<{ chaves: number; iguais: boolean }>  // nível B, ElastiCache Redis -> Valkey; prova por chave, tipo e valor (agente 4)
+aprovarPR(repo, numero, { token? }): Promise<{ commit? }>  // merge (squash) do PR do migrador de código, só depois do botão "Aprovar PR"
+reverterPR(repo, numero, commit, { token? }): Promise<{ url?, ramo }>  // inverso: abre um PR com o revert; nunca push para main
 verificar(): Promise<{ antes: boolean; depois: boolean }>   // mesmos testes nos dois lados
 
 // migrador/codigo.ts  (migrador de código; entrega sempre um PR)

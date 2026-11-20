@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
-import { encontrarUsosAws, FICHEIRO_CONFIG, migrarCodigo, proporAlteracao, semSegredos, validarAlteracao } from './index';
+import { aprovarPR, encontrarUsosAws, FICHEIRO_CONFIG, migrarCodigo, proporAlteracao, reverterPR, semSegredos, validarAlteracao } from './index';
 
 const SENHA = 'senhaMuitoSecreta42';
 const CHAVE = 'wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY';
@@ -317,6 +317,31 @@ describe('migrador de código', () => {
     const r = await migrarCodigo(dirApp, { raizRepo: raiz, id: 'x', testesOk: true });
     assert.equal(r.causas, 1);
     assert.match(await readFile(r.pr!.diffEm!, 'utf8'), /Segurança \(a causa da falha que a defesa fechou pela API da Leaseweb\)/);
+  });
+
+  it('aprovarPR faz squash merge com o token por variável; reverterPR abre um PR com o revert', async () => {
+    const cmds: { linha: string; env?: Record<string, string> }[] = [];
+    const executar = async (cmd: string, args: string[], _cwd: string, env?: Record<string, string>) => {
+      cmds.push({ linha: `${cmd} ${args.join(' ')}`, env });
+      if (args[0] === 'pr' && args[1] === 'view') return 'abc1234def';
+      if (cmd === 'gh' && args[1] === 'create') return 'https://github.com/dono/app/pull/9';
+      return '';
+    };
+    const r = await aprovarPR('dono/app', 7, { token: 'tok', executar });
+    assert.equal(r.commit, 'abc1234def');
+    assert.ok(cmds[0]!.linha.startsWith('gh pr merge 7 --repo dono/app --squash'));
+    assert.ok(cmds.every((c) => c.env?.GH_TOKEN === 'tok' && !c.linha.includes('tok ')));
+    await assert.rejects(aprovarPR('não é um repo', 7, { executar }), /PR inválido/);
+
+    cmds.length = 0;
+    const v = await reverterPR('dono/app', 7, 'abc1234def', { token: 'tok', executar });
+    assert.equal(v.url, 'https://github.com/dono/app/pull/9');
+    assert.match(v.ramo, /^migracao\/leaseweb-reverter-7-\d{14}$/);
+    const linhas = cmds.map((c) => c.linha);
+    assert.ok(linhas.some((l) => l.includes('revert --no-edit abc1234def')));
+    assert.ok(linhas.includes(`git push origin ${v.ramo}:${v.ramo}`));
+    assert.ok(!linhas.some((l) => /git push\b.*\bmain\b/.test(l)), 'o revert também vai por PR, nunca direto para main');
+    await assert.rejects(reverterPR('dono/app', 7, undefined, { executar }), /não sei que commit reverter/);
   });
 
   it('a app tem de estar dentro do repo', async () => {
