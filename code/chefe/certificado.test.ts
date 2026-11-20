@@ -31,6 +31,14 @@ describe('chefe/relogioExposicao', () => {
     assert.equal(r?.aindaExposta, true);
     assert.equal(r?.segundos, 20);
   });
+  it('auditoria com dois ciclos (o painel lê o dia inteiro): o relógio usa o último', () => {
+    const ensaio = [ev('-', 'infra-no-ar', 0), ev('z9', 'feito', 3, { inverso })];
+    const segundo = demo.map((e) => ({ ...e, hora: new Date(Date.parse(e.hora) + 3600_000).toISOString() }));
+    const r = relogioExposicao([...ensaio, ...segundo]);
+    assert.equal(r?.segundos, 38);
+    assert.equal(r?.inicio, segundo.find((e) => e.tipo === 'infra-no-ar')!.hora);
+  });
+
   it('sem infraestrutura no ar não há relógio', () => {
     assert.equal(relogioExposicao([ev('a1', 'feito', 1, { inverso })]), undefined);
   });
@@ -58,6 +66,13 @@ describe('chefe/certificado', () => {
     assert.match(t, /Prova: Ficheiros copiados/);
     assert.doesNotMatch(t, /Exposição|Ataque/);
     assert.doesNotMatch(t, /inverso/, 'sem inverso guardado não se promete desfazer');
+  });
+
+  it('reconhecimento: usa o mais recente', () => {
+    const velho = ev('-', 'reconhecimento', 1, { depois: { portas: [{ alvo: '198.51.100.7', porta: 22, servico: 'SSH' }] } });
+    const t = certificado([velho, ...demo], [migrar, fechar], undefined, new Date(em(50)));
+    assert.match(t, /PostgreSQL 5432/);
+    assert.doesNotMatch(t, /198.51.100.7/);
   });
 
   it('migração não aprovada', () => {

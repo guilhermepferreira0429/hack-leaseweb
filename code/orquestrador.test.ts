@@ -33,6 +33,8 @@ type Cenario = {
   canalStub?: boolean;
   /** Outra máquina da allowlist (o isco) com a mesma porta aberta, antes e depois do fecho. */
   outroAlvoAberto?: boolean;
+  /** Eventos de ensaios anteriores já no auditoria.jsonl (append-only, o dia inteiro). */
+  historico?: EventoAuditoria[];
 };
 
 const stub = (): never => {
@@ -41,7 +43,8 @@ const stub = (): never => {
 
 function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
   const falas: Mensagem[] = [];
-  const eventos: EventoAuditoria[] = [];
+  const eventos: EventoAuditoria[] = [...(cenario.historico ?? [])];
+  const vistoPeloChefe: EventoAuditoria[][] = [];
   const pedidos = new Map<string, Pedido>();
   const pedidosEnviados: { agente: Agente; pedido: Pedido }[] = [];
   const corrigidos: string[] = [];
@@ -113,7 +116,7 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
       },
       verificar: async () => ({ antes: true, depois: true }),
     },
-    chefe: { resumir: () => 'RESUMO', estadoAtual: () => 'ESTADO', certificado: (e) => `CERT ${e.some((x) => x.tipo === 'infra-no-ar') ? 'com relógio' : 'sem relógio'}` },
+    chefe: { resumir: (e) => (vistoPeloChefe.push(e), 'RESUMO'), estadoAtual: () => 'ESTADO', certificado: (e) => `CERT ${e.some((x) => x.tipo === 'infra-no-ar') ? 'com relógio' : 'sem relógio'}` },
   };
 
   const orq = criarOrquestrador(deps, {
@@ -127,6 +130,7 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
   });
   orq.ligar();
   return {
+    vistoPeloChefe,
     deps,
     orq,
     falas,
@@ -277,6 +281,16 @@ describe('orquestrador', () => {
     await falha.orq.correr();
     assert.ok(falha.notificacoes.some((n) => /tradução da configuração AWS/.test(n)));
     assert.ok(falha.falas.some((f) => /ficheiros copiados/.test(f.texto)), 'a migração S3 continuou');
+  });
+
+  it('o chefe só vê a auditoria deste ciclo, não os ensaios anteriores do dia', async () => {
+    const antigo = (tipo: string): EventoAuditoria => ({ hora: '2026-11-20T09:00:00.000Z', pedidoId: 'velho', tipo });
+    const t = montar({ historico: [antigo('infra-no-ar'), antigo('erro'), antigo('feito')] }, { atacar: false });
+    await t.orq.correr();
+    const vistos = t.vistoPeloChefe.at(-1)!;
+    assert.ok(vistos.length > 0);
+    assert.ok(vistos.every((e) => e.pedidoId !== 'velho'), 'nenhum evento de ensaios anteriores');
+    assert.ok(vistos.some((e) => e.tipo === 'infra-no-ar'), 'o deste ciclo está lá');
   });
 
   it('o atacante diz se ainda chega à porta depois de fechar', async () => {

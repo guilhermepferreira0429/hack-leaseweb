@@ -342,6 +342,9 @@ ${resumo}`);
   }
 
   async function correr(): Promise<void> {
+    // A auditoria acumula todos os ensaios do dia: o chefe só fala deste ciclo.
+    const inicioCiclo = hora();
+    const doCiclo = () => lerAuditoria().filter((e) => e.hora >= inicioCiclo);
     if (opcoes.migrar) await faseMigrar().catch((e) => falha('migração', e));
     // Daqui em diante a infraestrutura nova conta como "no ar": é o início do relógio de exposição (ideia wow 2).
     auditar({ pedidoId: '-', tipo: 'infra-no-ar', quem: 'orquestrador' });
@@ -350,10 +353,10 @@ ${resumo}`);
     const resultados = await faseDefender(doAtacante);
     // Os pedidos sem resposta ficam "por decidir" no resumo; um Aprovar tardio ainda fecha (foi um humano).
     if ((await comLimite(Promise.all(resultados))) === 'sem-resposta') log('há pedidos sem resposta; resumo na mesma');
-    falar('chefe', 'dono', deps.chefe.resumir(lerAuditoria(), deps.estado.listarPedidos()));
+    falar('chefe', 'dono', deps.chefe.resumir(doCiclo(), deps.estado.listarPedidos()));
     if (deps.chefe.certificado) {
       try {
-        falar('chefe', 'dono', deps.chefe.certificado(lerAuditoria(), deps.estado.listarPedidos()));
+        falar('chefe', 'dono', deps.chefe.certificado(doCiclo(), deps.estado.listarPedidos()));
       } catch (erro) {
         await falha('certificado de migração', erro);
       }

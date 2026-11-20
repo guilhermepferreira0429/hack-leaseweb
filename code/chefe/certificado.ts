@@ -20,7 +20,8 @@ const eFecho = (e: EventoAuditoria) => e.tipo === 'feito' && e.inverso?.tipo ===
 
 /** Relógio de exposição: da infraestrutura no ar até à primeira porta fechada e confirmada. */
 export function relogioExposicao(eventos: EventoAuditoria[], agora: Date = new Date()): Exposicao | undefined {
-  const inicio = eventos.find((e) => e.tipo === 'infra-no-ar');
+  // O último: o painel lê a auditoria do dia inteiro, com os ensaios anteriores.
+  const inicio = eventos.findLast((e) => e.tipo === 'infra-no-ar');
   if (!inicio) return undefined;
   const t0 = Date.parse(inicio.hora);
   const fecho = eventos.find((e) => eFecho(e) && Date.parse(e.hora) >= t0);
@@ -49,7 +50,7 @@ export function certificado(eventos: EventoAuditoria[], pedidos: Pedido[], local
     linhas.push(`Migração: ${migracao.estado === 'ignorado' ? 'não aprovada' : 'por concluir'}.`);
   }
 
-  const recon = eventos.filter((e) => e.tipo === 'reconhecimento').at(0)?.depois as Reconhecimento | undefined;
+  const recon = eventos.filter((e) => e.tipo === 'reconhecimento').at(-1)?.depois as Reconhecimento | undefined;
   if (recon?.portas?.length) {
     const lista = recon.portas.slice(0, 4).map((p) => `${p.servico ?? 'serviço'} ${p.porta} (${p.alvo})`).join(', ');
     linhas.push(`Ataque às nossas máquinas: ${recon.portas.length} ${recon.portas.length === 1 ? 'porta aberta' : 'portas abertas'}: ${lista}${recon.portas.length > 4 ? ', …' : ''}.`);
