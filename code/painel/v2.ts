@@ -262,7 +262,7 @@ section{background:var(--panel);border-radius:18px;padding:22px;display:flex;fle
 .cartoes{display:flex;flex-direction:column;gap:10px}
 .srv{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
 .srv .linha{display:flex;justify-content:space-between;align-items:center;font-size:21px}.srv .nome{display:flex;gap:10px}.srv .nome b{font-weight:600}.srv .nome i{font-style:normal;color:var(--faint)}
-.srv .det{display:flex;justify-content:space-between;gap:12px;font:15px var(--mono)}.srv .det small{font-size:13px;color:var(--faint)}
+.srv .det{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font:15px var(--mono)}.srv .det small{font-size:13px;color:var(--faint);white-space:nowrap;flex:none}
 .est{display:inline-flex;gap:6px;align-items:center;padding:4px 12px;border-radius:999px;font:14px var(--mono)}
 .done .est{color:var(--def);background:#7DD3A822}.done .det span{color:var(--ok)}
 .migrating{border-color:#8DB8FF66;opacity:.75}.migrating .est{color:var(--mig);background:#8DB8FF22}.migrating .est:before{content:'';width:8px;height:8px;border-radius:50%;background:var(--mig)}
@@ -346,7 +346,7 @@ function htmlServicos(eventos: EventoAuditoria[], local: string, agora: Date): s
         ? '<span class="p p-open">OPEN</span>'
         : `<span class="p p-open antes">OPEN</span><span style="color:var(--faint)">→</span><span class="p p-${{ 'a fechar': 'closing', fechada: 'closed', reaberta: 'reopened' }[porta.estado]}">${{ 'a fechar': 'CLOSING', fechada: 'CLOSED', reaberta: 'REOPENED' }[porta.estado]}</span>`;
     vitima = `<div class="vitima${fechada ? '' : ' aberta'}"><div class="rot">VICTIM VM · LEASEWEB</div>
-<div class="porta"><b>${escapar(porta.servico ?? 'port')} :${porta.porta}</b>${pills}</div>
+<div class="porta"><b>${escapar(porta.servico ?? 'port')}${Number.isFinite(porta.porta) ? ` :${porta.porta}` : ''}</b>${pills}</div>
 ${fechada ? '<div class="nota">Rule removed via Leaseweb API · inverse stored</div>' : ''}
 ${exp ? `<div class="janela">open ${hora(exp.inicio)}${exp.fim ? `  →  closed ${hora(exp.fim)}` : ''}  ·  ${exp.segundos} s exposed</div>` : ''}</div>`;
   }
