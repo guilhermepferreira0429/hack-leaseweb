@@ -1,0 +1,20 @@
+# Escutador inofensivo na 5432 da VM vítima (docs/arquitetura.md): para o nmap dar "open" antes
+# e "filtered" depois de a defesa remover a regra. Não é um Postgres: aceita a ligação e descarta tudo.
+#   sudo cp env/vitima-5432.service /etc/systemd/system/ && sudo systemctl daemon-reload
+#   sudo systemctl start vitima-5432     (parar no fim: sudo systemctl disable --now vitima-5432)
+[Unit]
+Description=Escutador inofensivo na 5432 (demo, VM vitima)
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/nc -lk 5432
+StandardOutput=null
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

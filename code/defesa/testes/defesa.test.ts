@@ -154,3 +154,17 @@ describe('ciclo detetar -> corrigir -> desfazer', () => {
     await assert.rejects(leaseweb.listarRegras(SG), /sem id/);
   });
 });
+
+describe('verificar-porta', () => {
+  it('lê o estado da porta na saída do nmap', async () => {
+    const { lerEstadoNmap } = await import('../verificar-porta');
+    assert.equal(lerEstadoNmap('Host: 1.2.3.4 ()\tPorts: 5432/open/tcp//postgresql///', 5432), 'open');
+    assert.equal(lerEstadoNmap('Host: 1.2.3.4 ()\tPorts: 5432/filtered/tcp//postgresql///', 5432), 'filtered');
+    assert.equal(lerEstadoNmap('Host: 1.2.3.4 ()\tStatus: Down', 5432), 'desconhecido');
+  });
+  it('recusa IPs fora de ALVOS_PERMITIDOS', async () => {
+    const { estadoPorta } = await import('../verificar-porta');
+    process.env.ALVOS_PERMITIDOS = '198.51.100.7';
+    await assert.rejects(estadoPorta('8.8.8.8', 53), /ALVOS_PERMITIDOS/);
+  });
+});
