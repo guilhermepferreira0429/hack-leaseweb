@@ -18,6 +18,7 @@ import * as telegram from './telegram';
 import type { EventoAuditoria, Pedido } from './tipos';
 
 const ESPERA_TOQUE_MS = 120_000;
+const ESPERA_DESFAZER_MS = 60_000;
 const ID_CALLBACK_FALSO = 'smoke-falso';
 
 for (const rel of ['../../env/.env', '../../.env']) {
@@ -122,7 +123,11 @@ async function main(): Promise<void> {
     toques.push({ pedidoId: id, decisao, quem });
     console.log(`      aoResponder: ${decisao} em ${id} por ${quem}`);
   });
-  telegram.aoDesfazer((id, quem) => console.log(`      aoDesfazer: ${id} por ${quem} (só registado; nada é desfeito)`));
+  const desfazeres: { pedidoId: string; quem: string }[] = [];
+  telegram.aoDesfazer((id, quem) => {
+    desfazeres.push({ pedidoId: id, quem });
+    console.log(`      aoDesfazer: ${id} por ${quem} (só registado; nada é desfeito)`);
+  });
 
   // a)
   const getMe = await ate(() => chamadas.some((c) => c.metodo === 'getMe'), 15_000);
@@ -178,6 +183,19 @@ async function main(): Promise<void> {
     console.log(`      ${e instanceof Error ? e.message : e}`);
   }
   passo('e) relatório de exemplo com Desfazer no grupo', Boolean(relatorio?.ok && relatorio && String(relatorio.corpo.chat_id) === grupoId));
+  const relatorioId = (relatorio?.resultado as { message_id?: number } | undefined)?.message_id;
+
+  // f) toque num botão Desfazer do relatório (ao vivo). Sem isto, os botões ficam mortos quando o teste sai.
+  if (relatorio?.ok) {
+    console.log(`\n>>> Carrega num botão Desfazer do relatório (${ESPERA_DESFAZER_MS / 1000} s), com a conta de um aprovador.\n`);
+    const desfez = await ate(() => desfazeres.length > 0, ESPERA_DESFAZER_MS);
+    const d = desfazeres[0];
+    // O transport tira só o botão carregado (editMessageReplyMarkup à mensagem do relatório).
+    const tirado = chamadas.some((c) => c.metodo === 'editMessageReplyMarkup' && c.corpo.message_id === relatorioId);
+    passo('f) botão Desfazer recebido e removido', desfez && Boolean(d && aprovadores.includes(d.quem)) && tirado, d ? `${d.pedidoId} por ${d.quem}` : 'ninguém carregou a tempo');
+  } else {
+    passo('f) botão Desfazer recebido e removido', false, 'relatório não foi enviado (passo e falhou)');
+  }
 
   passo('a) getUpdates real sem erro', chamadas.some((c) => c.metodo === 'getUpdates' && c.ok) && !conflito);
 
