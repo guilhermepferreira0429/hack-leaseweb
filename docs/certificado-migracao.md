@@ -2,22 +2,24 @@
 
 O que o Chefe envia no Telegram e o painel mostra em `/certificado` no fim da demo. Quem implementa: Guilherme (chefe e orquestrador). Desenho em `material/design/web.pen`, frame "Certificado de migração".
 
+> **Nota de implementação (20/11):** o certificado real é gerado em inglês e o resumo é montado a partir dos campos medidos; a IA não escreve o certificado (`code/chefe/certificado.ts`). O modelo abaixo é o desenho original.
+
 ## Fonte dos dados
 
 Tudo vem de ficheiros que já existem. **Nada é escrito à mão nem inventado pela IA.**
 
-| Campo | De onde vem |
-|---|---|
-| Identificador e hora | Gerado pelo orquestrador no fim (`CERT-AAAAMMDD-HHMM`) |
-| Serviços migrados | Resultado do `migrador` (`analisar` + `migrarS3` + …) |
-| Onde ficou cada dado | Região da instância na API da Leaseweb (`GET /instances`) e fornecedor do decisor |
-| Objetos e linhas copiados | Resultado do `migrador` |
-| Checksums antes e depois | Resultado do `migrador` vs `exemplo-app/seed/esperado.json` |
-| Testes antes e depois | `migrador/verificar.ts` |
-| O que o atacante encontrou | `auditoria.jsonl`, eventos do atacante |
-| O que a defesa fechou, quem aprovou, a que horas | `auditoria.jsonl`, eventos da defesa |
-| Tempo de exposição | Relógio de exposição (hora do fim da migração → hora do fecho confirmado) |
-| Ações reversíveis guardadas | `auditoria.jsonl`, campo `inverso` |
+| Campo                                            | De onde vem                                                                       |
+| ------------------------------------------------ | --------------------------------------------------------------------------------- |
+| Identificador e hora                             | Gerado pelo orquestrador no fim (`CERT-AAAAMMDD-HHMM`)                            |
+| Serviços migrados                                | Resultado do `migrador` (`analisar` + `migrarS3` + …)                             |
+| Onde ficou cada dado                             | Região da instância na API da Leaseweb (`GET /instances`) e fornecedor do decisor |
+| Objetos e linhas copiados                        | Resultado do `migrador`                                                           |
+| Checksums antes e depois                         | Resultado do `migrador` vs `exemplo-app/seed/esperado.json`                       |
+| Testes antes e depois                            | `migrador/verificar.ts`                                                           |
+| O que o atacante encontrou                       | `auditoria.jsonl`, eventos do atacante                                            |
+| O que a defesa fechou, quem aprovou, a que horas | `auditoria.jsonl`, eventos da defesa                                              |
+| Tempo de exposição                               | Relógio de exposição (hora do fim da migração → hora do fecho confirmado)         |
+| Ações reversíveis guardadas                      | `auditoria.jsonl`, campo `inverso`                                                |
 
 A IA só pode escrever o parágrafo "Resumo" no topo, a partir destes dados, com no máximo 3 frases.
 

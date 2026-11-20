@@ -92,13 +92,13 @@ npm run infra:down    # desliga
  "AWS"      │                                       │
  LocalStack │  migrador ──► MinIO / Postgres /       │
  + Redis    │     │   RabbitMQ / OpenBao / Valkey      │
-            │     │ plano + "Aprovar plano" ──────────────► Telegram (dono)
-            │     ▼ concluído                        │        │ Aprovar / Fechar
+            │     │ plano + "Approve plan" ──────────────► Telegram (dono)
+            │     ▼ concluído                        │        │ Approve / Close
             │  atacante ──► ligação TCP só aos ALVOS ────► vítima
             │     │ achados                          │        │
             │     ▼                                  │        │
             │  defesa ──► LLM (TensorX/sference)     │        │
-            │     │ explicação + "Fechar?" ───────────────────┘
+            │     │ explicação + "Close?" ────────────────────┘
             │     ▼ aprovado                         │
             │  API Leaseweb: remove regra, volta a ler │
             │  nmap: filtered · auditoria.jsonl      │
@@ -138,5 +138,5 @@ Severidade alta: 22 SSH, 23 Telnet, 445 SMB, 1433 SQL Server, 3306 MySQL, 3389 R
 ## IA
 
 - Cliente compatível com a API da OpenAI, configurável por `.env` (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`), para TensorX ou sference, ambos na UE.
-- Máximo 3 frases e 600 caracteres, português simples: o que está aberto, o que um atacante podia fazer, o que acontece se o dono aprovar.
+- Máximo 3 frases e 600 caracteres, inglês simples: o que está aberto, o que um atacante podia fazer, o que acontece se o dono aprovar.
 - Timeout de 20 s. Se falhar, texto fixo por serviço. A demo nunca espera pela IA.

@@ -61,8 +61,9 @@ The same module also handles the awkward parts of having four bots in one group:
 - **Every callback is tied to a request.** `callback_data` is `aprovar:<id>`, `ignorar:<id>` or
   `desfazer:<id>`, so a stale button cannot trigger a different action.
 
-Requests live in memory (`code/shared/estado.ts`); the audit log is the permanent record. A restart loses the
-in-memory list, which is why the certificate is built from `auditoria.jsonl` and not from memory.
+Requests live in memory (`code/shared/estado.ts`); the audit log is the permanent record. The certificate reads
+the audit log and the current request list, so a restart mid-cycle loses the pending requests but not the events
+already written.
 
 ## The cycle
 
@@ -85,7 +86,7 @@ Options that change the cycle for rehearsals and cuts: `--sem-migrador`, `--sem-
 
 The translation is **deterministic**. It is a table in `code/migrador/tradutor/tabelas.ts`, not a model. The LLM
 may explain a finding or answer the owner; it never chooses a destination or invents a price. The translator
-produces a plan: it does not call the Leaseweb API by itself, and the demo only provisions what the plan needs.
+produces a plan: it does not call the Leaseweb API by itself.
 
 ### What moves automatically
 
@@ -169,7 +170,7 @@ sequenceDiagram
     participant LLM as EU LLM
     participant Log as auditoria.jsonl
 
-    Note over Owner,Atk: Owner approves the plan; the attack starts in parallel with the copy
+    Note over Owner,Atk: Owner approves the plan, and the attack starts in parallel with the copy
     Atk->>VM: TCP probes on the port list
     VM-->>Atk: 5432 open
     Atk->>Def: Finding on 5432, high severity

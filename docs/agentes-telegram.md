@@ -4,12 +4,12 @@ O dono não fala com um sistema: fala com uma equipa. Cada agente tem o seu bot 
 
 ## Os bots
 
-| Bot | Papel | Fala sobre |
-|---|---|---|
-| **Chefe** | Coordena; resume; faz a pergunta final ao dono | Estado geral, decisões pendentes |
-| **Migrador** | Planeia e executa a migração | Serviços encontrados, plano, progresso, provas |
-| **Atacante** | Testa a infraestrutura nova | O que encontrou, com que gravidade |
-| **Defesa** | Explica e corrige | Risco em português simples, ação proposta, confirmação |
+| Bot          | Papel                                          | Fala sobre                                          |
+| ------------ | ---------------------------------------------- | --------------------------------------------------- |
+| **Chefe**    | Coordena; resume; faz a pergunta final ao dono | Estado geral, decisões pendentes                    |
+| **Migrador** | Planeia e executa a migração                   | Serviços encontrados, plano, progresso, provas      |
+| **Atacante** | Testa a infraestrutura nova                    | O que encontrou, com que gravidade                  |
+| **Defesa**   | Explica e corrige                              | Risco em inglês simples, ação proposta, confirmação |
 
 ## Três formas de falar
 
@@ -19,12 +19,12 @@ O dono não fala com um sistema: fala com uma equipa. Cada agente tem o seu bot 
 
 ## Exemplo da conversa no grupo (a demo)
 
-> **Migrador:** Encontrei 5 serviços AWS na app: S3, RDS Postgres, SQS, Secrets Manager e ElastiCache. Proponho MinIO, PostgreSQL, RabbitMQ, OpenBao e Valkey na Leaseweb. DynamoDB, SNS e Logs ficam para a fase seguinte. [Aprovar plano] [Ignorar]
-> *(dono aprova)*
+> **Migrador:** Encontrei 5 serviços AWS na app: S3, RDS Postgres, SQS, Secrets Manager e ElastiCache. Proponho MinIO, PostgreSQL, RabbitMQ, OpenBao e Valkey na Leaseweb. DynamoDB, SNS e Logs ficam para a fase seguinte. [Approve plan] [Ignore]
+> _(dono aprova)_
 > **Migrador:** Os 5 serviços passaram, cada um com prova: contagens e checksums iguais, testes a passar dos dois lados. @atacante, a infraestrutura nova está no ar.
 > **Atacante:** Recebido. A base de dados nova responde a qualquer pessoa na Internet, porta 5432. Gravidade alta. @defesa
-> **Defesa:** A base de dados com os dados dos clientes está aberta a toda a Internet. Qualquer pessoa pode tentar entrar. Proponho fechar o acesso de fora e deixar só a vossa app. [Fechar] [Ignorar]
-> *(dono carrega Fechar)*
+> **Defesa:** A base de dados com os dados dos clientes está aberta a toda a Internet. Qualquer pessoa pode tentar entrar. Proponho fechar o acesso de fora e deixar só a vossa app. [Close] [Ignore]
+> _(dono carrega Close)_
 > **Defesa:** Fechado às 14:02 e confirmado: porta filtrada. Guardei como voltar atrás. @atacante, podes confirmar?
 > **Atacante:** Confirmo. Já não chego lá.
 > **Chefe:** Migração concluída e segura. 1 falha encontrada e fechada em 40 segundos. Nada saiu da UE.
@@ -37,7 +37,7 @@ Os números deste exemplo são ilustrativos. Na demo usam-se os valores reais do
 - Um só processo Node gere os 4 tokens. Quando um agente "fala" com outro, o orquestrador entrega a mensagem internamente e cada bot publica a sua parte no grupo, com 1 a 2 segundos entre falas para se ler bem.
 - Para os bots lerem o que o dono escreve no grupo: desligar o **privacy mode** de cada bot no BotFather (`/setprivacy` → Disable) ou usar menções e comandos.
 - Só se aceitam ordens e botões vindos do `TELEGRAM_DONO_ID`. Tudo o resto é ignorado.
-- Os botões (Aprovar, Fechar, Ignorar) são `inline_keyboard`; a resposta chega por `callback_query` no bot que fez a pergunta.
+- Os botões (Approve plan, Close, Approve PR, Ignore) são `inline_keyboard`; a resposta chega por `callback_query` no bot que fez a pergunta.
 
 ## Níveis
 
