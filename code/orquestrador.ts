@@ -19,6 +19,14 @@ import type {
   Mensagem,
   Pedido,
   EstadoPedido,
+  PassoDemo,
+} from "@mwbe/shared";
+import {
+  PENSAR,
+  msgAbertura,
+  msgAtacanteConfirma,
+  msgPlanoAprovado,
+  msgValidacao,
 } from "@mwbe/shared";
 
 export interface Dependencias {
@@ -108,6 +116,8 @@ export interface ResultadoCodigo {
   ficheiros: string[];
   fora: string[];
   problemas: string[];
+  /** Regras abertas a toda a Internet corrigidas na configuração (a causa da falha). */
+  causas?: number;
   pr?: { ramo: string; simulado: boolean; url?: string };
 }
 
@@ -214,6 +224,14 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
 
   /** A auditoria acumula todos os ensaios do dia: o chefe e a voz só falam do ciclo atual. */
   let inicioCiclo = hora();
+  /** O que se mediu neste ciclo, para a validação final do chefe. undefined = não medido. */
+  let medido: { testes?: boolean; dadosIguais?: boolean; nadaExposto?: boolean } = {};
+
+  /** Linha "a pensar" do painel (docs/agentes/mensagens-demo.md): texto fixo por passo, nunca do modelo. */
+  function pensar(passo: PassoDemo): void {
+    const { agente, texto } = PENSAR[passo];
+    auditar({ pedidoId: "-", tipo: "pensar", quem: agente, depois: { passo, texto } });
+  }
   const doCiclo = () => lerAuditoria().filter((e) => e.hora >= inicioCiclo);
 
   function esperarResultado(pedidoId: string): Promise<Resultado> {
@@ -308,11 +326,13 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       const ainda = achados.filter(
         (a) => doAlvo(a) && a.porta >= startPort && a.porta <= endPort,
       );
+      // Várias portas fechadas no ciclo: basta uma ainda aberta para não estar tudo fechado.
+      medido.nadaExposto = (medido.nadaExposto ?? true) && ainda.length === 0;
       falar(
         "atacante",
         "todos",
         ainda.length === 0
-          ? "Confirmo. Já não chego lá."
+          ? msgAtacanteConfirma()
           : `Ainda chego à porta ${ainda[0].porta} em ${ainda[0].alvo}. Pode demorar uns segundos a aplicar.`,
       );
     } catch (erro) {
@@ -422,6 +442,7 @@ ${resumo}`,
   }
 
   async function faseMigrar(): Promise<void> {
+    pensar("plano");
     const { servicos, plano } = await deps.migrador.analisar(opcoes.dirApp);
     const nomes = servicos.map((s) => NOME_SERVICO[s]).join(", ");
     // Só entram os passos que o migrador sabe fazer (um serviço novo no analisar sem função fica de fora).
@@ -443,12 +464,25 @@ ${resumo}`,
     const texto = deps.migrador.migrarCodigo
       ? `${plano}\nNo fim preparo um pull request para a app passar a usar a Leaseweb. O ramo principal só muda quando alguém fizer merge.`
       : plano;
+    pensar("confirmacao");
     const pedidoPlano = await pedirMigracao(passos[0], titulo, texto, {
       servicos,
       passos,
       plano,
     });
     if (!pedidoPlano) return;
+    const aprovacao = eventosLocais.findLast(
+      (e) => e.pedidoId === pedidoPlano.id && e.tipo === "aprovado",
+    );
+    falar(
+      "chefe",
+      "dono",
+      msgPlanoAprovado({
+        quem: aprovacao?.quem === opcoes.donoId ? "o dono" : "uma pessoa autorizada",
+        hora: horaCurta(),
+      }),
+    );
+    pensar("migrar");
 
     const feitos: { passo: PassoMigracao; pedido: Pedido; copia: Copia }[] = [];
     for (const passo of passos) {
@@ -483,6 +517,8 @@ ${resumo}`,
       await falha("testes da app (verificar)", erro);
     }
     const testesOk = testes.antes && testes.depois;
+    medido.testes = testesOk;
+    medido.dadosIguais = feitos.length === passos.length && feitos.every((f) => f.copia.ok);
     for (const { passo, pedido, copia } of feitos) {
       const ok = copia.ok && testesOk;
       deps.estado.mudarEstado(pedido.id, ok ? "feito" : "aprovado");
@@ -519,6 +555,7 @@ ${resumo}`,
     planoId: string,
     testesOk: boolean,
   ): Promise<void> {
+    pensar("codigo");
     try {
       const r = await deps.migrador.migrarCodigo!(planoId, testesOk);
       auditar({
@@ -529,6 +566,7 @@ ${resumo}`,
           ficheiros: r.ficheiros,
           problemas: r.problemas,
           fora: r.fora,
+          causas: r.causas ?? 0,
           ramo: r.pr?.ramo,
           url: r.pr?.url,
           simulado: r.pr?.simulado,
@@ -554,6 +592,9 @@ ${resumo}`,
         "dono",
         `Código: ${r.pr.simulado ? "preparei" : "abri"} um pull request com ${n} ${n === 1 ? "ficheiro" : "ficheiros"} (${r.ficheiros.join(", ")}) ` +
           `para a app usar a Leaseweb, com os testes a passar e sem segredos (${onde}). O ramo principal só muda com o vosso merge.` +
+          (r.causas
+            ? " Corrigi também a configuração que deixava a base de dados aberta, para não voltar no próximo deploy."
+            : "") +
           (r.fora.length
             ? ` Fica fora: ${r.fora.length} ${r.fora.length === 1 ? "ponto" : "pontos"}, explicados no PR.`
             : ""),
@@ -712,6 +753,7 @@ ${resumo}`,
   }
 
   async function faseAtacar(): Promise<Achado[]> {
+    pensar("atacar");
     const achados = await deps.atacante.reconhecer(opcoes.alvos);
     auditar({
       pedidoId: "-",
@@ -734,6 +776,7 @@ ${resumo}`,
   async function faseDefender(
     doAtacante: Achado[],
   ): Promise<Promise<Resultado>[]> {
+    pensar("defender");
     let daApi: Achado[] = [];
     try {
       daApi = await deps.defesa.detetar();
@@ -778,7 +821,12 @@ ${resumo}`,
     // A auditoria acumula todos os ensaios do dia: o chefe só fala deste ciclo.
     inicioCiclo = hora();
     achadosDoCiclo.clear();
-    if (opcoes.migrar) await faseMigrar().catch((e) => falha("migração", e));
+    medido = {};
+    pensar("abertura");
+    if (opcoes.migrar) {
+      falar("chefe", "dono", msgAbertura({ app: opcoes.dirApp.split(/[\\/]/).filter(Boolean).at(-1) }));
+      await faseMigrar().catch((e) => falha("migração", e));
+    }
     // Daqui em diante a infraestrutura nova conta como "no ar": é o início do relógio de exposição (ideia wow 2).
     auditar({ pedidoId: "-", tipo: "infra-no-ar", quem: "orquestrador" });
     let doAtacante: Achado[] = [];
@@ -791,11 +839,15 @@ ${resumo}`,
     if ((await comLimite(Promise.all(resultados))) === "sem-resposta")
       log("há pedidos sem resposta; resumo na mesma");
     await publicarRelatorios();
+    pensar("validar");
+    // Só se diz o que foi medido; um valor que falte sai como "não medido".
+    if (Object.values(medido).some((v) => v !== undefined)) falar("chefe", "dono", msgValidacao(medido));
     falar(
       "chefe",
       "dono",
       deps.chefe.resumir(doCiclo(), deps.estado.listarPedidos()),
     );
+    pensar("relatorio");
     if (deps.chefe.certificado) {
       try {
         falar(

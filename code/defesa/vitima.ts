@@ -1,4 +1,5 @@
-// npm run lsw:vitima -- criar | estado | destruir | destruir-vm
+// npm run lsw:vitima -- criar | estado | reabrir | destruir | destruir-vm
+//   reabrir: repõe a 5432 aberta entre ensaios (corre no cérebro, não precisa da chave SSH)
 // A VM vítima da demo na Leaseweb Public Cloud (docs/arquitetura.md): Frankfurt, a mais barata, à hora.
 //   security group "vitima": 22 só dos IPs de VITIMA_ADMIN_IPS; 5432 de 0.0.0.0/0 (a falha que a defesa fecha)
 //   por SSH depois de arrancar: o escutador inofensivo na 5432 (env/vitima-5432.service), para o nmap dar "open"
@@ -59,7 +60,6 @@ const ipPublico = (i?: Instancia) => i?.ips?.find((x) => x.networkType !== 'INTE
 async function criar(): Promise<void> {
   const admin = (process.env.VITIMA_ADMIN_IPS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   if (!admin.length || admin.some((ip) => isIP(ip) === 0)) throw new Error('VITIMA_ADMIN_IPS: lista de IPs literais para o SSH (ex.: o do cérebro e o teu)');
-  const chave = readFileSync(process.env.VITIMA_SSH_PUB || `${homedir()}/.ssh/id_ed25519.pub`, 'utf8').trim();
 
   // 1. Grupo e regras, antes da VM (a VM nasce já com as regras certas).
   let g = await grupoVitima();
@@ -81,6 +81,8 @@ async function criar(): Promise<void> {
   // 2. VM.
   let inst = await instanciaVitima();
   if (!inst) {
+    // A chave só é precisa para lançar (no cérebro não há a chave pública do Enio, e não faz falta para reabrir).
+    const chave = readFileSync(process.env.VITIMA_SSH_PUB || `${homedir()}/.ssh/id_ed25519.pub`, 'utf8').trim();
     const corpo = {
       region: REGIAO,
       type: TIPO,
@@ -135,6 +137,17 @@ async function estado(): Promise<void> {
   if (g && ip) console.log(`\nPara o .env:\nLSW_SG_GERIDOS=${g.id}\nLSW_IP_SG=${ip}=${g.id}\nALVOS_PERMITIDOS=${ip}`);
 }
 
+/** Repor a falha da demo entre ensaios: volta a abrir a 5432 a 0.0.0.0/0 no grupo "vitima" (se não estiver). */
+async function reabrir(): Promise<void> {
+  const g = await grupoVitima();
+  if (!g) throw new Error('não há grupo "vitima": correr primeiro "criar"');
+  const r = { protocol: 'TCP', startPort: 5432, endPort: 5432, source: '0.0.0.0/0' };
+  const ja = (await leaseweb.listarRegrasComEstado(g.id)).find((x) => x.startPort === 5432 && x.source === r.source && x.estado !== 'DELETING');
+  if (ja) return void console.log(`5432 já está aberta (${ja.id})`);
+  const nova = await leaseweb.criarRegra(g.id, r);
+  console.log(`5432 reaberta ao mundo (${nova.id})`);
+}
+
 /** Só a VM (o grupo fica): para relançar sem perder as regras. */
 async function destruirVm(): Promise<void> {
   const inst = await instanciaVitima();
@@ -159,10 +172,10 @@ async function destruir(): Promise<void> {
   }
 }
 
-const acoes: Record<string, () => Promise<void>> = { criar, estado, destruir, 'destruir-vm': destruirVm };
+const acoes: Record<string, () => Promise<void>> = { criar, estado, reabrir, destruir, 'destruir-vm': destruirVm };
 const acao = acoes[process.argv[2] ?? 'estado'];
 if (!acao) {
-  console.error('Uso: npm run lsw:vitima -- criar | estado | destruir');
+  console.error('Uso: npm run lsw:vitima -- criar | estado | reabrir | destruir | destruir-vm');
   process.exitCode = 1;
 } else {
   carregarConfig(['LSW_API_KEY']);

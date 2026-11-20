@@ -129,7 +129,10 @@ async function main(): Promise<void> {
             raizRepo: RAIZ,
             id: planoId,
             testesOk,
-            real: process.env.MIGRADOR_PR === "real",
+            real: process.env.MIGRADOR_PR === 'real',
+            // O PR abre no repo público da app (docs/agentes/checkup-12h.md); o token só serve para esse repo.
+            repoApp: process.env.MIGRADOR_PR_REPO || undefined,
+            token: process.env.GITHUB_TOKEN_EXEMPLO || undefined,
           }),
       },
       // Relatório do incidente (David) no grupo "Direção", com um Desfazer por passo. Na --consola não há grupo.

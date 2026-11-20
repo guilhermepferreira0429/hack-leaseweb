@@ -1,5 +1,5 @@
 # Serviços da demo no cérebro (docs/arquitetura.md): "AWS" simulada e destino aberto.
-#   LocalStack (S3, SQS, Secrets Manager, SSM) -> a origem
+#   LocalStack (S3, SQS, Secrets Manager, SSM, DynamoDB, SNS, CloudWatch Logs) -> a origem
 #   Redis-origem           -> faz de ElastiCache (origem)
 #   Postgres               -> base de dados da exemplo-app (faz de RDS)
 #   MinIO                  -> destino do S3 na Leaseweb
@@ -17,7 +17,7 @@ services:
     ports:
       - "127.0.0.1:4566:4566"
     environment:
-      SERVICES: s3,sqs,secretsmanager,ssm
+      SERVICES: s3,sqs,secretsmanager,ssm,dynamodb,sns,logs
 
   postgres:
     image: postgres:16

@@ -1,5 +1,7 @@
 # docs
 
+**⭐ Importante: `agentes/`** (vozes, mensagens da demo e roteiro do dia). Ler antes de mexer no que os agentes dizem.
+
 Ordem de leitura:
 
 1. `plano.md`: o que fazemos, prioridades, cortes e salvaguardas.
