@@ -248,6 +248,14 @@ describe("orquestrador", () => {
       "as portas encontradas ficam na auditoria para o certificado",
     );
     assert.ok(t.eventos.some((e) => e.tipo === "aprovado" && e.quem === DONO));
+    // Regressão: no fluxo "ataca em rondas" o fecho acontece dentro de ataqueDoPlano. O 'infra-no-ar' (início do
+    // relógio de exposição) tem de vir ANTES do reconhecimento/fecho, senão o certificado sai "Time exposed: not measured".
+    const idxInfra = t.eventos.findIndex((e) => e.tipo === "infra-no-ar");
+    const idxRecon = t.eventos.findIndex((e) => e.tipo === "reconhecimento");
+    assert.ok(
+      idxInfra >= 0 && idxRecon >= 0 && idxInfra < idxRecon,
+      `infra-no-ar (${idxInfra}) tem de vir antes do reconhecimento (${idxRecon})`,
+    );
   });
 
   it('mensagens fixas: linha "a pensar" por passo, plano aprovado e validação só com o que foi medido', async () => {

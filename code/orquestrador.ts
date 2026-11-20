@@ -189,6 +189,8 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   /** Achados que o atacante encontrou nas rondas (a porta pode já estar fechada quando o ciclo segue). */
   const achadosDuranteAtaque: Achado[] = [];
   let pensouAtacar = false;
+  /** O 'infra-no-ar' (início do relógio de exposição) emite-se uma só vez por ciclo, antes de qualquer fecho. */
+  let infraNoArMarcado = false;
 
   const hora = () => agora().toISOString();
   const horaCurta = () =>
@@ -217,6 +219,15 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     } catch (erro) {
       log("auditoria falhou:", mensagem(erro));
     }
+  }
+
+  // Marca a infraestrutura nova como "no ar" (início do relógio de exposição, ideia wow 2), uma só vez por ciclo.
+  // Emite-se quando o plano é aprovado (antes de o ataque/defesa poderem fechar a porta): se viesse depois do fecho,
+  // o relógio não achava fecho posterior a t0 e o certificado saía "Time exposed: not measured".
+  function marcarInfraNoAr(): void {
+    if (infraNoArMarcado) return;
+    infraNoArMarcado = true;
+    auditar({ pedidoId: "-", tipo: "infra-no-ar", quem: "orquestrador" });
   }
 
   function lerAuditoria(): EventoAuditoria[] {
@@ -335,7 +346,9 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     // A migração continua no próprio fluxo (faseMigrar está à espera).
     if (pedido.acao.tipo === "migrar") {
       concluir(pedidoId, "aprovado");
-      // Plano aprovado: o atacante começa já, enquanto o migrador copia (o fluxo vê-se seguido no grupo).
+      // Plano aprovado: a infra nova entra em "no ar" já aqui, antes de o ataque/defesa poderem fechar a porta.
+      marcarInfraNoAr();
+      // O atacante começa já, enquanto o migrador copia (o fluxo vê-se seguido no grupo).
       // Entre rondas, a defesa deteta e pede aprovação; o atacante só continua depois de a defesa agir.
       if (opcoes.atacar && deps.atacante.iniciarAtaque) {
         ataqueDoPlano = deps.atacante
@@ -1040,6 +1053,7 @@ ${resumo}`,
     achadosDoCiclo.clear();
     medido = {};
     codigoPorFazer = undefined;
+    infraNoArMarcado = false;
     pensar("abertura");
     if (opcoes.migrar) {
       falar(
@@ -1051,10 +1065,10 @@ ${resumo}`,
       );
       await faseMigrar().catch((e) => falha("migração", e));
     }
+    // Fallback: se não houve ataque ao aprovar o plano (ex.: sem --atacar), marca a infra no ar agora, após a migração.
+    marcarInfraNoAr();
     // Se o ataque foi lançado ao aprovar o plano, esperar por ele antes de resumir.
     if (ataqueDoPlano) await ataqueDoPlano;
-    // Daqui em diante a infraestrutura nova conta como "no ar": é o início do relógio de exposição (ideia wow 2).
-    auditar({ pedidoId: "-", tipo: "infra-no-ar", quem: "orquestrador" });
     let doAtacante: Achado[] = [];
     if (opcoes.atacar) {
       if (resultadosDuranteAtaque.length > 0) {
