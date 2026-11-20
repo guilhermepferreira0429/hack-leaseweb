@@ -1,47 +1,49 @@
-# Falar com os agentes no Telegram
+# Talking to the agents on Telegram
 
-O dono não fala com um sistema: fala com uma equipa. Cada agente tem o seu bot e a sua personalidade, e os agentes falam entre si à frente do dono.
+The owner is not talking to a system: they are talking to a team. Each agent has its own bot and personality, and the agents talk to each other in front of the owner.
 
-## Os bots
+## The bots
 
-| Bot          | Papel                                          | Fala sobre                                          |
-| ------------ | ---------------------------------------------- | --------------------------------------------------- |
-| **Chefe**    | Coordena; resume; faz a pergunta final ao dono | Estado geral, decisões pendentes                    |
-| **Migrador** | Planeia e executa a migração                   | Serviços encontrados, plano, progresso, provas      |
-| **Atacante** | Testa a infraestrutura nova                    | O que encontrou, com que gravidade                  |
-| **Defesa**   | Explica e corrige                              | Risco em inglês simples, ação proposta, confirmação |
+| Bot          | Role                                                | Talks about                                         |
+| ------------ | --------------------------------------------------- | --------------------------------------------------- |
+| **Chief**    | Coordinates; summarises; asks the owner the final question | Overall status, pending decisions             |
+| **Migrator** | Plans and runs the migration                        | Services found, plan, progress, proof               |
+| **Attacker** | Tests the new infrastructure                        | What it found, and how severe it is                 |
+| **Defense**  | Explains and fixes                                  | Risk in plain English, proposed action, confirmation |
 
-## Três formas de falar
+## Three ways to talk
 
-1. **Grupo "Direção"** com o dono e os 4 bots. Aqui os agentes conversam entre si e o dono vê a cadeia toda.
-2. **Conversa privada com cada bot.** O dono abre o Migrador e fala só de migração, ou o Defesa e fala só de segurança.
-3. **No grupo, com menção.** `@defesa_bot o que está aberto agora?` responde só esse agente.
+1. **The "Direção" group** with the owner and the 4 bots. Here the agents talk to each other and the owner sees the whole chain.
+2. **A private chat with each bot.** The owner opens the Migrator and talks only about the migration, or the Defense and talks only about security.
+3. **In the group, with a mention.** `@defesa_bot what is open right now?` gets an answer from that agent only.
 
-## Exemplo da conversa no grupo (a demo)
+## Sample group conversation (the demo)
 
-> **Migrador:** Encontrei 5 serviços AWS na app: S3, RDS Postgres, SQS, Secrets Manager e ElastiCache. Proponho MinIO, PostgreSQL, RabbitMQ, OpenBao e Valkey na Leaseweb. DynamoDB, SNS e Logs ficam para a fase seguinte. [Approve plan] [Ignore]
-> _(dono aprova)_
-> **Migrador:** Os 5 serviços passaram, cada um com prova: contagens e checksums iguais, testes a passar dos dois lados. @atacante, a infraestrutura nova está no ar.
-> **Atacante:** Recebido. A base de dados nova responde a qualquer pessoa na Internet, porta 5432. Gravidade alta. @defesa
-> **Defesa:** A base de dados com os dados dos clientes está aberta a toda a Internet. Qualquer pessoa pode tentar entrar. Proponho fechar o acesso de fora e deixar só a vossa app. [Close] [Ignore]
-> _(dono carrega Close)_
-> **Defesa:** Fechado às 14:02 e confirmado: porta filtrada. Guardei como voltar atrás. @atacante, podes confirmar?
-> **Atacante:** Confirmo. Já não chego lá.
-> **Chefe:** Migração concluída e segura. 1 falha encontrada e fechada em 40 segundos. Nada saiu da UE.
+> **Migrator:** Where should the data go? I recommend Leaseweb, with managed services where it makes sense. [Recommended] [Self-hosted] [Why?]
+> _(owner picks Recommended)_
+> **Migrator:** I found 5 AWS services in the app: S3, RDS Postgres, SQS, Secrets Manager and ElastiCache. I propose MinIO, PostgreSQL, RabbitMQ, OpenBao and Valkey on Leaseweb. DynamoDB, SNS and Logs are left for the next phase. [Approve plan] [Ignore]
+> _(owner approves)_
+> **Migrator:** All 5 services moved, each with proof: equal counts and checksums, tests passing on both sides. @attacker, the new infrastructure is live.
+> **Attacker:** Got it. The new database answers anyone on the Internet, port 5432. High severity. @defense
+> **Defense:** The database with your customers' data is open to the whole Internet. Anyone can try to get in. I propose closing outside access and leaving only your app. [Close] [Ignore]
+> _(owner taps Close)_
+> **Defense:** Closed at 14:02 and confirmed: port filtered. I stored how to roll it back. @attacker, can you confirm?
+> **Attacker:** Confirmed. I can no longer reach it.
+> **Chief:** Migration finished and secure. 1 issue found and closed in 40 seconds. Nothing left the EU.
 
-Os números deste exemplo são ilustrativos. Na demo usam-se os valores reais do dia.
+The numbers in this example are illustrative. The demo uses the real values of the day.
 
-## É possível no Telegram? Sim, com um cuidado
+## Is this possible on Telegram? Yes, with one caveat
 
-- **Os bots do Telegram não recebem mensagens de outros bots.** Por isso a conversa entre agentes **não passa pelo Telegram**: passa pelo nosso orquestrador (um bus interno). O Telegram é o palco: cada agente publica a sua fala no grupo com o seu próprio bot.
-- Um só processo Node gere os 4 tokens. Quando um agente "fala" com outro, o orquestrador entrega a mensagem internamente e cada bot publica a sua parte no grupo, com 1 a 2 segundos entre falas para se ler bem.
-- Para os bots lerem o que o dono escreve no grupo: desligar o **privacy mode** de cada bot no BotFather (`/setprivacy` → Disable) ou usar menções e comandos.
-- Só se aceitam ordens e botões vindos do `TELEGRAM_DONO_ID`. Tudo o resto é ignorado.
-- Os botões (Approve plan, Close, Approve PR, Ignore) são `inline_keyboard`; a resposta chega por `callback_query` no bot que fez a pergunta.
+- **Telegram bots do not receive messages from other bots.** So the conversation between agents **does not go through Telegram**: it goes through our orchestrator (an internal bus). Telegram is the stage: each agent posts its line in the group with its own bot.
+- A single Node process manages the 4 tokens. When one agent "talks" to another, the orchestrator delivers the message internally and each bot posts its part in the group, with 1 to 2 seconds between lines so they are easy to read.
+- For the bots to read what the owner writes in the group: turn off each bot's **privacy mode** in BotFather (`/setprivacy` → Disable), or use mentions and commands.
+- Only orders and buttons from `TELEGRAM_DONO_ID` (or `TELEGRAM_APROVADORES`) are accepted. Everything else is ignored.
+- The buttons (Recommended, Self-hosted, Why?, Approve plan, Close, Approve PR, Ignore) are an `inline_keyboard`; the answer arrives as a `callback_query` on the bot that asked.
 
-## Níveis
+## Levels
 
-- **A:** um bot só (Defesa) a pedir aprovação. É o mínimo para a demo.
-- **B:** os 4 bots no grupo, com a conversa entre agentes encenada pelo orquestrador.
-- **B:** conversa privada com cada bot, com respostas da IA no papel de cada agente.
-- **C:** o Chefe faz uma reunião semanal: resumo, custos e no máximo 3 decisões.
+- **A:** a single bot (Defense) asking for approval. The minimum for the demo.
+- **B:** the 4 bots in the group, with the conversation between agents staged by the orchestrator.
+- **B:** a private chat with each bot, with AI answers in the role of each agent.
+- **C:** the Chief runs a weekly meeting: summary, costs and at most 3 decisions.

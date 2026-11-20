@@ -1,88 +1,89 @@
-# Telegram: aprovar tudo pelo Telegram
+# Telegram: approve everything from Telegram
 
-Ver também `agentes-telegram.md`: 4 bots (chefe, migrador, atacante, defesa), todos no grupo "Direção": o júri vê a cadeia migrador → atacante → defesa → chefe. Com `TELEGRAM_ATACANTE_PRIVADO=sim`, o atacante passa a falar só em privado com o dono.
+See also `agentes-telegram.md`: 4 bots (chief, migrator, attacker, defense), all in the "Direção" group, so the jury sees the chain migrator → attacker → defense → chief. With `TELEGRAM_ATACANTE_PRIVADO=sim`, the attacker talks to the owner only in a private chat.
 
-Long polling, sem webhook: não precisa de domínio nem HTTPS público.
+Long polling, no webhook: no domain or public HTTPS needed.
 
-## Montagem (David, 09:30, cerca de 15 min)
+## Setup (David, 09:30, about 15 min)
 
-1. No Telegram, falar com `@BotFather` → `/newbot` quatro vezes (chefe, migrador, atacante, defesa) → guardar os tokens em `TELEGRAM_TOKEN_*`. No chefe, migrador e defesa, `/setprivacy` → Disable (têm de ler o grupo). O **atacante não lê o grupo** (só publica): o privacy dele pode ficar ligado.
-   Criar o grupo "Direção" e adicionar **os 4 bots e o dono**. O dono manda também `/start` em privado ao bot atacante (para o modo `TELEGRAM_ATACANTE_PRIVADO=sim`).
-2. O "dono" da demo envia `/start` ao bot.
-3. `curl https://api.telegram.org/bot<TOKEN>/getUpdates` → copiar o `chat.id` do grupo para `TELEGRAM_GRUPO_ID` e o `from.id` do dono para `TELEGRAM_DONO_ID`.
-4. Teste com botões:
+1. In Telegram, talk to `@BotFather` → `/newbot` four times (chief, migrator, attacker, defense) → store the tokens in `TELEGRAM_TOKEN_*`. For the chief, migrator and defense bots, `/setprivacy` → Disable (they must read the group). The **attacker does not read the group** (it only posts), so its privacy mode can stay on.
+   Create the "Direção" group and add **the 4 bots and the owner**. The owner also sends `/start` to the attacker bot in a private chat (for `TELEGRAM_ATACANTE_PRIVADO=sim` mode).
+2. The demo "owner" sends `/start` to the bot.
+3. `curl https://api.telegram.org/bot<TOKEN>/getUpdates` → copy the group's `chat.id` into `TELEGRAM_GRUPO_ID` and the owner's `from.id` into `TELEGRAM_DONO_ID`.
+4. Test with buttons:
 
 ```bash
 curl -s https://api.telegram.org/bot$TELEGRAM_TOKEN_DEFESA/sendMessage \
   -H 'Content-Type: application/json' \
-  -d '{"chat_id":'$TELEGRAM_GRUPO_ID',"text":"Teste","reply_markup":{"inline_keyboard":[[{"text":"Aprovar","callback_data":"aprovar:teste"},{"text":"Ignorar","callback_data":"ignorar:teste"}]]}}'
+  -d '{"chat_id":'$TELEGRAM_GRUPO_ID',"text":"Test","reply_markup":{"inline_keyboard":[[{"text":"Approve","callback_data":"aprovar:teste"},{"text":"Ignore","callback_data":"ignorar:teste"}]]}}'
 ```
 
-## Teste de fumo (3 minutos, com os 4 bots)
+## Smoke test (3 minutes, with the 4 bots)
 
-`npm run telegram:smoke` lê `env/.env` (ou `.env` na raiz) e testa todos os bots que tiverem token. Chaves de que precisa:
+`npm run telegram:smoke` reads `env/.env` (or `.env` at the root) and tests every bot that has a token. Keys it needs:
 
-| Chave                     | O que pôr                                                                                | Obrigatória                |
-| ------------------------- | ---------------------------------------------------------------------------------------- | -------------------------- |
-| `TELEGRAM_TOKEN_DEFESA`   | token do bot da defesa (BotFather). Sem ele usa o primeiro `TELEGRAM_TOKEN_*` que houver | sim (um token basta)       |
-| `TELEGRAM_TOKEN_CHEFE`    | token do bot do chefe; o teste valida-o como aos restantes                               | recomendado (os 4 na demo) |
-| `TELEGRAM_TOKEN_MIGRADOR` | token do bot do migrador                                                                 | recomendado (os 4 na demo) |
-| `TELEGRAM_TOKEN_ATACANTE` | token do bot do atacante                                                                 | recomendado (os 4 na demo) |
-| `TELEGRAM_GRUPO_ID`       | `chat.id` do grupo "Direção" (negativo, normalmente `-100…`)                             | sim                        |
-| `TELEGRAM_APROVADORES`    | `from.id` de quem pode aprovar, separados por vírgula                                    | sim, ou `TELEGRAM_DONO_ID` |
-| `TELEGRAM_DONO_ID`        | `from.id` do dono; usado se `TELEGRAM_APROVADORES` estiver vazio                         | ver acima                  |
+| Key                       | What to set                                                                                   | Required                       |
+| ------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------ |
+| `TELEGRAM_TOKEN_DEFESA`   | defense bot token (BotFather). Without it, the first `TELEGRAM_TOKEN_*` found is used          | yes (one token is enough)      |
+| `TELEGRAM_TOKEN_CHEFE`    | chief bot token; the test checks it like the others                                          | recommended (all 4 for the demo) |
+| `TELEGRAM_TOKEN_MIGRADOR` | migrator bot token                                                                            | recommended (all 4 for the demo) |
+| `TELEGRAM_TOKEN_ATACANTE` | attacker bot token                                                                            | recommended (all 4 for the demo) |
+| `TELEGRAM_GRUPO_ID`       | `chat.id` of the "Direção" group (negative, usually `-100…`)                                  | yes                            |
+| `TELEGRAM_APROVADORES`    | `from.id` of whoever may approve, comma-separated                                             | yes, or `TELEGRAM_DONO_ID`     |
+| `TELEGRAM_DONO_ID`        | the owner's `from.id`; used when `TELEGRAM_APROVADORES` is empty                              | see above                      |
 
-Montagem rápida:
+Quick setup:
 
-1. `@BotFather` → `/newbot` → nome `Defesa`, username a acabar em `bot` → copiar o token para `TELEGRAM_TOKEN_DEFESA` em `env/.env`. Repetir para chefe, migrador e atacante (`TELEGRAM_TOKEN_CHEFE`, `TELEGRAM_TOKEN_MIGRADOR`, `TELEGRAM_TOKEN_ATACANTE`). No chefe, migrador e defesa: `/setprivacy` → escolher o bot → `Disable`. O atacante não lê o grupo; o privacy dele pode ficar ligado.
-2. Criar o grupo "Direção", adicionar **os 4 bots** e o dono. Escrever qualquer mensagem no grupo.
-3. `curl -s https://api.telegram.org/bot<TOKEN>/getUpdates`: o `message.chat.id` do grupo vai para `TELEGRAM_GRUPO_ID` e o `message.from.id` do dono vai para `TELEGRAM_APROVADORES`. Resposta vazia: escrever outra vez no grupo e repetir.
-4. `npm run telegram:smoke` e, quando aparecer `>>> Carrega em Aprovar plano ou em Ignorar`, carregar no telemóvel com a conta do aprovador (120 s).
+1. `@BotFather` → `/newbot` → name `Defesa`, username ending in `bot` → copy the token into `TELEGRAM_TOKEN_DEFESA` in `env/.env`. Repeat for chief, migrator and attacker (`TELEGRAM_TOKEN_CHEFE`, `TELEGRAM_TOKEN_MIGRADOR`, `TELEGRAM_TOKEN_ATACANTE`). For chief, migrator and defense: `/setprivacy` → pick the bot → `Disable`. The attacker does not read the group; its privacy mode can stay on.
+2. Create the "Direção" group, add **the 4 bots** and the owner. Post any message in the group.
+3. `curl -s https://api.telegram.org/bot<TOKEN>/getUpdates`: the group's `message.chat.id` goes into `TELEGRAM_GRUPO_ID` and the owner's `message.from.id` into `TELEGRAM_APROVADORES`. Empty response: post in the group again and repeat.
+4. `npm run telegram:smoke` and, when the `>>>` prompt asks you to press Approve plan or Ignore, press it on the phone with the approver's account (120 s).
 
-O teste imprime PASS/FAIL para: (config) os 4 tokens presentes, (a) `getMe` em cada bot, uma fala de cada bot no grupo e `getUpdates` sem 409 por bot, (b) pedido com os botões do tipo de ação (Aprovar plano / Ignorar na migração), (c) recusa a um ID fora da lista (simulada, sem rede) e toque real do aprovador, (d) `editMessageReplyMarkup` a tirar os botões, (e) relatório de exemplo com Desfazer no grupo, (f) toques reais nos botões Desfazer do relatório (espera 60 s, todos respondem). Não mexe em `auditoria.jsonl` nem em infraestrutura. O token nunca é impresso.
+The test prints PASS/FAIL for: (config) all 4 tokens present, (a) `getMe` on each bot, one message from each bot in the group and `getUpdates` without a 409 per bot, (b) a request with the buttons for its action type (Approve plan / Ignore for the migration), (c) rejection of an ID outside the list (simulated, no network) and a real tap by the approver, (d) `editMessageReplyMarkup` removing the buttons, (e) a sample report with Undo buttons in the group, (f) real taps on the report's Undo buttons (waits 60 s, all of them answer). It does not touch `auditoria.jsonl` or any infrastructure. The token is never printed.
 
-Nos passos (c)/toque e (f), carregar com a conta de um aprovador quando aparecer o `>>>`. Os botões (Aprovar plano, Fechar, Ignorar, Desfazer) só respondem enquanto o teste corre: depois de sair, o polling para e um toque fica sem resposta (na demo o orquestrador está sempre a correr).
+In steps (c)/tap and (f), press with an approver's account when the `>>>` prompt appears. The buttons (Approve plan, Close, Ignore, Undo) only answer while the test is running: once it exits, polling stops and a tap gets no answer (in the demo the orchestrator is always running).
 
-Se falhar:
+If it fails:
 
-- `getUpdates: Conflict`: outro processo (o orquestrador, outro portátil) está a fazer polling ao mesmo bot. Parar o outro.
-- `chat not found`: o `TELEGRAM_GRUPO_ID` está errado, ou o bot (o smoke diz qual) não está no grupo. Os 4 bots têm de estar no grupo; com `TELEGRAM_ATACANTE_PRIVADO=sim`, o atacante precisa de conversa privada com o dono (abrir o bot e mandar `/start`).
-- (c) "ninguém carregou a tempo": o `from.id` de quem carregou não está em `TELEGRAM_APROVADORES` (aparece no log como `callback_query de <id>`).
+- `getUpdates: Conflict`: another process (the orchestrator, another laptop) is polling the same bot. Stop the other one.
+- `chat not found`: `TELEGRAM_GRUPO_ID` is wrong, or the bot (the smoke test says which) is not in the group. All 4 bots must be in the group; with `TELEGRAM_ATACANTE_PRIVADO=sim`, the attacker needs a private chat with the owner (open the bot and send `/start`).
+- (c) "nobody pressed in time": the `from.id` of whoever pressed is not in `TELEGRAM_APROVADORES` (it shows in the log as `callback_query de <id>`).
 
-## Comportamento
+## Behaviour
 
-- Cada pedido chega com título, explicação e os botões do tipo de ação: **Approve plan** / **Ignore** na migração, **Close** / **Ignore** na defesa e **Approve PR** / **Ignore** no PR (textos de `shared/mensagens.ts`). `callback_data` = `aprovar:<pedidoId>` ou `ignorar:<pedidoId>`.
-- Ao carregar: `answerCallbackQuery` e editar a mensagem com o resultado ("Fechado e confirmado às 14:02").
-- Só aceita ordens e botões de `TELEGRAM_APROVADORES` (por defeito o `TELEGRAM_DONO_ID`). Ignora os outros.
-- O relatório do incidente (`shared/relatorio.ts`) leva um botão **Desfazer <passo>** por passo feito: `callback_data` = `desfazer:<pedidoId>`, chega por `telegram.aoDesfazer`.
-- Os bots não recebem mensagens de outros bots: a conversa entre agentes passa pelo bus interno e cada bot só publica a sua parte.
-- Comandos: `/status` (o que está pendente e feito), `/undo <pedidoId>` e `/attack [ip]` (abaixo).
-- Espelhar o ecrã do telemóvel no pitch (ou Telegram Desktop no portátil da apresentação).
+- The first question is where the data goes: the migrator's recommendation arrives with three buttons, **Recommended** / **Self-hosted** / **Why?** (`callback_data` = `escolha:<value>`). **Why?** explains the rules, the budget and the Leaseweb API calls that would be made (simulated only). The commands `/recomendado`, `/selfhosted` and `/why` still work; without buttons (console mode) the text lists the commands.
+- Each request arrives with a title, an explanation and the buttons for its action type: **Approve plan** / **Ignore** for the migration, **Close** / **Ignore** for the defense and **Approve PR** / **Ignore** for the PR (texts in `shared/mensagens.ts`). `callback_data` = `aprovar:<pedidoId>` or `ignorar:<pedidoId>`.
+- On a tap: `answerCallbackQuery`, then the message is edited with the result ("Closed and confirmed at 14:02").
+- Only orders and buttons from `TELEGRAM_APROVADORES` (by default `TELEGRAM_DONO_ID`) are accepted. Everyone else is ignored.
+- The incident report (`shared/relatorio.ts`) carries one **Undo <step>** button per completed step: `callback_data` = `desfazer:<pedidoId>`, delivered through `telegram.aoDesfazer`.
+- Bots do not receive messages from other bots: the conversation between agents goes through the internal bus and each bot only posts its own part.
+- Commands: `/status` (what is pending and done), `/undo <pedidoId>` and `/attack [ip]` (below). The old Portuguese aliases `/estado`, `/desfazer` and `/atacar` still work.
+- Mirror the phone screen during the pitch (or use Telegram Desktop on the presentation laptop).
 
-## `/attack [ip]`: a sequência do atacante
+## `/attack [ip]`: the attacker's sequence
 
-`/attack` no grupo (ou em privado ao bot do atacante) arranca a sequência; o atacante relata os passos no grupo
-(ou em privado, com `TELEGRAM_ATACANTE_PRIVADO=sim`). Sem `ip`, usa o primeiro alvo de `ALVOS_PERMITIDOS`.
-Ao aprovar o plano de migração, o atacante arranca sozinho, em paralelo com a cópia, **em rondas**: anuncia o
-que encontrou (reconhecimento, SSH, extras) e a defesa deteta e pede aprovação antes da tentativa seguinte.
+`/attack` in the group (or in a private chat with the attacker bot) starts the sequence; the attacker reports each step in the group
+(or privately, with `TELEGRAM_ATACANTE_PRIVADO=sim`). Without `ip`, it uses the first target in `ALVOS_PERMITIDOS`.
+When the migration plan is approved, the attacker starts on its own, in parallel with the copy, **in rounds**: it announces
+what it found (reconnaissance, SSH, extras) and the defense detects it and asks for approval before the next attempt.
 
-1. `⚔️ Ataque iniciado contra <alvo>`
-2. `👁️ Reconhecimento: …` — ligações TCP às 13 portas sensíveis de `PORTAS_ALVO` (SSH, bases de dados,
-   Redis, Elasticsearch, RDP, …); `ATACANTE_IGNORAR_PORTAS` tira portas. Só ao alvo permitido.
-3. `✅/❌ SSH: …` — adivinhação de palavra-passe limitada: no máximo 5 tentativas, pausa de 800 ms, para na
-   primeira entrada. A palavra-passe nunca é publicada; só o utilizador e o número de tentativas.
-4. `🧪 Extras: …` — só com `ATACANTE_EXTRAS=1`: TLS/cabeçalhos, credenciais de fábrica, bucket público e
-   segredos no código da app de exemplo. Tudo de leitura.
-5. `✅ Ataque terminado`
+1. `⚔️ Attack started against <target>`
+2. `👁️ Recon: …`: TCP connections to the 13 sensitive ports in `PORTAS_ALVO` (SSH, databases,
+   Redis, Elasticsearch, RDP, …); `ATACANTE_IGNORAR_PORTAS` removes ports. Only to the allowed target.
+3. `✅/❌ SSH: …`: limited password guessing: at most 5 attempts, an 800 ms pause, stops at the
+   first successful login. The password is never posted; only the user name and the number of attempts.
+4. `🧪 Extras: …`: only with `ATACANTE_EXTRAS=1`: TLS/headers, default credentials, public bucket and
+   secrets in the sample app's code. All read-only.
+5. `✅ Attack finished`
 
-Travas (não são opcionais):
+Safeguards (not optional):
 
-- **Allowlist:** só IPs de `ALVOS_PERMITIDOS`. Lista vazia → `allowlist vazia, ataque recusado`. Alvo fora da
-  lista → `alvo recusado (fora da allowlist): <alvo>` e nunca é contactado. A guarda (`garantirPermitido`)
-  repete-se antes de cada ligação, não é uma verificação única no início.
-- **Um de cada vez:** com um ataque a decorrer, outro `/attack` responde `ataque já em curso`.
-- **Permissão:** só `TELEGRAM_DONO_ID` ou `TELEGRAM_APROVADORES`; qualquer outro `from.id` recebe `sem permissão`.
-- **Nada destrutivo:** sem sudo, sem persistência e sem escrever no alvo; o `auth.log` prova as tentativas.
+- **Allowlist:** only IPs in `ALVOS_PERMITIDOS`. Empty list → `allowlist empty, attack refused`. A target outside the
+  list → `target refused (not in allowlist): <target>` and it is never contacted. The guard (`garantirPermitido`) runs again before every connection,
+  not just once at the start.
+- **One at a time:** while an attack is running, another `/attack` answers `attack already running`.
+- **Permission:** only `TELEGRAM_DONO_ID` or `TELEGRAM_APROVADORES`; any other `from.id` gets `No permission.`
+- **Nothing destructive:** no sudo, no persistence and no writes on the target; `auth.log` proves the attempts.
 
-Para ensaiar sem Telegram: `npm run dev:atacante -- <ip>` (reconhecimento), `-- --ssh <ip>` (força bruta),
-`-- --extras <ip>` (nível B) ou `-- --segredos [pasta]`.
+To rehearse without Telegram: `npm run dev:atacante -- <ip>` (reconnaissance), `-- --ssh <ip>` (brute force),
+`-- --extras <ip>` (level B) or `-- --segredos [folder]`.
