@@ -1,6 +1,6 @@
 // Passo de "ataque" da demo: adivinhação de palavra-passe SSH, limitada, contra UM alvo da allowlist.
 // Só às VMs que nós controlamos e com a organização avisada antes (docs/research/detection-and-response.md).
-// Nada destrutivo: para na primeira entrada, não tenta sudo, não persiste e só deixa um marcador inofensivo.
+// Nada destrutivo: para na primeira entrada, não tenta sudo, não escreve nada no alvo e não persiste.
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { setTimeout as esperar } from 'node:timers/promises';
@@ -20,8 +20,6 @@ export const PAUSA_ENTRE_TENTATIVAS_MS = 800;
 export const TIMEOUT_SSH_MS = 8_000;
 /** Utilizador deixado na VM da demo (docs/research/detection-and-response.md). */
 export const UTILIZADOR_DEMO = 'deploy';
-/** Ficheiro inofensivo que fica na conta para a defesa encontrar. */
-export const NOME_MARCADOR = 'marcador-atacante-demo.txt';
 
 export interface OpcoesForcaBruta {
   alvo: string;
@@ -41,7 +39,6 @@ export interface ResultadoForcaBruta {
   tentativas: number;
   sucesso: boolean;
   senha?: string;
-  marcador?: string;
 }
 
 function pausa(ms: number): Promise<void> {
@@ -66,7 +63,7 @@ function falhaDeAutenticacao(erro: unknown): boolean {
 
 /**
  * Uma tentativa = uma ligação SSH nova, como faria um atacante real.
- * Devolve o cliente já autenticado (para o marcador) ou undefined se a senha estiver errada.
+ * Devolve o cliente já autenticado, ou undefined se a senha estiver errada.
  * Erros de rede são lançados: a demo pára em vez de insistir contra uma máquina que não responde.
  */
 function tentarSenha(
@@ -107,34 +104,6 @@ function tentarSenha(
   });
 }
 
-/** Escreve o marcador na home do utilizador autenticado, por SFTP (sem correr comandos no servidor). */
-function escreverMarcador(cliente: Client, conteudo: string): Promise<string> {
-  return new Promise((concluir, falhar) => {
-    cliente.sftp((erro, sftp) => {
-      if (erro) return falhar(erro);
-      sftp.realpath('.', (erroReal, casa) => {
-        if (erroReal) {
-          sftp.end();
-          return falhar(erroReal);
-        }
-        const destino = `${casa}/${NOME_MARCADOR}`;
-        sftp.writeFile(destino, conteudo, (erroEscrita) => {
-          sftp.end();
-          if (erroEscrita) falhar(erroEscrita);
-          else concluir(destino);
-        });
-      });
-    });
-  });
-}
-
-const CONTEUDO_MARCADOR = [
-  'Demo Leaseweb InfraHack: entrada de teste.',
-  'Deixado pelo agente atacante para a defesa o encontrar. Pode ser apagado.',
-  `Deixado em ${new Date().toISOString()}.`,
-  '',
-].join('\n');
-
 /** Força bruta limitada: guarda antes de cada ligação, no máximo MAX_TENTATIVAS, para na primeira entrada. */
 export async function executarForcaBruta(opcoes: OpcoesForcaBruta): Promise<ResultadoForcaBruta> {
   const alvo = opcoes.alvo.trim();
@@ -154,14 +123,9 @@ export async function executarForcaBruta(opcoes: OpcoesForcaBruta): Promise<Resu
 
     const cliente = await tentarSenha(alvo, utilizador, senha, opcoes.timeoutMs ?? TIMEOUT_SSH_MS);
     if (cliente) {
-      log(`entrou à ${i + 1}.ª tentativa`);
-      try {
-        const marcador = await escreverMarcador(cliente, CONTEUDO_MARCADOR);
-        log(`marcador escrito em ${marcador}`);
-        return { alvo, utilizador, tentativas: i + 1, sucesso: true, senha, marcador };
-      } finally {
-        cliente.end();
-      }
+      log(`entrou à ${i + 1}.ª tentativa; sessão fechada sem alterações`);
+      cliente.end();
+      return { alvo, utilizador, tentativas: i + 1, sucesso: true, senha };
     }
 
     log('  falhou');
