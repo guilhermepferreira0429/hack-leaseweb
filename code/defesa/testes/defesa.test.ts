@@ -248,6 +248,31 @@ describe('modo noite', () => {
     assert.equal(await modoNoite(pendente(), async () => {}), false);
   });
 
+  it('durante o modo noite o pedido já não está pendente (um Aprovar a meio é ignorado)', async () => {
+    const { modoNoite } = await import('@mwbe/defesa');
+    process.env.MODO_NOITE_MINUTOS = '1';
+    process.env.MODO_NOITE_IPS = '203.0.113.50';
+    estado.guardarPedido(pendente());
+    const vistos: string[] = [];
+    const fetchReal = leaseweb.opcoes.fetch;
+    leaseweb.opcoes.fetch = async (url, init) => {
+      vistos.push(estado.obterPedido('pn')!.estado);
+      return fetchReal(url, init);
+    };
+    assert.equal(await modoNoite(pendente(), async () => {}), true);
+    assert.ok(vistos.length > 0 && vistos.every((e) => e === 'aprovado'));
+  });
+
+  it('se falhar a meio, o pedido volta a pendente', async () => {
+    const { modoNoite } = await import('@mwbe/defesa');
+    process.env.MODO_NOITE_MINUTOS = '1';
+    process.env.MODO_NOITE_IPS = '203.0.113.50';
+    estado.guardarPedido(pendente());
+    leaseweb.opcoes.fetch = async () => new Response('erro', { status: 500 });
+    assert.equal(await modoNoite(pendente(), async () => {}), false);
+    assert.equal(estado.obterPedido('pn')?.estado, 'pendente');
+  });
+
   it('porta não sensível não entra no modo noite', async () => {
     const { modoNoite } = await import('@mwbe/defesa');
     process.env.MODO_NOITE_MINUTOS = '1';
