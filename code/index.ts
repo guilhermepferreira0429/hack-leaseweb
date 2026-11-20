@@ -76,6 +76,7 @@ const NOME_SERVICO = {
 /** Decisor de destino: só fala se a capacidade da VM destino estiver no .env (VM_DESTINO_*); nada se adivinha. */
 async function planoDestino(
   servicos: (keyof typeof NOME_SERVICO)[],
+  modo: "recomendado" | "tudo-self-hosted" = "recomendado",
 ): Promise<string | undefined> {
   const n = (v: string | undefined) =>
     v && Number(v) > 0 ? Number(v) : undefined;
@@ -100,7 +101,10 @@ async function planoDestino(
     })),
     vm,
     temBackups: process.env.DONO_TEM_BACKUPS === "sim",
+    modo,
   });
+  // Tudo self-hosted: não há geridos, por isso não há nada a simular na API.
+  if (modo === "tudo-self-hosted") return mensagemDestino(decisoes, vm);
   // Simulação (dry-run) do que se criaria na Leaseweb pela API para os serviços que o decisor manda para gerido.
   // Nada é criado: no Telegram vai só o resumo curto.
   let simulacao = "";

@@ -106,7 +106,7 @@ export interface Dependencias {
     /** Resumo do tradutor AWS (Terraform) -> Leaseweb, só plano. undefined = não há configuração AWS para traduzir. */
     planoInfra?(): Promise<string | undefined>;
     /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
-    planoDestino?(servicos: PassoMigracao[]): Promise<string | undefined>;
+    planoDestino?(servicos: PassoMigracao[], modo?: 'recomendado' | 'tudo-self-hosted'): Promise<string | undefined>;
   };
   /** Voz dos agentes: resposta em texto, no papel do agente, a partir do estado. Opcional. */
   voz?: {
@@ -470,6 +470,22 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       return;
     }
 
+    // Decisor de destino: o dono escolhe "tudo self-hosted" (só a VM, nada gerido). O decisor volta a correr nesse modo.
+    if (/^\/self-?hosted(?:@\S+)?$/i.test(t)) {
+      if (!deps.migrador.planoDestino || !servicosDoPlano) {
+        await notificar("There is no migration plan yet. The migrator will propose one first.");
+        return;
+      }
+      try {
+        const texto = await deps.migrador.planoDestino(servicosDoPlano, "tudo-self-hosted");
+        auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "dono", depois: { modo: "tudo-self-hosted", texto } });
+        falar("migrador", "dono", `OK: everything self-hosted on your VM, no managed services.${texto ? `\n${texto}` : ""}`);
+      } catch (erro) {
+        await falha("destination planner (self-hosted)", erro);
+      }
+      return;
+    }
+
     const atacar = t.match(/^\/atacar(?:@\S+)?(?:\s+(\S+))?$/);
     if (atacar) {
       if (!deps.atacante.iniciarAtaque) {
@@ -532,8 +548,12 @@ ${resumo}`,
   }
 
   /** Onde fica cada serviço (regras do decisor, preços com data). Só informa; um erro não trava a migração. */
+  /** Serviços do último plano: o /selfhosted volta a correr o decisor com eles, no modo escolhido pelo dono. */
+  let servicosDoPlano: PassoMigracao[] | undefined;
+
   async function mostrarPlanoDestino(servicos: PassoMigracao[]): Promise<void> {
     if (!deps.migrador.planoDestino) return;
+    servicosDoPlano = servicos;
     try {
       const texto = await deps.migrador.planoDestino(servicos);
       if (!texto) return;
@@ -549,7 +569,7 @@ ${resumo}`,
         "migrador",
         "dono",
         geridos
-          ? `${texto}\nThis is only my recommendation: in this migration everything stays on the VM (self-hosted) and I do not buy anything. Moving a service to a managed offer is your decision, for later.`
+          ? `${texto}\nThis is only my recommendation: in this migration everything stays on the VM (self-hosted) and I do not buy anything. Moving a service to a managed offer is your decision, for later.\nPrefer everything self-hosted, with no managed services at all? Write /selfhosted.`
           : texto,
       );
     } catch (erro) {

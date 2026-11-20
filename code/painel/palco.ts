@@ -94,6 +94,8 @@ export function fraseIngles(e: EventoAuditoria): string | undefined {
       if (e.quem === 'migrador' && d.numero !== undefined) return `Code change merged (PR #${d.numero}).`;
       if (e.inverso?.tipo === 'criar_regra') return 'Closed and confirmed. Undo saved.';
       return undefined;
+    case 'decisao-destino':
+      return 'Chose everything self-hosted on the VM, no managed services.';
     case 'infra-no-ar':
       return 'New infrastructure is live.';
     case 'reconhecimento': {

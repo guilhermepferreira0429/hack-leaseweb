@@ -519,6 +519,21 @@ describe("orquestrador", () => {
     assert.ok(falha.falas.some((f) => /files copied/.test(f.texto)));
   });
 
+  it("decisor de destino: /selfhosted volta a correr o decisor no modo do dono e fica na auditoria", async () => {
+    const t = montar({}, { atacar: false });
+    const modos: (string | undefined)[] = [];
+    t.deps.migrador.planoDestino = async (_s, modo) => (modos.push(modo), modo === "tudo-self-hosted" ? "All on the VM." : "I propose a managed PostgreSQL.");
+    // Antes de haver plano: não faz nada, só avisa.
+    await t.orq.aoMensagemDoDono(null, "/selfhosted");
+    assert.ok(t.notificacoes.some((n) => /no migration plan yet/i.test(n)));
+    await t.orq.correr();
+    assert.ok(t.falas.some((f) => /Write \/selfhosted/.test(f.texto)), "a recomendação com geridos oferece o comando");
+    await t.orq.aoMensagemDoDono(null, "/selfhosted");
+    assert.deepEqual(modos, [undefined, "tudo-self-hosted"]);
+    assert.ok(t.falas.some((f) => /everything self-hosted on your VM[\s\S]*All on the VM\./.test(f.texto)));
+    assert.ok(t.eventos.some((e) => e.tipo === "decisao-destino" && e.quem === "dono"));
+  });
+
   it("ao aprovar o plano, o atacante começa a atacar em paralelo com a migração", async () => {
     const t = montar({}, { atacar: true });
     await t.orq.correr();
