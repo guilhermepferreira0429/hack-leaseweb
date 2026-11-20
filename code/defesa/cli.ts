@@ -1,9 +1,9 @@
-// npm run dev:defesa -> corre um ciclo de deteção e envia pedidos de aprovação.
-// Opções previstas: --vigiar (repete a cada N segundos).
+// npm run dev:defesa -> só a defesa: detetar pela API, tratar cada achado e esperar pelo Telegram.
+// Útil para testar a peça sozinha; na demo corre tudo pelo orquestrador (npm run dev).
 import { naoImplementado } from '@mwbe/shared';
 
 async function main(): Promise<void> {
-  // TODO: carregarConfig, criar clientes, criarCanal, cicloDefesa (uma vez ou em ciclo com --vigiar)
+  // TODO: carregarConfig, telegram.aoResponder -> corrigir, telegram.aoDesfazer -> desfazer, detetar, tratar
   naoImplementado('defesa/cli main');
 }
 

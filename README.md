@@ -4,62 +4,68 @@ Built from scratch at the Leaseweb InfraHack hackathon (20 November 2026).
 
 ## The problem
 
-Leaving a hyperscaler is mostly a data and confidence problem: will my app still work, and is my data intact? There is a second, quieter risk. During a rushed migration, new VMs often come up with databases, object stores and admin consoles reachable from the whole internet. Most teams find out when someone else does.
+Leaving a hyperscaler is mostly a data and confidence problem: will my app still work, and is my data intact? There is a second, quieter risk. During a rushed migration, new VMs often come up with databases and admin ports reachable from the whole internet. Small companies don't lack alerts; nobody reads them. The product is the fix, not the alert.
 
 ## How it works
 
-Three agents run on the Leaseweb Public Cloud:
+Agents run on the Leaseweb Public Cloud and talk to the owner in a Telegram group, one bot per agent:
 
-1. **Migrator**: reads a sample app that uses AWS S3, RDS Postgres and SQS (simulated locally with LocalStack). It proposes open alternatives on a Leaseweb VM (MinIO, Postgres, RabbitMQ), copies the data with SHA-256 checksum verification, and runs the same test suite before and after.
-2. **Attacker**: as soon as the new infrastructure is up, it runs non-destructive reconnaissance against **our own VMs only**. It checks for open ports, exposed services and factory-default credentials, then reports findings. Targets come from a closed IP allowlist; anything else is refused.
-3. **Defender**: combines the attacker's findings with the security group rules read from the Leaseweb API. An EU-hosted LLM (OpenAI-compatible API, e.g. TensorX or sference) explains each finding in three plain sentences. The defender then asks for approval on WhatsApp (Telegram as fallback). Once approved, it removes only the offending firewall rule through the Leaseweb API, re-reads to confirm, and stores the inverse in a JSONL audit log. One tap on **Undo** restores the rule.
+1. **Migrator**: reads a sample app that uses AWS S3, Postgres (RDS) and SQS, simulated locally with LocalStack. It proposes open alternatives on Leaseweb and, once the owner approves, copies S3 to MinIO with SHA-256 checksum verification. It runs the same tests before and after.
+2. **Attacker**: as soon as the new infrastructure is up, it runs non-destructive reconnaissance with nmap against **our own VMs only**. It looks for open ports, exposed services and factory-default credentials. Targets come from a closed IP allowlist; anything else is refused.
+3. **Defender**: combines the attacker's findings with security group rules read from the Leaseweb API. An EU-hosted LLM (OpenAI-compatible API, e.g. TensorX or sference) explains each finding in three plain sentences. The defender then asks the owner in Telegram. Once approved, it removes only the offending firewall rule through the Leaseweb API, re-reads to confirm, and stores the inverse in a JSONL audit log. `/desfazer` restores it.
+4. **Chief**: coordinates and sums up with real numbers.
 
-A small dashboard shows the timeline: **migrate → attack → approve → close**.
+Agents talk to each other over an internal bus; Telegram is the stage. A small dashboard shows the timeline: **migrate → attack → approve → close**.
 
-See [`docs/architecture.md`](docs/architecture.md) for the diagram and full flow.
+See [`docs/`](docs/README.md), starting with [`docs/plano.md`](docs/plano.md) and [`docs/arquitetura.md`](docs/arquitetura.md).
 
 ## Build and run
 
-Requirements: Node.js 22+, npm 10+, Docker (for the simulated AWS source).
+Requirements: Node.js 22+, npm 10+, Docker, nmap.
 
 ```bash
 npm install
-cp env/.env.example env/.env      # fill in your own keys; env/.env is git-ignored
+cp env/.env.example .env          # fill in your own keys; .env is git-ignored
 npm run typecheck
 npm test
 
-npm run origem:up                 # LocalStack (S3, SQS) + Postgres acting as RDS
+npm run infra:up                  # LocalStack (S3, SQS), Postgres, MinIO on 127.0.0.1
 
-npm run dev:painel                # dashboard + webhook on :8080
-npm run dev:migrador              # migrate the sample app
-npm run dev:atacante              # recon against ALVOS_PERMITIDOS only
-npm run dev:defesa                # detect, explain, request approval
+npm run dev                       # orchestrator: all agents + dashboard in one process
+
+# run a single piece while developing
+npm run dev:painel                # dashboard on :3000 (/, /isco, /estado.json)
+npm run dev:migrador
+npm run dev:atacante -- <ip>      # refused unless the IP is in ALVOS_PERMITIDOS
+npm run dev:defesa
+npm run dev:exemplo
 ```
-
-VM layout (`cerebro`, `vitima`, `isco`) and environment variables: [`env/README.md`](env/README.md).
 
 ## Safety
 
-- **The AI only writes text.** The LLM produces a three-sentence explanation. Actions come from a closed list in code (`remover-regra`, `repor-regra`); model output is never executed.
-- **Nothing runs without a human.** Every change needs an approval tap from an allowlisted WhatsApp number or Telegram chat. Webhooks are signature-checked.
-- **Every action stores its inverse** in `auditoria.jsonl` before it is applied, so Undo is always possible.
-- **Smallest possible change.** The defender removes a single rule, only in security groups we manage, then re-reads to confirm.
-- **The attacker is fenced.** It contacts only literal IPs listed in `ALVOS_PERMITIDOS` and refuses and logs anything else. It does no exploitation, no writes and no brute force (one attempt per well-known default credential).
-- **No secrets in the repo.** All keys live in `env/.env`, which is git-ignored.
-- **If the LLM fails** (no provider configured, error, or more than 20 s), a fixed explanation per finding type is used, and the approval flow still works.
+- **The AI only writes text.** Actions come from a closed list in code (`remover_regra`, `migrar`); model output is never executed.
+- **Nothing runs without a human.** Every change needs an approval tap from the owner's Telegram account (`TELEGRAM_DONO_ID`); everyone else is ignored.
+- **Every action stores its inverse** in `auditoria.jsonl`, so it can always be undone.
+- **Smallest possible change.** The defender removes a single rule and re-reads to confirm. It never swaps a whole security group, because that would replace every rule.
+- **The attacker is fenced.** It scans only literal IPs listed in `ALVOS_PERMITIDOS` and refuses anything else. It does no exploitation, no writes and no brute force.
+- **No secrets in the repo.** All keys live in `.env`, which is git-ignored.
+- **If the LLM fails** (no provider, error, or more than 20 s), a backup provider is tried. If that fails too, a fixed explanation per finding type is used, so the demo never waits on the AI.
+- **Data stays in the EU**: Leaseweb EU region and EU LLM providers.
 
 ## Repository layout
 
 ```
 code/
-  shared/       common types, Leaseweb client, LLM client, audit log
-  migrador/     analyse, copy data, verify (tests before and after)
-  atacante/     recon, target allowlist
+  index.ts      orchestrator (single Node process)
+  shared/       types, bus, Leaseweb client, LLM client, Telegram, audit log, state
+  chefe/        chief agent: summaries
+  migrador/     analyse, migrate S3 -> MinIO, verify (tests before and after)
+  atacante/     nmap recon, target allowlist
   defesa/       detect, explain, approve, fix, undo
-  painel/       HTTP server: /, /isco, /webhook
+  painel/       HTTP dashboard: /, /isco, /estado.json
   exemplo-app/  sample app using S3, Postgres and SQS, with tests
-docs/           architecture, demo script, plan
-env/            .env.example, docker-compose files, VM notes
+docs/           plan, architecture, interfaces, demo, pitch, risks
+env/            .env.example, docker-compose.yml
 ```
 
 ## License

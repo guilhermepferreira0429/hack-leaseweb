@@ -1,25 +1,18 @@
-// O LLM escreve 3 frases em português simples sobre um achado. Só texto.
-// A ação proposta NÃO vem do LLM: vem de proporAcao() em corrigir.ts.
-// Se o LLM falhar (sem fornecedor, erro, 20 s de timeout ou formato errado), usa textoFixo().
-import type { Achado, ClienteLLM, Explicacao } from '@mwbe/shared';
+// Monta o Pedido a partir do achado. O texto vem do LLM (shared/llm.ts, com texto fixo de recurso);
+// a ação é decidida aqui, de forma determinística, a partir da lista fechada de Acao.
+import type { Achado, Acao, Pedido } from '@mwbe/shared';
 import { naoImplementado } from '@mwbe/shared';
 
-export const PROMPT_SISTEMA = [
-  'És um assistente de segurança que explica problemas a pessoas sem formação técnica.',
-  'Responde em português de Portugal, com exatamente 3 frases curtas:',
-  '1) o que está exposto, 2) o que alguém mal-intencionado poderia fazer, 3) o que propomos fechar.',
-  'Não uses jargão, não dês comandos, não inventes dados que não estejam no achado.',
-].join(' ');
-
-/**
- * Pede a explicação ao LLM e valida o formato (3 frases, tamanho máximo).
- * Nunca lança: em qualquer falha devolve { origem: 'fixo', frases: textoFixo(achado) }.
- */
-export function explicar(llm: ClienteLLM, achado: Achado): Promise<Explicacao> {
-  return naoImplementado('explicar');
+/** Achado com regra -> remover_regra. Sem regra -> undefined (só se notifica, não há nada a fechar). */
+export function acaoPara(achado: Achado): Acao | undefined {
+  return naoImplementado('acaoPara');
 }
 
-/** Parte a resposta do modelo em exatamente 3 frases, ou devolve undefined se não der. */
-export function extrairTresFrases(texto: string): [string, string, string] | undefined {
-  return naoImplementado('extrairTresFrases');
+/** Título curto para a mensagem, ex.: "PostgreSQL aberto a toda a internet". */
+export function tituloPara(achado: Achado): string {
+  return naoImplementado('tituloPara');
+}
+
+export function montarPedido(achado: Achado, texto: string, acao: Acao): Pedido {
+  return naoImplementado('montarPedido');
 }

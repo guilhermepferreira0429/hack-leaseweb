@@ -1,41 +1,19 @@
-// Copia dados da origem AWS (LocalStack + Postgres local) para a VM vítima na Leaseweb,
-// com verificação por checksums em cada passo.
-import type { Config } from '@mwbe/shared';
+// S3 (LocalStack) -> MinIO, com verificação por sha256 de cada objeto.
+// Postgres e fila ficam fora hoje (slide), ver docs/plano.md.
 import { naoImplementado } from '@mwbe/shared';
-import type { ItemPlano } from './analisar';
 
-export interface ChecksumItem {
+export interface ChecksumObjeto {
   chave: string;
-  /** sha256 em hex. */
   origem: string;
-  destino?: string;
+  destino: string;
 }
 
-export interface RelatorioCopia {
-  item: ItemPlano;
-  copiados: number;
-  checksums: ChecksumItem[];
-  /** true se todos os checksums de destino coincidem com os de origem. */
-  integro: boolean;
-  duracaoMs: number;
+/** Lista o bucket na origem, copia cada objeto para o MinIO e compara sha256 dos dois lados. */
+export function migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }> {
+  return naoImplementado('migrarS3');
 }
 
-/** S3 (LocalStack) -> MinIO: lista objetos, copia, compara sha256 do conteúdo. Primeira prioridade. */
-export function copiarS3ParaMinio(item: ItemPlano, config: Config): Promise<RelatorioCopia> {
-  return naoImplementado('copiarS3ParaMinio');
-}
-
-/** Postgres (simula RDS) -> Postgres na Leaseweb: pg_dump/restore ou cópia por tabela; checksum por tabela (contagem + hash ordenado). */
-export function copiarPostgres(item: ItemPlano, config: Config): Promise<RelatorioCopia> {
-  return naoImplementado('copiarPostgres');
-}
-
-/** SQS (LocalStack) -> RabbitMQ: drena mensagens visíveis, publica, compara sha256 dos corpos. */
-export function copiarSqsParaRabbit(item: ItemPlano, config: Config): Promise<RelatorioCopia> {
-  return naoImplementado('copiarSqsParaRabbit');
-}
-
-/** Executa o plano item a item; pára no primeiro item não íntegro. */
-export function migrarDados(itens: ItemPlano[], config: Config): Promise<RelatorioCopia[]> {
-  return naoImplementado('migrarDados');
+/** sha256 em hex de um corpo. */
+export function sha256(conteudo: Uint8Array): string {
+  return naoImplementado('sha256');
 }

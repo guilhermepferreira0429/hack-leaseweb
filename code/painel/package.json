@@ -4,8 +4,10 @@
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
   "dependencies": {
-    "@mwbe/shared": "*",
-    "@mwbe/defesa": "*"
+    "@mwbe/shared": "*"
   }
 }

@@ -14,11 +14,9 @@
     "@mwbe/shared": "*",
     "@aws-sdk/client-s3": "^3.700.0",
     "@aws-sdk/client-sqs": "^3.700.0",
-    "amqplib": "^0.10.5",
     "pg": "^8.13.0"
   },
   "devDependencies": {
-    "@types/amqplib": "^0.10.6",
     "@types/pg": "^8.11.10"
   }
 }

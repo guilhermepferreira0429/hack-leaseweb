@@ -1,8 +1,9 @@
 // npm run dev:migrador [-- --so-analisar]
+// Corre o migrador sozinho (sem pedir aprovação); na demo corre pelo orquestrador (npm run dev).
 import { naoImplementado } from '@mwbe/shared';
 
 async function main(): Promise<void> {
-  // TODO: carregarConfig, Auditoria, migrar(config, auditoria, { soAnalisar: process.argv.includes('--so-analisar') })
+  // TODO: carregarConfig, analisar('code/exemplo-app'), migrarS3, verificar
   naoImplementado('migrador/cli main');
 }
 

@@ -1,8 +1,8 @@
 // Adaptadores da app de exemplo. A app só conhece estas interfaces; o ambiente
-// (AWS via LocalStack, ou Leaseweb com MinIO/Postgres/RabbitMQ) escolhe-se por variáveis de ambiente.
+// (AWS via LocalStack, ou Leaseweb com MinIO) escolhe-se por variáveis de ambiente.
 //   ARMAZENAMENTO_ENDPOINT, ARMAZENAMENTO_BUCKET, ARMAZENAMENTO_ACCESS_KEY, ARMAZENAMENTO_SECRET_KEY
 //   DATABASE_URL
-//   FILA_TIPO = sqs | rabbitmq ; FILA_URL ; FILA_NOME
+//   FILA_URL, FILA_NOME (SQS no LocalStack)
 import { naoImplementado } from '@mwbe/shared';
 
 export interface Armazenamento {
@@ -32,7 +32,7 @@ export function criarBaseDados(env?: NodeJS.ProcessEnv): BaseDados {
   return naoImplementado('criarBaseDados');
 }
 
-/** SQS (@aws-sdk/client-sqs) ou RabbitMQ (amqplib), conforme FILA_TIPO. */
+/** SQS (@aws-sdk/client-sqs). A migração da fila fica como slide. */
 export function criarFila(env?: NodeJS.ProcessEnv): Fila {
   return naoImplementado('criarFila');
 }

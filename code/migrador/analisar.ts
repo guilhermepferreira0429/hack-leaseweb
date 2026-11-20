@@ -1,44 +1,16 @@
-// Lê a app de exemplo e identifica os serviços AWS usados; propõe a alternativa aberta.
+// Lê a app de exemplo, encontra os serviços AWS usados e escreve o plano em texto.
 import { naoImplementado } from '@mwbe/shared';
 
-export type ServicoAws = 's3' | 'rds-postgres' | 'sqs';
-export type AlternativaAberta = 'minio' | 'postgres' | 'rabbitmq' | 'nats';
+export type ServicoAws = 's3' | 'postgres' | 'fila';
 
-/** Mapeamento fixo. A ordem de execução segue docs/plano.md: S3, depois Postgres, depois SQS. */
-export const ALTERNATIVAS: Record<ServicoAws, AlternativaAberta[]> = {
-  s3: ['minio'],
-  'rds-postgres': ['postgres'],
-  sqs: ['rabbitmq', 'nats'],
+/** Alternativa aberta proposta para cada serviço. Só o S3 é migrado hoje; o resto é slide. */
+export const ALTERNATIVA: Record<ServicoAws, string> = {
+  s3: 'MinIO',
+  postgres: 'PostgreSQL',
+  fila: 'NATS',
 };
 
-export interface UsoDetetado {
-  servico: ServicoAws;
-  /** Onde foi encontrado (ficheiro:linha ou variável de ambiente). */
-  evidencia: string[];
-  /** Recursos concretos: buckets, tabelas, filas. */
-  recursos: string[];
-}
-
-export interface ItemPlano {
-  origem: ServicoAws;
-  destino: AlternativaAberta;
-  recursos: string[];
-  /** Variáveis de ambiente que a app tem de mudar para apontar para o destino. */
-  novasVariaveis: Record<string, string>;
-}
-
-export interface PlanoMigracao {
-  app: string;
-  itens: ItemPlano[];
-  criadoEm: string;
-}
-
-/** Procura imports do SDK AWS e variáveis de ambiente na pasta da app. */
-export function analisarApp(pastaApp: string): Promise<UsoDetetado[]> {
-  return naoImplementado('analisarApp');
-}
-
-/** Converte os usos detetados num plano (escolhe a primeira alternativa, ou a pedida). */
-export function proporPlano(usos: UsoDetetado[], preferencias?: Partial<Record<ServicoAws, AlternativaAberta>>): PlanoMigracao {
-  return naoImplementado('proporPlano');
+/** Procura imports do SDK AWS (@aws-sdk/client-s3, client-sqs) e do pg na pasta da app. */
+export function analisar(dirApp: string): Promise<{ servicos: ServicoAws[]; plano: string }> {
+  return naoImplementado('analisar');
 }

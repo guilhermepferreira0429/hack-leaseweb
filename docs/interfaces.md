@@ -4,8 +4,12 @@
 // shared/tipos.ts
 export type Regra = { id: string; protocol: string; source: string; startPort: number; endPort: number };
 
+// NOVO (avisar o grupo): `tipo` escolhe o texto fixo quando o LLM falha.
+export type TipoAchado = 'porta-exposta' | 'servico-exposto' | 'credenciais-por-defeito' | 'isco-tocado';
+
 export type Achado = {
   id: string;
+  tipo: TipoAchado;
   origem: 'api' | 'atacante';
   alvo: string;                 // IP ou instanceId
   securityGroupId?: string;
@@ -38,7 +42,8 @@ criarRegra(sg: string, regra: Omit<Regra, 'id'>): Promise<Regra>      // o inver
 
 ```ts
 // shared/llm.ts
-explicar(achado: Achado): Promise<string>   // 3 frases, timeout 20 s, recurso texto fixo
+explicar(achado: Achado): Promise<string>   // 3 frases, timeout 20 s, recurso texto fixo por achado.tipo
+// fornecedores: LLM_* e, se existir, LLM_*_2 como reserva (usa o primeiro que responder)
 ```
 
 ```ts

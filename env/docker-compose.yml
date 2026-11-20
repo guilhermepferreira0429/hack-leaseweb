@@ -1,0 +1,37 @@
+# Serviços da demo no cérebro (docs/arquitetura.md): "AWS" simulada e destino aberto.
+#   LocalStack (S3, SQS)   -> a origem
+#   Postgres               -> base de dados da exemplo-app (faz de RDS)
+#   MinIO                  -> destino do S3 na Leaseweb
+# npm run infra:up   (lê o .env da raiz)
+# Tudo ligado só a 127.0.0.1: a única porta aberta de propósito na demo é a da VM vítima.
+services:
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      SERVICES: s3,sqs
+
+  postgres:
+    image: postgres:16
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir no .env}
+      POSTGRES_DB: encomendas
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?definir no .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?definir no .env}
+    volumes:
+      - minio:/data
+
+volumes:
+  minio:
