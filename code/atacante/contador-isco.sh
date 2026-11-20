@@ -39,6 +39,10 @@ linhas=$(
   done
 )
 
+if [ -z "$linhas" ]; then
+  echo "aviso: nenhum auth.log legível ($logs); confirma o sudo -n ou AUTH_LOGS" >&2
+fi
+
 # Compara só a hora (HH:MM:SS): no dia da demo interessa "desde as 08:00 de hoje".
 filtradas=$(printf '%s\n' "$linhas" | awk -v desde="$desde" '
   {
