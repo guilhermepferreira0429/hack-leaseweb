@@ -16,13 +16,16 @@
 
 `bash env/preparar-demo.sh`, da raiz do repo. Por esta ordem:
 
-1. Verifica o `.env` (inclui `POSTGRES_DESTINO_PASSWORD` e `DATABASE_URL_DESTINO`, senão o Postgres → Postgres não corre).
-2. `infra:up`: LocalStack, Postgres de origem e de destino, MinIO, todos em `127.0.0.1`.
-3. `npm run seed`: dados falsos de uma PME na origem.
-4. `npm run dev:exemplo -- --semear 20`: sem isto o teste 4 da app falha ("não há encomendas semeadas") e o migrador diz que os testes falham.
-5. Esvazia os buckets **só no destino** (MinIO), para o destino não aparecer cheio antes de Aprovar.
+1. Verifica o `.env`: Postgres de origem e de destino, MinIO, RabbitMQ, redis-origem, Valkey e OpenBao.
+2. `infra:up`: LocalStack (S3, SQS, Secrets Manager, SSM), Postgres de origem e de destino, MinIO, RabbitMQ, redis-origem, Valkey e OpenBao, todos em `127.0.0.1`.
+3. `npm run seed:limpar-destino -- --sim`: esvazia **só o destino** (buckets da seed no MinIO, Valkey, filas no RabbitMQ, segredos da seed no OpenBao, esquema `loja` e `public.encomendas` no Postgres de destino), para não aparecer cheio antes de Aprovar. Recusa se algum destino apontar para a origem.
+4. `npm run seed`: dados falsos de uma PME na origem (S3, Postgres, SQS, Secrets Manager e SSM, ElastiCache), sempre iguais. Volta a pôr as 50 mensagens no SQS depois de qualquer migração anterior, sem duplicar, e repõe as 20 encomendas da app.
+5. `npm run seed:comparar`: a origem tem de dar 10/10 iguais ao `esperado.json`.
 
-Depois: `npm run dev -- --consola --uma-vez` (ensaio) ou `npm run dev` (com Telegram).
+Os passos 3 e 4 mexem em lados diferentes, por isso a ordem entre eles não altera o resultado; o importante é ficar a origem cheia e o destino vazio antes de migrar. Uma corrida de cada vez: nunca preparar com um ensaio a meio.
+
+Depois: `npm run dev -- --consola --uma-vez` (ensaio) ou `npm run dev` (com Telegram). No fim, a prova independente: `npm run seed:comparar -- --destino` (10/10).
+DynamoDB, SNS e CloudWatch Logs (`npm run seed:extra`) ficam só no plano; não correr na preparação da demo.
 Ver o painel do portátil: `ssh -L 3000:localhost:3000 ubuntu@<cérebro>` e abrir `http://localhost:3000`.
 
 ## Contar tentativas no isco
