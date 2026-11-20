@@ -58,6 +58,30 @@ export function lerAmbienteMigrador(env: NodeJS.ProcessEnv = process.env): Ambie
   };
 }
 
+/** Ligações ao Postgres de origem (o "RDS") e de destino (Leaseweb). */
+export function lerPostgres(env: NodeJS.ProcessEnv = process.env): { origem: string; destino: string } {
+  carregarEnv();
+  const v = (nome: string): string | undefined => {
+    const valor = env[nome]?.trim();
+    return valor && !valor.includes('<senha>') ? valor : undefined;
+  };
+  const origem = v('DATABASE_URL');
+  const destino = v('DATABASE_URL_DESTINO');
+  if (!origem) throw new Error('DATABASE_URL não está definida no .env');
+  if (!destino) throw new Error('DATABASE_URL_DESTINO não está definida no .env (Postgres de destino na Leaseweb)');
+  return { origem, destino };
+}
+
+/** host:porta de um URL de ligação, para mensagens de erro (sem utilizador nem senha). */
+export function semCredenciais(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.hostname}:${u.port || '5432'}${u.pathname}`;
+  } catch {
+    return '(URL inválido)';
+  }
+}
+
 /** Variáveis que apontam a exemplo-app para um dos lados (o resto vem do .env). */
 export function envDaApp(lado: Lado, bucket: string): Record<string, string> {
   return {
