@@ -25,3 +25,6 @@ docs/riscos.md
 docs/perguntas-juri.md
 docs/agentes/roteiro-dia.md
 docs/agentes/checkup-12h.md
+
+# Capturas e estado de sessões de browser (Playwright MCP)
+.playwright-mcp/
