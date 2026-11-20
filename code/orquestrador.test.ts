@@ -162,7 +162,7 @@ describe('orquestrador', () => {
       ],
     );
     assert.equal(t.corrigidos.length, 1);
-    assert.match(textos(t.falas, 'migrador').at(-1)!, /12 ficheiros copiados, checksums iguais, testes a passar dos dois lados/);
+    assert.match(textos(t.falas, 'migrador').at(-1)!, /12 ficheiros copiados para o MinIO, checksums iguais\. Testes da app a passar dos dois lados\./);
     assert.match(textos(t.falas, 'atacante')[0], /PostgreSQL na porta 5432/);
     assert.match(textos(t.falas, 'defesa').at(-1)!, /@atacante, fechei "PostgreSQL aberto a toda a internet" às \d\d:\d\d/);
     assert.equal(textos(t.falas, 'atacante').at(-1), 'Confirmo. Já não chego lá.');
@@ -312,33 +312,97 @@ describe('orquestrador', () => {
     assert.ok(falha.falas.some((f) => /ficheiros copiados/.test(f.texto)));
   });
 
-  it('base de dados (nível B): segunda aprovação, cópia com prova e testes outra vez', async () => {
+  it('um só "Aprovar plano": todos os passos por ordem, prova e auditoria por passo, testes uma vez no fim', async () => {
     const t = montar({}, { atacar: false });
-    let copias = 0;
-    t.deps.migrador.migrarPostgres = async () => (copias++, { tabelas: 1, linhas: 20, checksumsOk: true });
+    const ordem: string[] = [];
+    let verificacoes = 0;
+    t.deps.migrador.migrarPostgres = async () => (ordem.push('postgres'), { tabelas: 1, linhas: 20, checksumsOk: true });
+    t.deps.migrador.migrarFila = async () => (ordem.push('fila'), { mensagens: 5, iguais: true });
+    t.deps.migrador.verificar = async () => (verificacoes++, { antes: true, depois: true });
     await t.orq.correr();
-    assert.equal(copias, 1);
-    const migracoes = t.pedidosEnviados.filter((p) => p.pedido.acao.tipo === 'migrar').map((p) => (p.pedido.acao as { passo: string }).passo);
-    assert.deepEqual(migracoes, ['s3', 'postgres']);
-    assert.ok(t.falas.some((f) => /Base de dados: 1 tabela e 20 linhas copiadas, checksums iguais, testes a passar com a base de dados nova/.test(f.texto)));
-    const pg = t.pedidosEnviados.find((p) => (p.pedido.acao as { passo?: string }).passo === 'postgres')!.pedido;
-    assert.equal(t.pedidos.get(pg.id)?.estado, 'feito');
+
+    const migrar = t.pedidosEnviados.filter((p) => p.pedido.acao.tipo === 'migrar');
+    assert.equal(migrar.length, 1, 'um só pedido de aprovação');
+    assert.match(migrar[0].pedido.titulo, /Migrar para a Leaseweb: S3, Postgres, SQS/);
+    assert.deepEqual(ordem, ['postgres', 'fila']);
+    assert.equal(verificacoes, 1, 'os testes da app correm uma vez, no fim');
+
+    const passos = [...t.pedidos.values()].filter((p) => p.acao.tipo === 'migrar');
+    assert.deepEqual(
+      passos.map((p) => [(p.acao as { passo: string }).passo, p.estado]),
+      [
+        ['s3', 'feito'],
+        ['postgres', 'feito'],
+        ['fila', 'feito'],
+      ],
+    );
+    for (const p of passos) {
+      assert.ok(t.eventos.some((e) => e.pedidoId === p.id && e.tipo === 'feito'), `prova na auditoria para ${p.id}`);
+    }
+    const fila = passos.find((p) => (p.acao as { passo: string }).passo === 'fila')!;
+    assert.deepEqual(t.eventos.findLast((e) => e.pedidoId === fila.id)?.depois, {
+      passo: 'fila',
+      mensagens: 5,
+      checksumsOk: true,
+      testes: { antes: true, depois: true },
+    });
+    assert.ok(t.eventos.some((e) => e.pedidoId === fila.id && e.tipo === 'aprovado' && (e.depois as { pelo?: string }).pelo === migrar[0].pedido.id));
+
+    const fala = textos(t.falas, 'migrador').at(-1)!;
+    assert.match(fala, /12 ficheiros copiados para o MinIO, checksums iguais\. Base de dados: 1 tabela e 20 linhas copiadas para PostgreSQL, checksums iguais\. Filas: 5 mensagens passadas para o RabbitMQ, checksums iguais\. Testes da app a passar dos dois lados\. @atacante/);
   });
 
-  it('base de dados: não se pergunta se o S3 não foi aprovado; um erro na cópia não trava o resto', async () => {
+  it('plano: sem OK não se migra nada; sem função ligada o passo fica de fora', async () => {
     const recusa = montar({ decisao: (p) => (p.acao.tipo === 'migrar' ? 'ignorar' : 'aprovar') }, { atacar: false });
-    recusa.deps.migrador.migrarPostgres = async () => ({ tabelas: 1, linhas: 1, checksumsOk: true });
+    let tocou = false;
+    recusa.deps.migrador.migrarPostgres = async () => ((tocou = true), { tabelas: 1, linhas: 1, checksumsOk: true });
+    recusa.deps.migrador.migrarFila = async () => ((tocou = true), { mensagens: 1, iguais: true });
     await recusa.orq.correr();
-    assert.equal(recusa.pedidosEnviados.filter((p) => p.pedido.acao.tipo === 'migrar').length, 1);
+    assert.equal(tocou, false);
+    assert.equal(recusa.corrigidos.length, 1, 'a defesa segue');
 
-    const erro = montar({}, { atacar: false });
-    erro.deps.migrador.migrarPostgres = async () => {
+    // O analisar encontra s3, postgres e fila, mas só o S3 tem função: o plano é só o S3.
+    const so = montar({}, { atacar: false });
+    await so.orq.correr();
+    const migrar = so.pedidosEnviados.filter((p) => p.pedido.acao.tipo === 'migrar');
+    assert.equal(migrar.length, 1);
+    assert.match(migrar[0].pedido.titulo, /: S3$/);
+    assert.equal([...so.pedidos.values()].filter((p) => p.acao.tipo === 'migrar').length, 1);
+  });
+
+  it('plano: um passo que falha não trava os outros; checksums diferentes ou testes a falhar não contam como feito', async () => {
+    const t = montar({}, { atacar: false });
+    t.deps.migrador.migrarPostgres = async () => {
       throw new Error('Postgres de destino não responde');
     };
-    await erro.orq.correr();
-    assert.ok(erro.notificacoes.some((n) => /migração da base de dados/.test(n)));
-    assert.equal(erro.corrigidos.length, 1, 'a defesa segue');
-    assert.equal(erro.falas.at(-1)?.de, 'chefe');
+    t.deps.migrador.migrarFila = async () => ({ mensagens: 5, iguais: false });
+    await t.orq.correr();
+    assert.ok(t.notificacoes.some((n) => /migração Postgres.*Postgres de destino não responde/.test(n)));
+    const estado = (passo: string) => [...t.pedidos.values()].find((p) => (p.acao as { passo?: string }).passo === passo)?.estado;
+    assert.equal(estado('s3'), 'feito');
+    assert.equal(estado('postgres'), 'aprovado', 'falhou: fica aprovado, não feito');
+    assert.equal(estado('fila'), 'aprovado', 'checksums diferentes não contam como feito');
+    assert.ok(t.falas.some((f) => /Filas: 5 mensagens passadas para o RabbitMQ, checksums DIFERENTES/.test(f.texto)));
+    assert.equal(t.corrigidos.length, 1, 'a defesa segue');
+    assert.equal(t.falas.at(-1)?.de, 'chefe');
+
+    const testes = montar({}, { atacar: false });
+    testes.deps.migrador.verificar = async () => ({ antes: true, depois: false });
+    await testes.orq.correr();
+    assert.equal([...testes.pedidos.values()].find((p) => p.acao.tipo === 'migrar')?.estado, 'aprovado');
+    assert.ok(testes.falas.some((f) => /Testes antes ok, depois falharam/.test(f.texto)));
+  });
+
+  it('plano: segredos e cache entram quando o migrador os tiver, e a prova não leva valores', async () => {
+    const t = montar({}, { atacar: false });
+    t.deps.migrador.analisar = async () => ({ servicos: ['s3', 'segredos', 'cache'], plano: 'plano' });
+    t.deps.migrador.migrarSegredos = async () => ({ segredos: 7, iguais: true });
+    t.deps.migrador.migrarCache = async () => ({ chaves: 40, iguais: true });
+    await t.orq.correr();
+    const fala = textos(t.falas, 'migrador').at(-1)!;
+    assert.match(fala, /Segredos: 7 passados para o OpenBao sem nunca aparecerem em texto, checksums iguais\. Cache: 40 chaves copiadas para o Valkey, checksums iguais/);
+    const seg = [...t.pedidos.values()].find((p) => (p.acao as { passo?: string }).passo === 'segredos')!;
+    assert.deepEqual(t.eventos.findLast((e) => e.pedidoId === seg.id)?.depois, { passo: 'segredos', segredos: 7, checksumsOk: true, testes: { antes: true, depois: true } });
   });
 
   it('relatório do incidente: um por achado tratado, depois da defesa e antes do resumo; uma falha não trava', async () => {
@@ -372,49 +436,6 @@ describe('orquestrador', () => {
     nada.deps.relatorio = { publicar: async () => void (chamado = true) };
     await nada.orq.correr();
     assert.equal(chamado, false, 'sem achados tratados não há relatório');
-  });
-
-  it('filas (SQS -> RabbitMQ): terceira aprovação, prova por sha256; recusa ou erro não travam o resto', async () => {
-    const t = montar({}, { atacar: false });
-    t.deps.migrador.migrarPostgres = async () => ({ tabelas: 1, linhas: 20, checksumsOk: true });
-    let copias = 0;
-    t.deps.migrador.migrarFila = async () => (copias++, { mensagens: 5, iguais: true });
-    await t.orq.correr();
-    assert.equal(copias, 1);
-    const passos = t.pedidosEnviados.filter((p) => p.pedido.acao.tipo === 'migrar').map((p) => (p.pedido.acao as { passo: string }).passo);
-    assert.deepEqual(passos, ['s3', 'postgres', 'fila']);
-    assert.ok(t.falas.some((f) => /Filas: 5 mensagens passadas para o RabbitMQ, checksums iguais, testes a passar com o RabbitMQ/.test(f.texto)));
-    const fl = t.pedidosEnviados.find((p) => (p.pedido.acao as { passo?: string }).passo === 'fila')!.pedido;
-    assert.equal(t.pedidos.get(fl.id)?.estado, 'feito');
-    assert.deepEqual(t.eventos.findLast((e) => e.pedidoId === fl.id)?.depois, { mensagens: 5, checksumsOk: true, testes: { antes: true, depois: true } });
-
-    // Sem migrarFila ligado (sem --com-fila), não se pergunta.
-    const sem = montar({}, { atacar: false });
-    await sem.orq.correr();
-    assert.ok(!sem.pedidosEnviados.some((p) => (p.pedido.acao as { passo?: string }).passo === 'fila'));
-
-    const recusa = montar({ decisao: (p) => ((p.acao as { passo?: string }).passo === 'fila' ? 'ignorar' : 'aprovar') }, { atacar: false });
-    let tocou = false;
-    recusa.deps.migrador.migrarFila = async () => ((tocou = true), { mensagens: 1, iguais: true });
-    await recusa.orq.correr();
-    assert.equal(tocou, false, 'sem OK não se mexe nas filas');
-    assert.equal(recusa.corrigidos.length, 1, 'a defesa segue');
-
-    const diferente = montar({}, { atacar: false });
-    diferente.deps.migrador.migrarFila = async () => ({ mensagens: 5, iguais: false });
-    await diferente.orq.correr();
-    const flD = diferente.pedidosEnviados.find((p) => (p.pedido.acao as { passo?: string }).passo === 'fila')!.pedido;
-    assert.equal(diferente.pedidos.get(flD.id)?.estado, 'aprovado', 'checksums diferentes não contam como feito');
-    assert.ok(diferente.falas.some((f) => /checksums DIFERENTES/.test(f.texto)));
-
-    const erro = montar({}, { atacar: false });
-    erro.deps.migrador.migrarFila = async () => {
-      throw new Error('RabbitMQ não responde em 127.0.0.1:5672');
-    };
-    await erro.orq.correr();
-    assert.ok(erro.notificacoes.some((n) => /migração das filas/.test(n)));
-    assert.equal(erro.corrigidos.length, 1, 'a defesa segue');
-    assert.equal(erro.falas.at(-1)?.de, 'chefe');
   });
 
   it('voz dos agentes: responde quem foi chamado, com o estado; no grupo sem menção cala-se', async () => {

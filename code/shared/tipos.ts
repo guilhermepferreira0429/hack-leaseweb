@@ -23,7 +23,7 @@ export type Achado = {
 /** Lista fechada de ações. A IA nunca escolhe a ação: só escreve o texto do Pedido. */
 export type Acao =
   | { tipo: 'remover_regra'; securityGroupId: string; regra: Regra }
-  | { tipo: 'migrar'; passo: 's3' | 'postgres' | 'fila' };
+  | { tipo: 'migrar'; passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache' };
 
 export const TIPOS_ACAO = ['remover_regra', 'migrar'] as const satisfies readonly Acao['tipo'][];
 

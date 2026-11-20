@@ -22,7 +22,7 @@ export type Achado = {
 
 export type Acao =
   | { tipo: 'remover_regra'; securityGroupId: string; regra: Regra }
-  | { tipo: 'migrar'; passo: 's3' | 'postgres' | 'fila' };
+  | { tipo: 'migrar'; passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache' };  // 20/11 ~11:20: + segredos, cache
 
 export type Pedido = { id: string; titulo: string; texto: string; acao: Acao; estado: 'pendente' | 'aprovado' | 'ignorado' | 'feito' | 'desfeito' };
 
@@ -81,10 +81,12 @@ desfazer(pedidoId: string, avisar?: (texto: string) => Promise<void>): Promise<v
 
 ```ts
 // migrador/
-analisar(dirApp: string): Promise<{ servicos: ('s3' | 'postgres' | 'fila')[]; plano: string }>
+analisar(dirApp: string): Promise<{ servicos: ('s3' | 'postgres' | 'fila' | 'segredos' | 'cache')[]; plano: string }>  // por esta ordem
 migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }>
 migrarPostgres(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolean }>  // nível B, prova por tabela
 migrarFila(): Promise<{ mensagens: number; iguais: boolean }>  // nível B, SQS -> RabbitMQ: confirma e só depois apaga no SQS
+migrarSegredos(): Promise<{ segredos: number; iguais: boolean }>  // nível B, Secrets Manager + SSM -> OpenBao; nunca um valor em log (hack-leaseweb-1e)
+migrarCache(): Promise<{ chaves: number; iguais: boolean }>  // nível B, ElastiCache Redis -> Valkey; prova por chave, tipo e valor (agente 4)
 verificar(): Promise<{ antes: boolean; depois: boolean }>   // mesmos testes nos dois lados
 
 // migrador/codigo.ts  (migrador de código; entrega sempre um PR)
@@ -119,11 +121,14 @@ certificado(eventos, pedidos, localDados?, agora?): string      // certificado d
 
 ```ts
 // orquestrador.ts   (criarOrquestrador(deps, opcoes); index.ts liga os módulos reais)
-// Dependências opcionais (sem elas o passo não acontece): migrador.migrarPostgres, migrador.planoInfra,
-// migrador.planoDestino, chefe.certificado.
+// Migração: UM só "Aprovar plano" (o pedido do 1.º passo); os outros passos nascem aprovados por ele
+// ('pedido' + 'aprovado' com depois.pelo = id do plano). Cada passo tem o seu 'feito'/'erro' com a prova;
+// verificar() corre uma só vez, no fim, e os testes entram na prova de cada passo.
+// Dependências opcionais (sem elas o passo não acontece): migrador.migrarPostgres, migrarFila, migrarSegredos,
+// migrarCache, migrador.planoInfra, migrador.planoDestino, chefe.certificado, relatorio.publicar.
 // Eventos que o orquestrador escreve na auditoria: 'pedido', 'aprovado', 'ignorado', 'sem-resposta', 'feito',
 // 'erro' (depois.fase), 'reconhecimento' (depois.portas), 'infra-no-ar', 'migracao-plano-infra', 'migracao-plano-destino'.
-// Opções: --sem-migrador, --sem-atacante, --consola, --uma-vez; ESPERA_DECISAO_MS (10 min).
+// Opções: --sem-migrador, --sem-atacante, --sem-fila, --consola, --uma-vez; ESPERA_DECISAO_MS (10 min).
 ```
 
 ```ts

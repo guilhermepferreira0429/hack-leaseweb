@@ -2,7 +2,7 @@
 // code/index.ts liga isto aos módulos reais.
 //
 // Fluxo (docs/agentes-telegram.md, docs/demo.md):
-//   migrar   migrador.analisar -> pedido 'migrar s3' -> aprovação -> migrarS3 -> verificar
+//   migrar   migrador.analisar -> um só "Aprovar plano" -> cada passo com prova (S3, Postgres, fila, ...) -> verificar
 //   atacar   atacante.reconhecer(ALVOS_PERMITIDOS)
 //   defender defesa.detetar (API) + correlacionar -> tratar cada achado com regra
 //   fechar   aprovado -> defesa.corrigir -> atacante volta a confirmar
@@ -10,7 +10,7 @@
 // Cortes (docs/plano.md): sem migrador e/ou sem atacante; a defesa pela API fica sempre.
 // Uma falha numa fase é auditada e avisada, e o fluxo continua: a demo não pára.
 import { isIP } from 'node:net';
-import type { Achado, Agente, Decisao, EventoAuditoria, Mensagem, Pedido, EstadoPedido } from '@mwbe/shared';
+import type { Acao, Achado, Agente, Decisao, EventoAuditoria, Mensagem, Pedido, EstadoPedido } from '@mwbe/shared';
 
 export interface Dependencias {
   telegram: {
@@ -38,17 +38,21 @@ export interface Dependencias {
   };
   atacante: { reconhecer(alvos: string[]): Promise<Achado[]> };
   migrador: {
-    analisar(dirApp: string): Promise<{ servicos: ('s3' | 'postgres' | 'fila')[]; plano: string }>;
+    analisar(dirApp: string): Promise<{ servicos: PassoMigracao[]; plano: string }>;
     migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }>;
     verificar(): Promise<{ antes: boolean; depois: boolean }>;
     /** Nível B: RDS PostgreSQL -> PostgreSQL na Leaseweb, com prova por tabela. */
     migrarPostgres?(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolean }>;
     /** SQS -> RabbitMQ na Leaseweb, com prova por contagem e sha256 das mensagens. */
     migrarFila?(): Promise<{ mensagens: number; iguais: boolean }>;
+    /** Secrets Manager / SSM -> OpenBao. A prova nunca leva valores, só contagem e sha256. */
+    migrarSegredos?(): Promise<{ segredos: number; iguais: boolean }>;
+    /** ElastiCache Redis -> Valkey, com prova por chave, tipo e valor. */
+    migrarCache?(): Promise<{ chaves: number; iguais: boolean }>;
     /** Resumo do tradutor AWS (Terraform) -> Leaseweb, só plano. undefined = não há configuração AWS para traduzir. */
     planoInfra?(): Promise<string | undefined>;
     /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
-    planoDestino?(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<string | undefined>;
+    planoDestino?(servicos: PassoMigracao[]): Promise<string | undefined>;
   };
   /** Voz dos agentes: resposta em texto, no papel do agente, a partir do estado. Opcional. */
   voz?: { responder(agente: Agente, pergunta: string, estado: string): Promise<string> };
@@ -79,7 +83,15 @@ export const ESPERA_DECISAO_MS = 10 * 60_000;
 
 export type Resultado = 'feito' | 'ignorado' | 'falhou' | 'aprovado';
 
-const NOME_SERVICO: Record<'s3' | 'postgres' | 'fila', string> = { s3: 'S3', postgres: 'Postgres', fila: 'SQS' };
+type PassoMigracao = Extract<Acao, { tipo: 'migrar' }>['passo'];
+
+const NOME_SERVICO: Record<PassoMigracao, string> = {
+  s3: 'S3',
+  postgres: 'Postgres',
+  fila: 'SQS',
+  segredos: 'Secrets Manager',
+  cache: 'ElastiCache',
+};
 
 export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   const agora = opcoes.agora ?? (() => new Date());
@@ -281,7 +293,7 @@ ${resumo}`);
   }
 
   /** Onde fica cada serviço (regras do decisor, preços com data). Só informa; um erro não trava a migração. */
-  async function mostrarPlanoDestino(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<void> {
+  async function mostrarPlanoDestino(servicos: PassoMigracao[]): Promise<void> {
     if (!deps.migrador.planoDestino) return;
     try {
       const texto = await deps.migrador.planoDestino(servicos);
@@ -296,88 +308,135 @@ ${resumo}`);
   async function faseMigrar(): Promise<void> {
     const { servicos, plano } = await deps.migrador.analisar(opcoes.dirApp);
     const nomes = servicos.map((s) => NOME_SERVICO[s]).join(', ');
-    falar('migrador', 'dono', `Encontrei ${servicos.length} serviços AWS na app: ${nomes}. Começo pelo S3 para MinIO na Leaseweb.`);
-    await mostrarPlanoInfra();
-    await mostrarPlanoDestino(servicos);
-    if (!servicos.includes('s3')) return;
-
-    const pedido = await pedirMigracao('s3', 'Migrar ficheiros do S3 para MinIO na Leaseweb', plano, { servicos, plano });
-    if (!pedido) return;
-
-    const copia = await deps.migrador.migrarS3();
-    const testes = await deps.migrador.verificar();
-    const ok = copia.checksumsOk && testes.antes && testes.depois;
-    deps.estado.mudarEstado(pedido.id, ok ? 'feito' : 'aprovado');
-    auditar({ pedidoId: pedido.id, tipo: ok ? 'feito' : 'erro', quem: 'migrador', depois: { ...copia, testes } });
+    // Só entram os passos que o migrador sabe fazer (um serviço novo no analisar sem função fica de fora).
+    const passos = servicos.filter((s) => executor(s));
     falar(
       'migrador',
-      'atacante',
-      `${copia.objetos} ficheiros copiados, checksums ${copia.checksumsOk ? 'iguais' : 'DIFERENTES'}, ` +
-        `testes ${testes.antes && testes.depois ? 'a passar dos dois lados' : `antes ${testes.antes ? 'ok' : 'falharam'}, depois ${testes.depois ? 'ok' : 'falharam'}`}. ` +
-        '@atacante, a infraestrutura nova está no ar.',
+      'dono',
+      `Encontrei ${servicos.length} ${servicos.length === 1 ? 'serviço' : 'serviços'} AWS na app: ${nomes}.` +
+        (passos.length ? ' Peço um só OK para o plano todo e faço um passo de cada vez, com prova em cada um.' : ''),
     );
+    await mostrarPlanoInfra();
+    await mostrarPlanoDestino(servicos);
+    if (passos.length === 0) return;
 
-    if (servicos.includes('postgres') && deps.migrador.migrarPostgres) await migrarBaseDados();
-    if (servicos.includes('fila') && deps.migrador.migrarFila) await migrarFilas();
+    // Um só "Aprovar plano": o pedido aprovado é o do primeiro passo; os outros nascem aprovados por ele.
+    const titulo = `Migrar para a Leaseweb: ${passos.map((s) => NOME_SERVICO[s]).join(', ')}`;
+    const pedidoPlano = await pedirMigracao(passos[0], titulo, plano, { servicos, passos, plano });
+    if (!pedidoPlano) return;
+
+    const feitos: { passo: PassoMigracao; pedido: Pedido; copia: Copia }[] = [];
+    for (const passo of passos) {
+      const pedido = passo === passos[0] ? pedidoPlano : pedidoDoPlano(passo, pedidoPlano);
+      try {
+        feitos.push({ passo, pedido, copia: await executor(passo)!() });
+      } catch (erro) {
+        auditar({ pedidoId: pedido.id, tipo: 'erro', quem: 'migrador', depois: { passo, erro: mensagem(erro) } });
+        await falha(`migração ${NOME_SERVICO[passo]}`, erro);
+      }
+    }
+    if (feitos.length === 0) {
+      falar('migrador', 'dono', 'A migração falhou em todos os passos. Nada foi apagado na AWS; vejam o painel.');
+      return;
+    }
+
+    // Os mesmos testes da app, uma só vez, com tudo o que foi copiado já no destino.
+    let testes = { antes: false, depois: false };
+    try {
+      testes = await deps.migrador.verificar();
+    } catch (erro) {
+      await falha('testes da app (verificar)', erro);
+    }
+    const testesOk = testes.antes && testes.depois;
+    for (const { passo, pedido, copia } of feitos) {
+      const ok = copia.ok && testesOk;
+      deps.estado.mudarEstado(pedido.id, ok ? 'feito' : 'aprovado');
+      auditar({ pedidoId: pedido.id, tipo: ok ? 'feito' : 'erro', quem: 'migrador', depois: { passo, ...copia.prova, testes } });
+    }
+    const testesTexto = testesOk
+      ? 'Testes da app a passar dos dois lados'
+      : `Testes antes ${testes.antes ? 'ok' : 'falharam'}, depois ${testes.depois ? 'ok' : 'falharam'}`;
+    falar('migrador', 'atacante', `${feitos.map((f) => f.copia.frase).join('. ')}. ${testesTexto}. @atacante, a infraestrutura nova está no ar.`);
   }
 
-  /** Nível B: segunda aprovação, cópia da base de dados com prova por tabela e os mesmos testes outra vez. */
-  async function migrarBaseDados(): Promise<void> {
-    const texto = [
-      'Copio a base de dados (RDS PostgreSQL) para um PostgreSQL na Leaseweb, tabela a tabela.',
-      'Para cada tabela comparo o número de linhas e a impressão digital (sha256) dos dois lados.',
-      'No fim volto a correr os testes da app, agora contra a base de dados nova. Nada é apagado na AWS.',
-    ].join('\n');
-    const pedido = await pedirMigracao('postgres', 'Copiar a base de dados para PostgreSQL na Leaseweb', texto, {});
-    if (!pedido) return;
-    try {
-      const copia = await deps.migrador.migrarPostgres!();
-      const testes = await deps.migrador.verificar();
-      const ok = copia.checksumsOk && testes.antes && testes.depois;
-      deps.estado.mudarEstado(pedido.id, ok ? 'feito' : 'aprovado');
-      auditar({ pedidoId: pedido.id, tipo: ok ? 'feito' : 'erro', quem: 'migrador', depois: { ...copia, testes } });
-      falar(
-        'migrador',
-        'dono',
-        `Base de dados: ${copia.tabelas} ${copia.tabelas === 1 ? 'tabela' : 'tabelas'} e ${copia.linhas} linhas copiadas, checksums ${copia.checksumsOk ? 'iguais' : 'DIFERENTES'}, ` +
-          `testes ${testes.antes && testes.depois ? 'a passar com a base de dados nova' : 'a falhar: vejam o painel'}.`,
-      );
-    } catch (erro) {
-      await falha('migração da base de dados', erro);
+  type Copia = { ok: boolean; prova: object; frase: string };
+
+  /** Como se executa cada passo. undefined = o migrador ainda não tem essa função ligada. */
+  function executor(passo: PassoMigracao): (() => Promise<Copia>) | undefined {
+    const m = deps.migrador;
+    const igual = (ok: boolean) => (ok ? 'checksums iguais' : 'checksums DIFERENTES');
+    switch (passo) {
+      case 's3':
+        return async () => {
+          const c = await m.migrarS3();
+          return { ok: c.checksumsOk, prova: c, frase: `${c.objetos} ficheiros copiados para o MinIO, ${igual(c.checksumsOk)}` };
+        };
+      case 'postgres': {
+        const f = m.migrarPostgres;
+        return f
+          ? async () => {
+              const c = await f();
+              const t = `${c.tabelas} ${c.tabelas === 1 ? 'tabela' : 'tabelas'} e ${c.linhas} linhas`;
+              return { ok: c.checksumsOk, prova: c, frase: `Base de dados: ${t} copiadas para PostgreSQL, ${igual(c.checksumsOk)}` };
+            }
+          : undefined;
+      }
+      case 'fila': {
+        const f = m.migrarFila;
+        return f
+          ? async () => {
+              const c = await f();
+              const t = `${c.mensagens} ${c.mensagens === 1 ? 'mensagem passada' : 'mensagens passadas'}`;
+              return { ok: c.iguais, prova: { mensagens: c.mensagens, checksumsOk: c.iguais }, frase: `Filas: ${t} para o RabbitMQ, ${igual(c.iguais)}` };
+            }
+          : undefined;
+      }
+      case 'segredos': {
+        const f = m.migrarSegredos;
+        return f
+          ? async () => {
+              const c = await f();
+              return {
+                ok: c.iguais,
+                prova: { segredos: c.segredos, checksumsOk: c.iguais },
+                frase: `Segredos: ${c.segredos} passados para o OpenBao sem nunca aparecerem em texto, ${igual(c.iguais)}`,
+              };
+            }
+          : undefined;
+      }
+      case 'cache': {
+        const f = m.migrarCache;
+        return f
+          ? async () => {
+              const c = await f();
+              const t = `${c.chaves} ${c.chaves === 1 ? 'chave copiada' : 'chaves copiadas'}`;
+              return { ok: c.iguais, prova: { chaves: c.chaves, checksumsOk: c.iguais }, frase: `Cache: ${t} para o Valkey, ${igual(c.iguais)}` };
+            }
+          : undefined;
+      }
     }
   }
 
-  /** Terceira aprovação: mensagens do SQS para o RabbitMQ, com prova por contagem e sha256 e os mesmos testes. */
-  async function migrarFilas(): Promise<void> {
-    const texto = [
-      'Passo as mensagens das filas SQS para filas com o mesmo nome num RabbitMQ na Leaseweb.',
-      'Cada mensagem só sai do SQS depois de o RabbitMQ confirmar que a guardou: nenhuma se perde pelo caminho.',
-      'No fim comparo a contagem e a impressão digital (sha256) das mensagens dos dois lados e volto a correr os testes da app contra o RabbitMQ.',
-    ].join('\n');
-    const pedido = await pedirMigracao('fila', 'Passar as filas do SQS para RabbitMQ na Leaseweb', texto, {});
-    if (!pedido) return;
-    try {
-      const copia = await deps.migrador.migrarFila!();
-      const testes = await deps.migrador.verificar();
-      const ok = copia.iguais && testes.antes && testes.depois;
-      deps.estado.mudarEstado(pedido.id, ok ? 'feito' : 'aprovado');
-      auditar({ pedidoId: pedido.id, tipo: ok ? 'feito' : 'erro', quem: 'migrador', depois: { mensagens: copia.mensagens, checksumsOk: copia.iguais, testes } });
-      falar(
-        'migrador',
-        'dono',
-        `Filas: ${copia.mensagens} ${copia.mensagens === 1 ? 'mensagem passada' : 'mensagens passadas'} para o RabbitMQ, checksums ${copia.iguais ? 'iguais' : 'DIFERENTES'}, ` +
-          `testes ${testes.antes && testes.depois ? 'a passar com o RabbitMQ' : 'a falhar: vejam o painel'}.`,
-      );
-    } catch (erro) {
-      await falha('migração das filas', erro);
-    }
+  /** Pedido de um passo coberto pelo "Aprovar plano": nasce aprovado, ligado ao pedido do plano. */
+  function pedidoDoPlano(passo: PassoMigracao, plano: Pedido): Pedido {
+    const pedido: Pedido = {
+      id: deps.defesa.novoIdPedido(),
+      titulo: `Migrar ${NOME_SERVICO[passo]} (plano ${plano.id})`,
+      texto: plano.texto,
+      acao: { tipo: 'migrar', passo },
+      estado: 'aprovado',
+    };
+    deps.estado.guardarPedido(pedido);
+    auditar({ pedidoId: pedido.id, tipo: 'pedido', quem: 'migrador', depois: { passo, plano: plano.id } });
+    auditar({ pedidoId: pedido.id, tipo: 'aprovado', quem: 'migrador', depois: { pelo: plano.id } });
+    return pedido;
   }
 
   /**
    * Pede aprovação para um passo de migração e espera (com limite). Devolve o pedido aprovado, ou undefined.
    * Sem resposta: fecha o pedido, para um clique tardio não arrancar uma migração a meio da demo.
    */
-  async function pedirMigracao(passo: 's3' | 'postgres' | 'fila', titulo: string, texto: string, prova: object): Promise<Pedido | undefined> {
+  async function pedirMigracao(passo: PassoMigracao, titulo: string, texto: string, prova: object): Promise<Pedido | undefined> {
     const pedido: Pedido = { id: deps.defesa.novoIdPedido(), titulo, texto, acao: { tipo: 'migrar', passo }, estado: 'pendente' };
     deps.estado.guardarPedido(pedido);
     auditar({ pedidoId: pedido.id, tipo: 'pedido', quem: 'migrador', depois: prova });
