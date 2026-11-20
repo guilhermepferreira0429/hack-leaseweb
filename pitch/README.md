@@ -1,7 +1,7 @@
 # Pitch · hack-leaseweb
 
 O deck do pitch de 5 minutos (ensaiado para 4:30), em HTML simples: sem build, sem dependências, sem internet.
-São 12 slides: estatísticas e problema primeiro, a demo e o painel ao meio, o antes/depois e o mercado depois, o fecho no fim.
+São 11 slides: a empresa e o problema primeiro, a demo ao meio, o antes/depois e o mercado depois, o fecho no fim. No slide 5 sai-se do deck para o painel real.
 A história segue uma empresa fictícia, a **Encomendas Lusas** (Porto), que é a própria app da demo: os números
 medidos (N, T, X, testes) são os da corrida dela e as estatísticas são reais, com fonte nos anexos.
 Abre-se com **duplo clique em `index.html`** (Chrome ou Edge), carrega-se em **F** para ecrã inteiro e em **P**
@@ -14,7 +14,7 @@ para abrir a vista do apresentador no segundo ecrã. As duas janelas andam junta
 | → · Espaço · PageDown · clique | Avançar um clique |
 | ← · PageUp | Recuar |
 | Shift + → / ← | Slide seguinte / anterior |
-| número + Enter | Ir para o slide (por exemplo `5` Enter para a demo e `6` para o painel) |
+| número + Enter | Ir para o slide (por exemplo `5` Enter para a demo e `6` para o como funciona) |
 | A, depois 1–9 | Anexos. O A9 mostra todas as perguntas do júri de uma vez. As setas param no fecho e nunca entram nos anexos |
 | Esc (num anexo) · End | Voltar ao fecho |
 | O | Vista geral de todos os slides |
@@ -46,12 +46,12 @@ aparecer no clique `n`. O guião desse clique vai em `js/guiao.js` com `passo: n
 ## Antes de subir ao palco
 
 1. `node pitch/tempo.mjs`: o guião a 150 palavras por minuto tem de ficar abaixo dos 4:30.
-2. Às 15:40, tecla **E**: N do `/isco`; T e X depois do ensaio final (ou ao vivo, entre a demo e o slide 7).
+2. Às 15:40, tecla **E**: N do `/isco`; T e X depois do ensaio final (ou ao vivo, entre a demo e o slide 6).
    Uma letra coral sublinhada no slide quer dizer que falta o número.
 3. Recontar os testes e pôr em `js/config.js` (`testes`).
 4. Pôr `plano-b.mp4` ao lado do `index.html` e testar a tecla V.
 5. Com o túnel SSH para o cérebro aberto, testar a tecla D (o painel tem de abrir em `config.painelUrl`).
-6. Ver o painel da demo (slide 6) e o antes/depois (slide 10); confirmar N, T, X e testes com **E**.
+6. Ver a demo real (painel, tecla D) e o antes/depois (slide 9); confirmar os números com **E**.
 
 ## Notas
 
@@ -61,5 +61,5 @@ aparecer no clique `n`. O guião desse clique vai em `js/guiao.js` com `passo: n
   browser bloquear alguma coisa em `file://`.
 - Letras: Geist, Geist Mono e Instrument Serif, SIL Open Font License (`fontes/OFL-*.txt`); Inter e JetBrains Mono ficam como fallback.
 - Avatares do grupo "Board" e dos quatro agentes em `avatares/` (de `docs/material/design/telegram-avatars/`).
-- O painel da demo (slide 6) é um replay scriptado, em três colunas: agentes (com avatares e "thinking now"), serviços migrados e vítima 5432, logs ao vivo; em baixo, o recibo (5/5, testes, 0 segredos) e o "↺ Undo last action". Não precisa do túnel; a tecla D continua a abrir o painel real. Está marcado **REPLAY**, com "press D for the live panel", para não passar por uma segunda demo ao vivo.
-- O desenho original dos slides está em `docs/material/design/pitching.pen` (Pencil, 12 slides na ordem antiga; o painel e o antes/depois são só do deck).
+- Não há painel de mentira no deck: a demo é o painel real em `config.painelUrl` (tecla D). No slide 5 (os 8 passos) sai-se do deck e abre-se o painel; volta-se ao deck no "como funciona". Sem túnel, o slide 5 e o link no ecrã servem de guia, mas a demo não acontece.
+- O desenho original dos slides está em `docs/material/design/pitching.pen` (Pencil, 12 slides na ordem antiga; o antes/depois é só do deck).

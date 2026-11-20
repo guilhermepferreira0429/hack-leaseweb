@@ -1369,3 +1369,5 @@
   font: 700 9px var(--sans);
   letter-spacing: 0.6px;
 }
+
+.demo-link { font: 18px var(--mono); color: var(--faint); margin-top: -24px; }

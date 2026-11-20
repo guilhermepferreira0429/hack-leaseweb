@@ -171,123 +171,7 @@
               })
               .join('')}
           </ol>
-        </div>`;
-      },
-    },
-    {
-      id: 'ao-vivo',
-      titulo: 'Painel da demo',
-      passos: 0,
-      html: (p, v) => {
-        const t = vazio(v.t) ? falta('T') : fmt(v.t);
-        const x = vazio(v.x) ? falta('X') : fmt(v.x);
-        const chain = [
-          ['orchestrator', 'Orchestrator', '12:47:10', "Cycle started. I'll report at every step."],
-          ['migrator', 'Migrator', '12:47:40', 'Migration plan for 5 AWS services, waiting for the owner.'],
-          ['migrator', 'Migrator', '12:48:30', 'Migration complete. Checksums match. Tests pass.'],
-          ['attacker', 'Attacker', '12:48:36', 'Database open to the internet (port 5432). Severity: high.'],
-          ['defender', 'Defender', '12:48:44', 'I propose closing outside access. Undo saved.'],
-          ['attacker', 'Attacker', '12:49:20', 'Re-scan: the port no longer answers.'],
-          ['migrator', 'Migrator', '12:50:12', 'PR opened: 2 files, tests passing.'],
-          ['orchestrator', 'Orchestrator', '12:50:48', `In ${x} min: off AWS, on Leaseweb. Nothing left the EU.`],
-        ];
-        const services = [
-          ['S3 → MinIO', '1,220 objects · checksums ✓'],
-          ['RDS PostgreSQL → PostgreSQL', '5,620 rows · checksums ✓'],
-          ['SQS → RabbitMQ', 'queue drained · tests ✓'],
-          ['Secrets Manager → OpenBao', 'no secret left behind'],
-          ['ElastiCache → Valkey', 'cache warm · TTL kept'],
-        ];
-        const logs = [
-          ['migrator', 'plan: 5 services · 1,220 objects'],
-          ['migrator', 's3 → minio · checksums ✓'],
-          ['migrator', 'postgres → postgresql · checksums ✓'],
-          ['migrator', 'sqs → rabbitmq · queue drained'],
-          ['migrator', 'secrets → openbao · 0 left behind'],
-          ['attacker', 'tcp 5432 open · severity high'],
-          ['defender', 'request: revokeFirewallRules'],
-          ['defender', 'port filtered from outside ✓'],
-          ['attacker', 're-scan: 5432 filtered'],
-          ['attacker', 'probe tcp/22 · ours only'],
-          ['defender', 'inverse saved · 1 click undo'],
-          ['migrator', 'pr: 2 files · tests ✓'],
-          ['orchestrator', `run complete · ${x} min`],
-          ['orchestrator', `tests: ${v.testes ?? 288} passing`],
-          ['orchestrator', 'report → board · audit line written'],
-        ];
-        const cor = (a) => (a === 'attacker' ? 'coral' : a === 'defender' ? 'verde' : a === 'migrator' ? 'azul' : 'muted');
-        return `
-        <div class="vp">
-          <div class="vp-top">
-            <div class="vp-brand">
-              <div class="rotulo">INFRAHACK · LEASEWEB · REPLAY</div>
-              <div class="vp-title">Migrate without being exposed</div>
-              <div class="vp-sub">${conta(v.n, 'N', 0)} attempts on the bait · nothing left the EU.</div>
-              <div class="vp-src">Replay of the 12:47 run · press D for the live panel</div>
-            </div>
-            <div class="vp-clock">
-              <div class="rotulo">TIME EXPOSED</div>
-              <div class="vp-seconds">${conta(v.t, 'T', 200)}<small>s</small></div>
-              <div class="vp-pill vp-in" style="--t:4.8">closed by the owner</div>
-              <div class="vp-undo vp-in" style="--t:5.2">↺ Undo last action</div>
-            </div>
-          </div>
-          <div class="vp-body">
-            <div class="vp-col vp-chain">
-              <div class="vp-cab"><span class="rotulo">AGENT CHAIN</span><span class="mono muted">Board · Telegram</span></div>
-              <div class="vp-think vp-in" style="--t:0.4">
-                <div class="vp-think-k">THINKING NOW</div>
-                <div class="vp-think-t">Preparing the handoff: what changed, why, and the undo.</div>
-              </div>
-              <div class="vp-steps">
-                ${chain
-                  .map(
-                    ([a, name, hora, msg], i) => `
-                  <div class="vp-step vp-in" style="--t:${0.7 + i * 0.55}">
-                    <img class="vp-av" src="avatares/${a}.png" alt="">
-                    <div><div class="vp-step-cab"><b class="${cor(a)}">${name}</b><span class="vp-hora">${hora}</span></div><div class="vp-msg">${msg}</div></div>
-                  </div>`,
-                  )
-                  .join('')}
-              </div>
-            </div>
-            <div class="vp-col vp-services">
-              <div class="vp-cab"><span class="rotulo">SERVICES</span><span class="mono muted">AWS (simulated) → Leaseweb</span></div>
-              <div class="vp-cards">
-                ${services
-                  .map(
-                    ([s, d], i) => `
-                  <div class="vp-card vp-in" style="--t:${0.9 + i * 0.35}">
-                    <div class="vp-card-cab"><b>${s}</b><span class="vp-done">DONE</span></div>
-                    <div class="vp-card-d">${d}</div>
-                  </div>`,
-                  )
-                  .join('')}
-              </div>
-              <div class="vp-victim vp-in" style="--t:3.2">
-                <div class="vp-victim-cab"><span class="rotulo">VICTIM VM</span><span class="coral">5432</span></div>
-                <div class="vp-victim-row"><span class="coral">open</span> <span class="muted">12:48:36</span> <span class="muted">→</span> <span class="verde">closed</span> <span class="muted">12:48:48</span></div>
-                <div class="vp-victim-d">${t} s exposed · rule removed via Leaseweb API · inverse stored</div>
-              </div>
-            </div>
-            <div class="vp-col vp-logs">
-              <div class="vp-cab"><span class="rotulo">LIVE LOGS</span><span class="mono muted">● replay · 12:47</span></div>
-              <div class="vp-tabs"><span>MIGRATOR</span><span>ATTACKER</span><span>DEFENDER</span><span class="on">ORCHESTRATOR</span></div>
-              <div class="vp-terminal">
-                ${logs
-                  .map(
-                    ([a, line], i) => `<div class="vp-log vp-in" style="--t:${1.4 + i * 0.3}"><b class="${cor(a)}">${a}</b><span>${line}</span></div>`,
-                  )
-                  .join('')}
-              </div>
-              <div class="vp-idle vp-in" style="--t:5.3"><span class="vp-cursor">█</span> orchestrator idle · watching for new findings</div>
-              <div class="vp-receipt vp-in" style="--t:5.5">
-                <div class="vp-r"><span>Services migrated</span><b>5 / 5</b></div>
-                <div class="vp-r"><span>Tests passing</span><b>${v.testes ?? 288}</b></div>
-                <div class="vp-r"><span>Secrets left behind</span><b>0</b></div>
-              </div>
-            </div>
-          </div>
+          <div ${E(1, 'demo-link')}>Live panel · ${window.CONFIG?.painelUrl ?? ''} · press D</div>
         </div>`;
       },
     },
@@ -334,7 +218,7 @@
             <li>Closed list of actions</li>
             <li>Every action stores its inverse</li>
             <li>Audit: who · when · before · after</li>
-            <li>Model runs in the EU</li>
+            <li>Models run on European inference</li>
             <li>Attacker only touches our machines</li>
           </ul>
         </div>`,
@@ -352,7 +236,7 @@
             <div class="kpi coral"><div class="numero medio coral">${conta(v.n, 'N', 600)}</div><div class="legenda-p">attacks on the bait</div></div>
             <div class="kpi"><div class="numero medio">${conta(v.testes, '?', 700)}</div><div class="legenda-p">automated tests</div></div>
           </div>
-          <div ${E(7, 'mono muted')}>X, T and N come from the live run. Every action is on the record.</div>
+          <div ${E(7, 'mono muted')}>All measured today, in one run. Every action is on the record.</div>
         </div>`,
     },
     {
@@ -380,7 +264,7 @@
               <div class="bd-k">AFTER</div>
               <div class="bd-linha"><span class="bd-num">${t} s</span><small>to close · measured today</small></div>
               <div class="bd-linha"><span class="bd-num">${x} min</span><small>to leave · measured today</small></div>
-              <div class="bd-linha"><span class="bd-num">1 call</span><small>to undo · open source</small></div>
+              <div class="bd-linha"><span class="bd-num">1 API call</span><small>to undo · open source</small></div>
             </div>
           </div>
           <div ${E(6, 'bd-nota')}>A breach costs $4.99M on average; closing this gap costs one API call. <span class="verde">${conta(v.testes, '?', 0)} tests</span> · audit-ready record.</div>
@@ -408,10 +292,10 @@
       passos: 0,
       html: () => `
         <div class="centro-v fecho">
-          <div ${E(0, 'sub lilas')}>The safe way out of a hyperscaler.</div>
+          <div ${E(0, 'sub lilas')}>Your security team, inside Telegram.</div>
           <div class="frase-xxl">
-            <div ${E(2)}>Leave in minutes.</div>
-            <div ${E(4, 'verde sublinha')}>Close in seconds.</div>
+            <div ${E(2)}>AI explains. You approve.</div>
+            <div ${E(4, 'verde sublinha')}>Closed in seconds.</div>
           </div>
           <div ${E(8, 'pedido-final')}>${rotulo('OUR ASK', 'lilas')}<span>Make this the safe way in to Leaseweb.</span></div>
           <div ${E(10, 'equipa')}>${window.CONFIG.equipa.join(' · ')}</div>
@@ -457,7 +341,7 @@
           <div>${rotulo('DOES', 'verde')}<ul class="lista simples"><li>Explains in plain words</li><li>Classifies the risk</li><li>Writes the report</li></ul></div>
           <div>${rotulo('NEVER', 'lilas')}<ul class="lista simples muted"><li>Runs a command</li><li>Picks the action</li><li>Sees a secret's value</li></ul></div>
         </div>
-        <div class="mono muted">20 s timeout · fixed text if the model fails · the demo never waits for the AI</div>`),
+        <div class="mono muted">European inference (TensorX, sference) · 20 s timeout · fixed text if the model fails</div>`),
     },
     {
       id: 'a-auditoria',
