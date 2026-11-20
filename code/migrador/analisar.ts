@@ -60,21 +60,13 @@ function escreverPlano(servicos: ServicoAws[]): string {
   const lista = servicos.map((s) => NOME_AWS[s]);
   const encontrados = lista.length === 1 ? lista[0] : `${lista.slice(0, -1).join(', ')} and ${lista.at(-1)}`;
   const passos = servicos.map((s) => `${CURTO[s]} → ${ALTERNATIVA[s]}`);
-  const fica = [
-    servicos.includes('fila')
-      ? 'Files and data stay untouched on AWS; the queue messages move to RabbitMQ.'
-      : 'Nothing is deleted on AWS.',
-    servicos.includes('segredos') ? 'Passwords never appear in plain text: only their fingerprints are compared.' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  // Curto de propósito: 3 linhas no grupo. O detalhe (o que fica na AWS, segredos, testes) vai no certificado e no painel.
   return [
     `I found ${servicos.length === 1 ? 'one AWS service' : `${servicos.length} AWS services`} in the app: ${encontrados}.`,
     passos.length > 1
-      ? `I propose moving them to Leaseweb, in the EU, one step at a time, with a single approval from you: ${passos.join(', ')}.`
-      : `I propose moving it to Leaseweb, in the EU, with your approval: ${passos.join(', ')}.`,
-    `Every copy comes with proof: same count and same fingerprint (sha256) on both sides. ${fica}`,
-    'At the end I run the same app tests against AWS and against Leaseweb.',
+      ? `I propose moving them to Leaseweb (EU), with one approval: ${passos.join(', ')}.`
+      : `I propose moving it to Leaseweb (EU), with your approval: ${passos.join(', ')}.`,
+    'Each copy is checksum-verified (count + sha256) and the app tests run on both sides.',
   ].join('\n');
 }
 
