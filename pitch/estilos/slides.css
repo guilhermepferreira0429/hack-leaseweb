@@ -1101,3 +1101,82 @@
   color: var(--faint);
 
 }
+
+/* ---------- antes e depois ---------- */
+.bd {
+  gap: 28px;
+}
+.bd-cab {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bd-grelha {
+  display: grid;
+  grid-template-columns: 1fr 70px 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+.bd-col {
+  background: var(--fundo-2);
+  border: 1px solid var(--linha);
+  border-radius: 18px;
+  padding: 26px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.bd-col.antes {
+  border-color: color-mix(in srgb, var(--coral) 35%, var(--linha));
+}
+.bd-col.depois {
+  border-color: color-mix(in srgb, var(--verde) 35%, var(--linha));
+}
+.bd-k {
+  font: 13px var(--mono);
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+.bd-linha {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid var(--linha);
+  padding-top: 10px;
+}
+.bd-num {
+  font-family: var(--serif);
+  font-size: 72px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.bd-col.antes .bd-num {
+  color: var(--coral);
+}
+.bd-col.depois .bd-num {
+  color: var(--verde);
+}
+.bd-linha small {
+  font: 13px var(--mono);
+  color: var(--muted);
+}
+.bd-seta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 36px var(--mono);
+  color: var(--faint);
+}
+.bd-fonte {
+  font: 18px var(--mono);
+  color: var(--muted);
+  margin-top: 18px;
+  line-height: 1.35;
+}
+.bd-nota {
+  font-size: 22px;
+  color: var(--muted);
+}
+.bd-nota .verde {
+  color: var(--verde);
+}

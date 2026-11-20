@@ -48,17 +48,31 @@
         </div>`,
     },
     {
-      id: 'pedido',
-      titulo: 'O pedido',
-      passos: 0,
-      html: () => `
-        <div class="centro-v">
-          ${rotulo('OUR ASK', 'lilas', E(0))}
-          <div class="frase-xl">
-            <div ${E(1)}>Leave a hyperscaler</div>
-            <div ${E(2)}><span class="verde">in minutes,</span> <span class="riscado">not months.</span></div>
+      id: 'problema',
+      titulo: 'O problema (49%)',
+      passos: 1,
+      html: (p) => `
+        <div class="problema">
+          <div class="problema-cima">
+            <div ${E(1, 'numero gigante coral')}>${conta(49, '?', 200)}<small>%</small></div>
+            <div class="problema-texto">
+              ${rotulo('SANS CLOUD SECURITY SURVEY · 2026', 'muted', E(0))}
+              <div ${E(2, 'legenda')}>of companies need more than a day to close a critical gap they already know about.</div>
+              <div ${E(3, 'bd-fonte')}>45% of incidents start with misconfiguration <span class="muted">(SANS 2026)</span> · 55% need &gt; 3 months to leave <span class="muted">(Leaseweb 2026)</span></div>
+            </div>
           </div>
-          <div ${E(7, 'sub')}>Safely. Proven live on Leaseweb, in the next four minutes.</div>
+          <div class="barras">
+            <div ${E(4, 'barra-linha' + recua(p, 1))}>
+              <span class="barra-rotulo">Known critical gap</span>
+              <div class="barra-pista"><div class="barra coral longa"></div></div>
+              <span class="barra-valor coral">&gt; 24 h</span>
+            </div>
+            <div ${ap(p, 1, 'barra-linha')}>
+              <span class="barra-rotulo verde">Today, live</span>
+              <div class="barra-pista"><div class="barra verde curta"></div><span class="faisca"></span></div>
+              <span class="barra-valor verde">seconds</span>
+            </div>
+          </div>
         </div>`,
     },
     {
@@ -78,33 +92,6 @@
           <div class="verbos">migrate · secure · fix · prove</div>
         </div>`;
       },
-    },
-    {
-      id: 'problema',
-      titulo: 'O problema (49%)',
-      passos: 1,
-      html: (p) => `
-        <div class="problema">
-          <div class="problema-cima">
-            <div ${E(1, 'numero gigante coral')}>${conta(49, '?', 200)}<small>%</small></div>
-            <div class="problema-texto">
-              ${rotulo('SANS CLOUD SECURITY SURVEY · 2026', 'muted', E(0))}
-              <div ${E(2, 'legenda')}>of companies need more than a day to close a critical gap they already know about.</div>
-            </div>
-          </div>
-          <div class="barras">
-            <div ${E(4, 'barra-linha' + recua(p, 1))}>
-              <span class="barra-rotulo">Known critical gap</span>
-              <div class="barra-pista"><div class="barra coral longa"></div></div>
-              <span class="barra-valor coral">&gt; 24 h</span>
-            </div>
-            <div ${ap(p, 1, 'barra-linha')}>
-              <span class="barra-rotulo verde">Today, live</span>
-              <div class="barra-pista"><div class="barra verde curta"></div><span class="faisca"></span></div>
-              <span class="barra-valor verde">seconds</span>
-            </div>
-          </div>
-        </div>`,
     },
     {
       id: 'para-quem',
@@ -175,112 +162,6 @@
           </ol>
         </div>`;
       },
-    },
-    {
-      id: 'tracao',
-      titulo: 'Tração de hoje',
-      passos: 0,
-      html: (p, v) => `
-        <div class="centro-v">
-          <div ${E(0, 'titulo')}>Built today. Measured today.</div>
-          <div class="placar escada">
-            <div class="kpi"><div class="numero medio">${conta(v.x, 'X', 400)}<small> min</small></div><div class="legenda-p">from a hyperscaler to Leaseweb</div></div>
-            <div class="kpi verde"><div class="numero medio verde">${conta(v.t, 'T', 500)}<small> s</small></div><div class="legenda-p">exposed. Not a day.</div></div>
-            <div class="kpi coral"><div class="numero medio coral">${conta(v.n, 'N', 600)}</div><div class="legenda-p">attacks on the bait</div></div>
-            <div class="kpi"><div class="numero medio">${conta(v.testes, '?', 700)}</div><div class="legenda-p">automated tests</div></div>
-          </div>
-          <div ${E(7, 'mono muted')}>X, T and N come from the live run. Every action is on the record.</div>
-        </div>`,
-    },
-    {
-      id: 'como-funciona',
-      titulo: 'Como funciona',
-      passos: 0,
-      html: () => `
-        <div class="centro-v">
-          <div ${E(0, 'titulo')}>Four agents. One flow.</div>
-          <div class="fluxo escada">
-            ${[
-              ['Migrator', 'translates, in code', 'azul'],
-              ['Attacker', 'tests the new doors', 'coral'],
-              ['Defense', 'explains, proposes', 'verde'],
-              ['You', 'approve in Telegram', 'tu'],
-              ['Leaseweb API', 'closes, verifies', 'verde'],
-            ]
-              .map(([t, d, c]) => `<div class="no ${c}"><div class="t">${t}</div><div class="d">${d}</div></div>`)
-              .join('<span class="seta">→</span>')}
-          </div>
-          <div class="camadas">
-            <div ${E(10, 'camada')}><span class="rotulo">YOUR SERVER · SELF-HOSTED</span><span>MinIO · PostgreSQL · RabbitMQ · OpenBao · Valkey</span></div>
-            <div ${E(11, 'camada')}><span class="rotulo verde">PROVIDER · LEASEWEB API</span><span class="mono"><b class="verde">One call</b> closes a door. <b class="azul">One call</b> opens it again. Seconds, measured today.</span></div>
-          </div>
-        </div>`,
-    },
-    {
-      id: 'salvaguardas',
-      titulo: 'Salvaguardas',
-      passos: 0,
-      html: () => `
-        <div class="lado-a-lado">
-          <div class="frase-xl empilhada">
-            <div ${E(0)}>AI writes.</div>
-            <div ${E(2, 'verde')}>Code acts.</div>
-            <div ${E(4, 'lilas')}>You approve.</div>
-          </div>
-          <ul class="lista escada atrasada">
-            <li>Closed list of actions</li>
-            <li>Every action stores its inverse</li>
-            <li>Audit: who · when · before · after</li>
-            <li>Model runs in the EU</li>
-            <li>Attacker only touches our machines</li>
-          </ul>
-        </div>`,
-    },
-    {
-      id: 'a-seguir',
-      titulo: 'O que vem a seguir',
-      passos: 0,
-      html: () => `
-        <div class="centro-v">
-          ${rotulo('NEXT · NOT BUILT YET', 'lilas', E(0))}
-          <div ${E(1, 'titulo')}>Same flow. Any provider.</div>
-          <div class="proximos escada atrasada">
-            <div class="proximo-item"><div class="t">More providers</div><div class="d">Hostinger, OVHcloud: one adapter each, same operations</div></div>
-            <div class="proximo-item"><div class="t">Your own machine</div><div class="d">over SSH, everything self-hosted, host firewall</div></div>
-            <div class="proximo-item"><div class="t">Regulated reports</div><div class="d">the record shaped for NIS2 and DORA notifications</div></div>
-          </div>
-        </div>`,
-    },
-    {
-      id: 'mercado',
-      titulo: 'O mercado (73%)',
-      passos: 1,
-      html: (p) => `
-        <div class="lado-a-lado mercado">
-          <div class="estat">
-            ${rotulo('LEASEWEB DIGITAL INDEPENDENCE SURVEY · 2026', 'muted', E(0))}
-            <div ${E(1, 'numero gigante verde')}>${conta(73, '?', 200)}<small>%</small></div>
-            <div ${E(2, 'legenda')}>would pay at least 11% more<br>for infrastructure independence.</div>
-            <div ${ap(p, 1, 'nl')}><span class="numero medio lilas">${p >= 1 ? conta(81) : '81'}<small>%</small></span><span class="legenda-p">in the Netherlands</span></div>
-          </div>
-          <div ${E(2)}>${pontos(73, p >= 1 ? 8 : 0)}</div>
-        </div>`,
-    },
-    {
-      id: 'fecho',
-      titulo: 'Fecho e pedido',
-      passos: 0,
-      html: () => `
-        <div class="centro-v fecho">
-          <div ${E(0, 'sub lilas')}>The safe way out of a hyperscaler.</div>
-          <div class="frase-xxl">
-            <div ${E(2)}>Leave in minutes.</div>
-            <div ${E(4, 'verde sublinha')}>Close in seconds.</div>
-          </div>
-          <div ${E(8, 'pedido-final')}>${rotulo('OUR ASK', 'lilas')}<span>Make this the safe way in to Leaseweb.</span></div>
-          <div ${E(10, 'equipa')}>${window.CONFIG.equipa.join(' · ')}</div>
-          <div ${E(11, 'mono muted')}>${window.CONFIG.repo} · Apache 2.0</div>
-        </div>`,
     },
     {
       id: 'ao-vivo',
@@ -366,6 +247,130 @@
         </div>`;
       },
     },
+    {
+      id: 'como-funciona',
+      titulo: 'Como funciona',
+      passos: 0,
+      html: () => `
+        <div class="centro-v">
+          <div ${E(0, 'titulo')}>Four agents. One flow.</div>
+          <div class="fluxo escada">
+            ${[
+              ['Migrator', 'translates, in code', 'azul'],
+              ['Attacker', 'tests the new doors', 'coral'],
+              ['Defense', 'explains, proposes', 'verde'],
+              ['You', 'approve in Telegram', 'tu'],
+              ['Leaseweb API', 'closes, verifies', 'verde'],
+            ]
+              .map(([t, d, c]) => `<div class="no ${c}"><div class="t">${t}</div><div class="d">${d}</div></div>`)
+              .join('<span class="seta">→</span>')}
+          </div>
+          <div class="camadas">
+            <div ${E(10, 'camada')}><span class="rotulo">YOUR SERVER · SELF-HOSTED</span><span>MinIO · PostgreSQL · RabbitMQ · OpenBao · Valkey</span></div>
+            <div ${E(11, 'camada')}><span class="rotulo verde">PROVIDER · LEASEWEB API</span><span class="mono"><b class="verde">One call</b> closes a door. <b class="azul">One call</b> opens it again. Seconds, measured today.</span></div>
+          </div>
+        </div>`,
+    },
+    {
+      id: 'salvaguardas',
+      titulo: 'Salvaguardas',
+      passos: 0,
+      html: () => `
+        <div class="lado-a-lado">
+          <div class="frase-xl empilhada">
+            <div ${E(0)}>AI writes.</div>
+            <div ${E(2, 'verde')}>Code acts.</div>
+            <div ${E(4, 'lilas')}>You approve.</div>
+          </div>
+          <ul class="lista escada atrasada">
+            <li>Closed list of actions</li>
+            <li>Every action stores its inverse</li>
+            <li>Audit: who · when · before · after</li>
+            <li>Model runs in the EU</li>
+            <li>Attacker only touches our machines</li>
+          </ul>
+        </div>`,
+    },
+    {
+      id: 'tracao',
+      titulo: 'Tração de hoje',
+      passos: 0,
+      html: (p, v) => `
+        <div class="centro-v">
+          <div ${E(0, 'titulo')}>Built today. Measured today.</div>
+          <div class="placar escada">
+            <div class="kpi"><div class="numero medio">${conta(v.x, 'X', 400)}<small> min</small></div><div class="legenda-p">from a hyperscaler to Leaseweb</div></div>
+            <div class="kpi verde"><div class="numero medio verde">${conta(v.t, 'T', 500)}<small> s</small></div><div class="legenda-p">exposed. Not a day.</div></div>
+            <div class="kpi coral"><div class="numero medio coral">${conta(v.n, 'N', 600)}</div><div class="legenda-p">attacks on the bait</div></div>
+            <div class="kpi"><div class="numero medio">${conta(v.testes, '?', 700)}</div><div class="legenda-p">automated tests</div></div>
+          </div>
+          <div ${E(7, 'mono muted')}>X, T and N come from the live run. Every action is on the record.</div>
+        </div>`,
+    },
+    {
+      id: 'antes-depois',
+      titulo: 'Antes e depois',
+      passos: 0,
+      html: (p, v) => {
+        const t = vazio(v.t) ? falta('T') : fmt(v.t);
+        const x = vazio(v.x) ? falta('X') : fmt(v.x);
+        return `
+        <div class="centro-v bd">
+          <div class="bd-cab">
+            <div class="rotulo">TIME · COST · RISK</div>
+            <div ${E(0, 'titulo')}>Before. After.</div>
+          </div>
+          <div class="bd-grelha">
+            <div ${E(1, 'bd-col antes')}>
+              <div class="bd-k">BEFORE</div>
+              <div class="bd-linha"><span class="bd-num">&gt; 24 h</span><small>to close a critical gap · 49%</small></div>
+              <div class="bd-linha"><span class="bd-num">&gt; 3 months</span><small>to leave a provider · 55%</small></div>
+              <div class="bd-linha"><span class="bd-num">$4.99M</span><small>average breach cost · IBM 2026</small></div>
+            </div>
+            <div class="bd-seta">→</div>
+            <div ${E(3, 'bd-col depois')}>
+              <div class="bd-k">AFTER</div>
+              <div class="bd-linha"><span class="bd-num">${t} s</span><small>to close · measured today</small></div>
+              <div class="bd-linha"><span class="bd-num">${x} min</span><small>to leave · measured today</small></div>
+              <div class="bd-linha"><span class="bd-num">1 call</span><small>to undo · open source</small></div>
+            </div>
+          </div>
+          <div ${E(6, 'bd-nota')}>A breach costs $4.99M on average; closing this gap costs one API call. <span class="verde">${conta(v.testes, '?', 0)} tests</span> · audit-ready record.</div>
+        </div>`;
+      },
+    },
+    {
+      id: 'mercado',
+      titulo: 'O mercado (73%)',
+      passos: 1,
+      html: (p) => `
+        <div class="lado-a-lado mercado">
+          <div class="estat">
+            ${rotulo('LEASEWEB DIGITAL INDEPENDENCE SURVEY · 2026', 'muted', E(0))}
+            <div ${E(1, 'numero gigante verde')}>${conta(73, '?', 200)}<small>%</small></div>
+            <div ${E(2, 'legenda')}>would pay at least 11% more<br>for infrastructure independence.</div>
+            <div ${ap(p, 1, 'nl')}><span class="numero medio lilas">${p >= 1 ? conta(81) : '81'}<small>%</small></span><span class="legenda-p">in the Netherlands</span></div>
+          </div>
+          <div ${E(2)}>${pontos(73, p >= 1 ? 8 : 0)}</div>
+        </div>`,
+    },
+    {
+      id: 'fecho',
+      titulo: 'Fecho e pedido',
+      passos: 0,
+      html: () => `
+        <div class="centro-v fecho">
+          <div ${E(0, 'sub lilas')}>The safe way out of a hyperscaler.</div>
+          <div class="frase-xxl">
+            <div ${E(2)}>Leave in minutes.</div>
+            <div ${E(4, 'verde sublinha')}>Close in seconds.</div>
+          </div>
+          <div ${E(8, 'pedido-final')}>${rotulo('OUR ASK', 'lilas')}<span>Make this the safe way in to Leaseweb.</span></div>
+          <div ${E(10, 'equipa')}>${window.CONFIG.equipa.join(' · ')}</div>
+          <div ${E(11, 'mono muted')}>${window.CONFIG.repo} · Apache 2.0</div>
+        </div>`,
+    },
+
   ];
 
   const anexo = (codigo, titulo, corpo) => ({
