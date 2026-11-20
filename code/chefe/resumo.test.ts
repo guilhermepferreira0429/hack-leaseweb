@@ -27,7 +27,8 @@ const ev = (pedidoId: string, tipo: string, segundo: number, depois?: unknown): 
 
 describe('chefe/resumir', () => {
   it('fluxo da demo: migração feita e uma falha fechada, com tempos reais', () => {
-    const eventos = [ev('m1', 'pedido', 0), ev('m1', 'feito', 5, { objetos: 12, checksumsOk: true }), ev('a1', 'pedido', 10), ev('a1', 'aprovado', 30), ev('a1', 'feito', 50)];
+    const fecho = { ...ev('a1', 'feito', 50), inverso: { tipo: 'criar_regra' as const, securityGroupId: 'sg', regra: { protocol: 'TCP', source: '0.0.0.0/0', startPort: 5432, endPort: 5432 } } };
+    const eventos = [ev('m1', 'pedido', 0), ev('m1', 'feito', 5, { objetos: 12, checksumsOk: true }), ev('a1', 'pedido', 10), ev('a1', 'aprovado', 30), fecho];
     const texto = resumir(eventos, [migrar('feito'), fechar('a1', 'feito')]);
     assert.match(texto, /Migração concluída: 12 ficheiros, checksums iguais/);
     assert.match(texto, /1 falha encontrada e fechada em 40 segundos\./);
@@ -51,6 +52,7 @@ describe('chefe/resumir', () => {
     const texto = resumir([], [migrar('feito'), fechar('a1', 'feito')]);
     assert.doesNotMatch(texto, /\d+ ficheiros/);
     assert.match(texto, /1 falha encontrada e fechada\./);
+    assert.doesNotMatch(texto, /inverso guardado/, 'sem inverso na auditoria não se promete desfazer');
   });
 });
 

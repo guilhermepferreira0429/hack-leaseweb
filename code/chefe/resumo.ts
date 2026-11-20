@@ -62,7 +62,8 @@ export function resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string {
     linhaMigracao(pedidos, eventos),
     linhaDefesa(pedidos, eventos),
     erros > 0 ? `Houve ${plural(erros, 'problema', 'problemas')} pelo caminho; estão no painel.` : undefined,
-    'Cada alteração tem o inverso guardado na auditoria.',
+    // Só se diz se for verdade: pelo menos um inverso registado na auditoria.
+    eventos.some((e) => e.inverso) ? 'Cada alteração tem o inverso guardado na auditoria.' : undefined,
   ]
     .filter(Boolean)
     .join(' ');
