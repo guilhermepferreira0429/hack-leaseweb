@@ -21,7 +21,7 @@ screens with a different UI.
 
 ## Placeholders already referenced in the docs
 
-All rows below are **in development** until captured.
+Captured on 2026-11-20 (from a live run): `telegram-group.png`, `attack-detection.png`, `certificate.png`, `painel-timeline.png`, `painel-palco.png`, `demo-poster.png`. Still pending: `demo.mp4`. Public IPs and firewall-rule IDs were redacted.
 
 | File                              | Must show                                                                                                                                                                                                                                                                                               | Used in                        | Suggested section and caption               | Notes                                                                                                                                                                             |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

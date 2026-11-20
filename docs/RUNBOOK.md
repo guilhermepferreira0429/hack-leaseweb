@@ -89,7 +89,7 @@ phase.
 
 ![The jury screen at /palco](docs/media/painel-palco.png)
 
-_The `/palco` screen during a run. **In development** — screenshot to be captured._
+_The `/palco` screen during a run._
 
 ## 4. Watch the migration
 
@@ -133,7 +133,7 @@ The Attacker waits for the decision between rounds. That is why the SSH step usu
 
 ![The attack and the detection](docs/media/attack-detection.png)
 
-_The attack-to-detection moment. **In development** — screenshot to be captured._
+_The attack-to-detection moment._
 
 ## 6. Close and verify
 
@@ -162,8 +162,7 @@ time; check the dashboard and the API state.
 
 ![The dashboard after the close](docs/media/painel-timeline.png)
 
-_The engineering view at `/` after the close: stopped clock, proofs and Undo. **In development** — screenshot to
-be captured._
+_The engineering view at `/` after the close: stopped clock, proofs and Undo._
 
 ## 7. Check the attack continued safely
 

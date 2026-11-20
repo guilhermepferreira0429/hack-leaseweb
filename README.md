@@ -44,7 +44,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the internals.
 
 ![The Telegram group "Direção" during the incident](docs/media/telegram-group.png)
 
-_The four agents and the owner during the incident. **In development** — screenshot to be captured; see the
+_The four agents and the owner during the incident. See the
 [media shot list](docs/media/SHOTLIST.md)._
 
 [![Watch the demo](docs/media/demo-poster.png)](docs/media/demo.mp4)
@@ -150,7 +150,7 @@ from outside.
 
 ![The migration certificate](docs/media/certificate.png)
 
-_The certificate at `/certificado`. **In development** — screenshot to be captured._
+_The migration certificate, as posted to the team group in English._
 
 ## The four agents
 
@@ -197,7 +197,7 @@ The dashboard listens on `127.0.0.1:3000` by default (reach it over an SSH tunne
 
 ![The dashboard timeline](docs/media/painel-timeline.png)
 
-_The engineering view at `/`. **In development** — screenshot to be captured._
+_The engineering view at `/`, right after the port is closed._
 
 ## Safety and responsible use
 
