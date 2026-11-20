@@ -43,11 +43,15 @@ export interface Dependencias {
     verificar(): Promise<{ antes: boolean; depois: boolean }>;
     /** Nível B: RDS PostgreSQL -> PostgreSQL na Leaseweb, com prova por tabela. */
     migrarPostgres?(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolean }>;
+    /** SQS -> RabbitMQ na Leaseweb, com prova por contagem e sha256 das mensagens. */
+    migrarFila?(): Promise<{ mensagens: number; iguais: boolean }>;
     /** Resumo do tradutor AWS (Terraform) -> Leaseweb, só plano. undefined = não há configuração AWS para traduzir. */
     planoInfra?(): Promise<string | undefined>;
     /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
     planoDestino?(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<string | undefined>;
   };
+  /** Voz dos agentes: resposta em texto, no papel do agente, a partir do estado. Opcional. */
+  voz?: { responder(agente: Agente, pergunta: string, estado: string): Promise<string> };
   chefe: {
     resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
     estadoAtual(pedidos: Pedido[]): string;
@@ -132,6 +136,10 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
 
   /** Respostas que chegaram antes de alguém estar à espera (o dono pode ser mais rápido do que o fluxo). */
   const antecipados = new Map<string, Resultado>();
+
+  /** A auditoria acumula todos os ensaios do dia: o chefe e a voz só falam do ciclo atual. */
+  let inicioCiclo = hora();
+  const doCiclo = () => lerAuditoria().filter((e) => e.hora >= inicioCiclo);
 
   function esperarResultado(pedidoId: string): Promise<Resultado> {
     const ja = antecipados.get(pedidoId);
@@ -235,8 +243,21 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       }
       return;
     }
-    // TODO 13:30 (voz dos agentes): responder com o LLM no papel de `agente`.
-    log(`mensagem do dono para ${agente ?? 'ninguém'} sem comando: ${t.slice(0, 80)}`);
+    // Voz dos agentes: só responde a quem foi chamado (privado ou com menção); no grupo sem menção, cala-se.
+    if (!agente || !deps.voz || !t) {
+      log(`mensagem do dono para ${agente ?? 'ninguém'} sem comando: ${t.slice(0, 80)}`);
+      return;
+    }
+    const pedidos = deps.estado.listarPedidos();
+    let estadoTexto = deps.chefe.estadoAtual(pedidos);
+    try {
+      estadoTexto += `
+
+${deps.chefe.resumir(doCiclo(), pedidos)}`;
+    } catch (erro) {
+      log('resumo para a voz falhou:', mensagem(erro));
+    }
+    falar(agente, 'dono', await deps.voz.responder(agente, t, estadoTexto));
   }
 
   // ---------- fases ----------
@@ -293,6 +314,7 @@ ${resumo}`);
     );
 
     if (servicos.includes('postgres') && deps.migrador.migrarPostgres) await migrarBaseDados();
+    if (servicos.includes('fila') && deps.migrador.migrarFila) await migrarFilas();
   }
 
   /** Nível B: segunda aprovação, cópia da base de dados com prova por tabela e os mesmos testes outra vez. */
@@ -318,6 +340,32 @@ ${resumo}`);
       );
     } catch (erro) {
       await falha('migração da base de dados', erro);
+    }
+  }
+
+  /** Terceira aprovação: mensagens do SQS para o RabbitMQ, com prova por contagem e sha256 e os mesmos testes. */
+  async function migrarFilas(): Promise<void> {
+    const texto = [
+      'Passo as mensagens das filas SQS para filas com o mesmo nome num RabbitMQ na Leaseweb.',
+      'Cada mensagem só sai do SQS depois de o RabbitMQ confirmar que a guardou: nenhuma se perde pelo caminho.',
+      'No fim comparo a contagem e a impressão digital (sha256) das mensagens dos dois lados e volto a correr os testes da app contra o RabbitMQ.',
+    ].join('\n');
+    const pedido = await pedirMigracao('fila', 'Passar as filas do SQS para RabbitMQ na Leaseweb', texto, {});
+    if (!pedido) return;
+    try {
+      const copia = await deps.migrador.migrarFila!();
+      const testes = await deps.migrador.verificar();
+      const ok = copia.iguais && testes.antes && testes.depois;
+      deps.estado.mudarEstado(pedido.id, ok ? 'feito' : 'aprovado');
+      auditar({ pedidoId: pedido.id, tipo: ok ? 'feito' : 'erro', quem: 'migrador', depois: { mensagens: copia.mensagens, checksumsOk: copia.iguais, testes } });
+      falar(
+        'migrador',
+        'dono',
+        `Filas: ${copia.mensagens} ${copia.mensagens === 1 ? 'mensagem passada' : 'mensagens passadas'} para o RabbitMQ, checksums ${copia.iguais ? 'iguais' : 'DIFERENTES'}, ` +
+          `testes ${testes.antes && testes.depois ? 'a passar com o RabbitMQ' : 'a falhar: vejam o painel'}.`,
+      );
+    } catch (erro) {
+      await falha('migração das filas', erro);
     }
   }
 
@@ -392,8 +440,7 @@ ${resumo}`);
 
   async function correr(): Promise<void> {
     // A auditoria acumula todos os ensaios do dia: o chefe só fala deste ciclo.
-    const inicioCiclo = hora();
-    const doCiclo = () => lerAuditoria().filter((e) => e.hora >= inicioCiclo);
+    inicioCiclo = hora();
     if (opcoes.migrar) await faseMigrar().catch((e) => falha('migração', e));
     // Daqui em diante a infraestrutura nova conta como "no ar": é o início do relógio de exposição (ideia wow 2).
     auditar({ pedidoId: '-', tipo: 'infra-no-ar', quem: 'orquestrador' });

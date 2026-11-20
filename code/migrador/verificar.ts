@@ -1,9 +1,10 @@
 // Mesmos testes da exemplo-app dos dois lados: antes (LocalStack + Postgres de origem) e depois
-// (Leaseweb: MinIO e, se já foi migrado, o Postgres de destino).
+// (Leaseweb: MinIO e, se já foram migrados, o Postgres de destino e o RabbitMQ).
 // Corre os testes de code/exemplo-app/testes num processo à parte, com as variáveis de cada ambiente.
 // VERIFICACAO_ESTRITA=1: com a infraestrutura em baixo ou sem dados, os testes falham em vez de saltar.
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
+import * as amqp from 'amqplib';
 import pg from 'pg';
 import { envDaApp, lerAmbienteMigrador, lerPostgres, RAIZ_REPO } from './ambiente';
 import { sondarArmazenamento } from './migrar-dados';
@@ -63,21 +64,48 @@ async function postgresMigrado(): Promise<string | undefined> {
   }
 }
 
+/** URL do RabbitMQ se a fila da app já foi migrada (o RabbitMQ responde e tem a fila). */
+async function filaMigrada(): Promise<string | undefined> {
+  const url = process.env.RABBITMQ_URL?.trim();
+  if (!url || url.includes('<senha>')) return undefined; // nível B não configurado
+  const nome = process.env.FILA_NOME?.trim() || 'encomendas-criadas';
+  let modelo: amqp.ChannelModel | undefined;
+  try {
+    modelo = await amqp.connect(url, { timeout: 3000 });
+    modelo.on('error', () => {});
+    const canal = await modelo.createChannel();
+    canal.on('error', () => {});
+    await canal.checkQueue(nome); // falha (404) se a fila não existe
+    return url;
+  } catch {
+    return undefined;
+  } finally {
+    await modelo?.close().catch(() => {});
+  }
+}
+
 /** Versão com o resumo de cada lado (para o CLI e logs). */
 export async function verificarDetalhado(): Promise<{
   antes: ResultadoTestes;
   depois: ResultadoTestes;
   /** Serviços que, no "depois", já estão na Leaseweb. */
-  naLeaseweb: ('s3' | 'postgres')[];
+  naLeaseweb: ('s3' | 'postgres' | 'fila')[];
 }> {
   await sondarArmazenamento();
   const amb = lerAmbienteMigrador();
-  const pgDestino = await postgresMigrado();
-  const depoisEnv = { ...envDaApp(amb.destino, amb.bucket), ...(pgDestino ? { DATABASE_URL: pgDestino } : {}) };
+  const [pgDestino, rabbitmq] = await Promise.all([postgresMigrado(), filaMigrada()]);
+  const depoisEnv = {
+    ...envDaApp(amb.destino, amb.bucket),
+    ...(pgDestino ? { DATABASE_URL: pgDestino } : {}),
+    ...(rabbitmq ? { FILA_TIPO: 'rabbitmq', RABBITMQ_URL: rabbitmq } : {}),
+  };
   // Em sequência: os dois lados podem partilhar a base de dados e a fila.
-  const antes = await correrTestes(envDaApp(amb.origem, amb.bucket));
+  const antes = await correrTestes({ ...envDaApp(amb.origem, amb.bucket), FILA_TIPO: 'sqs' });
   const depois = await correrTestes(depoisEnv);
-  return { antes, depois, naLeaseweb: pgDestino ? ['s3', 'postgres'] : ['s3'] };
+  const naLeaseweb: ('s3' | 'postgres' | 'fila')[] = ['s3'];
+  if (pgDestino) naLeaseweb.push('postgres');
+  if (rabbitmq) naLeaseweb.push('fila');
+  return { antes, depois, naLeaseweb };
 }
 
 export async function verificar(): Promise<{ antes: boolean; depois: boolean }> {

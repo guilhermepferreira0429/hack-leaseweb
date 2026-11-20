@@ -84,7 +84,13 @@ desfazer(pedidoId: string, avisar?: (texto: string) => Promise<void>): Promise<v
 analisar(dirApp: string): Promise<{ servicos: ('s3' | 'postgres' | 'fila')[]; plano: string }>
 migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }>
 migrarPostgres(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolean }>  // nível B, prova por tabela
+migrarFila(): Promise<{ mensagens: number; iguais: boolean }>  // nível B, SQS -> RabbitMQ: confirma e só depois apaga no SQS
 verificar(): Promise<{ antes: boolean; depois: boolean }>   // mesmos testes nos dois lados
+
+// migrador/codigo.ts  (migrador de código; entrega sempre um PR)
+encontrarUsosAws(dirApp: string): Promise<{ ficheiro: string; linha: number; servico: 's3' | 'postgres' | 'fila' | 'outro'; trecho: string }[]>
+proporAlteracao(usos: ReturnType<typeof encontrarUsosAws>): Promise<{ ficheiros: string[]; diff: string }>   // regras validam que só mudam as linhas esperadas
+abrirPR(alteracao: { ficheiros: string[]; diff: string }, motivo: string): Promise<{ url: string; numero: number }>  // nunca push direto para main
 ```
 
 ```ts

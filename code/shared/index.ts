@@ -2,6 +2,7 @@ export * from './tipos';
 export * from './config';
 export * from './stub';
 export * from './llm';
+export * from './voz';
 export type { Agente, Mensagem } from './bus';
 export * as bus from './bus';
 export * as leaseweb from './leaseweb';

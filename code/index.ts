@@ -4,13 +4,14 @@
 //   npm run dev -- --sem-atacante       corte 2: a defesa lê só os security groups pela API
 //   npm run dev -- --consola            o terminal faz de Telegram (ensaio e plano B); aprova-se com "s"
 //   npm run dev -- --uma-vez            sai no fim do ciclo (para ensaios), em vez de ficar à escuta
+//   npm run dev -- --sem-fila           salta o passo SQS -> RabbitMQ (se o contentor rabbitmq não estiver no ar)
 // A lógica está em orquestrador.ts; aqui só se ligam os módulos reais.
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { auditoria, bus, estado, telegram } from '@mwbe/shared';
+import { auditoria, bus, estado, responderComoAgente, telegram } from '@mwbe/shared';
 import * as defesa from '@mwbe/defesa';
 import { carregarAllowlist, reconhecer } from '@mwbe/atacante';
-import { analisar, migrarPostgres, migrarS3, verificar } from '@mwbe/migrador';
+import { analisar, migrarFila, migrarPostgres, migrarS3, verificar } from '@mwbe/migrador';
 import { certificado, estadoAtual, resumir } from '@mwbe/chefe';
 import { iniciarPainel } from '@mwbe/painel';
 import { decidirDestino, mensagemDestino, resumoPlano, traduzir } from './migrador/tradutor/index';
@@ -70,7 +71,8 @@ async function main(): Promise<void> {
         desfazer: (id) => defesa.desfazer(id, canal.telegram.notificar),
       },
       atacante: { reconhecer },
-      migrador: { analisar, migrarS3, migrarPostgres, verificar, planoInfra, planoDestino },
+      migrador: { analisar, migrarS3, migrarPostgres, migrarFila: args.has('--sem-fila') ? undefined : migrarFila, verificar, planoInfra, planoDestino },
+      voz: { responder: (agente, pergunta, estadoTexto) => responderComoAgente(agente, pergunta, estadoTexto) },
       chefe: { resumir, estadoAtual, certificado: (eventos, pedidos) => certificado(eventos, pedidos, process.env.LOCAL_DADOS || undefined) },
     },
     {

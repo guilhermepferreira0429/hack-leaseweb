@@ -48,6 +48,12 @@ describe('chefe/resumir', () => {
     assert.match(texto, /3 ficheiros, checksums iguais.*Base de dados copiada \(2 tabelas\), também com checksums iguais\./);
   });
 
+  it('migração com filas', () => {
+    const fl: Pedido = { id: 'f1', titulo: 'filas', texto: '', acao: { tipo: 'migrar', passo: 'fila' }, estado: 'feito' };
+    const texto = resumir([ev('m1', 'feito', 5, { objetos: 3 }), ev('f1', 'feito', 9, { mensagens: 1 })], [migrar('feito'), fl]);
+    assert.match(texto, /Filas passadas para RabbitMQ \(1 mensagem\), sem perder mensagens\./);
+  });
+
   it('deteção falhada: não diz que não há portas abertas', () => {
     const erro = ev('-', 'erro', 1, { fase: 'deteção pela API', erro: 'LSW_SG_GERIDOS vazio' });
     const texto = resumir([erro], []);

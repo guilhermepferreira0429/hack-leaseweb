@@ -1,10 +1,12 @@
 // npm run dev:migrador [-- --so-analisar | --so-s3]
 // Corre o migrador sozinho (sem pedir aprovação); na demo corre pelo orquestrador (npm run dev).
 // Por omissão: S3 -> MinIO e, se DATABASE_URL_DESTINO estiver definida, Postgres -> Postgres na Leaseweb.
+// E, se RABBITMQ_URL estiver definida, SQS -> RabbitMQ (move as mensagens de todas as filas).
 import { join } from 'node:path';
 import { analisar } from './analisar';
 import { carregarEnv, RAIZ_REPO } from './ambiente';
 import { migrarS3Detalhado } from './migrar-dados';
+import { migrarFilaDetalhado } from './migrar-fila';
 import { migrarPostgresDetalhado } from './migrar-postgres';
 import { verificarDetalhado } from './verificar';
 
@@ -41,6 +43,17 @@ async function main(): Promise<void> {
     }
     console.log(`[migrador] tabelas ${p.checksumsOk ? 'todas iguais' : 'DIFERENTES'}`);
     falhou ||= !p.checksumsOk;
+  }
+
+  const comFila = servicos.includes('fila') && !process.argv.includes('--so-s3') && Boolean(process.env.RABBITMQ_URL?.trim());
+  if (comFila) {
+    t0 = Date.now();
+    const f = await migrarFilaDetalhado();
+    const total = f.filas.reduce((s, x) => s + x.mensagens, 0);
+    console.log(`[migrador] SQS -> RabbitMQ: ${f.filas.length} filas, ${total} mensagens em ${Date.now() - t0} ms`);
+    for (const x of f.filas) console.log(`  ${x.fila}: ${x.mensagens} movidas, ${x.encontradas} com o mesmo sha256 no RabbitMQ`);
+    console.log(`[migrador] mensagens ${f.iguais ? 'todas iguais' : 'DIFERENTES'}`);
+    falhou ||= !f.iguais;
   }
 
   const v = await verificarDetalhado();

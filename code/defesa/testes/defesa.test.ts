@@ -194,6 +194,41 @@ describe('ciclo detetar -> corrigir -> desfazer', () => {
   });
 });
 
+describe('nmap antes e depois do fecho', () => {
+  it('regista open antes e filtered depois, só para IPs do grupo em ALVOS_PERMITIDOS', async () => {
+    const { verificacao } = await import('../corrigir');
+    const original = verificacao.estadoPorta;
+    const vistos: string[] = [];
+    let fechado = false;
+    verificacao.estadoPorta = async (ip) => {
+      vistos.push(ip);
+      return fechado ? 'filtered' : 'open';
+    };
+    verificacao.intervaloMs = 1;
+    process.env.LSW_IP_SG = `198.51.100.7=${SG},203.0.113.99=${SG}`;
+    process.env.ALVOS_PERMITIDOS = '198.51.100.7';
+    const fetchReal = leaseweb.opcoes.fetch;
+    leaseweb.opcoes.fetch = async (url, init) => {
+      if (String(init?.method) === 'POST' && String(url).endsWith('revokeFirewallRules')) fechado = true;
+      return fetchReal(url, init);
+    };
+    try {
+      const pedido: Pedido = { id: 'pv', titulo: 'PG', texto: '', acao: { tipo: 'remover_regra', securityGroupId: SG, regra: regraPg }, estado: 'aprovado' };
+      await corrigir(pedido, async () => {});
+      const v = auditoria.ler().filter((e) => e.tipo === 'verificado').map((e) => e.depois as { ip: string; fase: string; estado: string });
+      assert.deepEqual(v, [
+        { ip: '198.51.100.7', porta: 5432, fase: 'antes', estado: 'open' },
+        { ip: '198.51.100.7', porta: 5432, fase: 'depois', estado: 'filtered' },
+      ]);
+      assert.ok(!vistos.includes('203.0.113.99'));
+    } finally {
+      verificacao.estadoPorta = original;
+      delete process.env.LSW_IP_SG;
+      process.env.ALVOS_PERMITIDOS = '';
+    }
+  });
+});
+
 describe('verificar-porta', () => {
   it('lê o estado da porta na saída do nmap', async () => {
     const { lerEstadoNmap } = await import('../verificar-porta');

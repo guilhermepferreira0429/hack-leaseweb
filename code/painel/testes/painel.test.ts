@@ -15,6 +15,15 @@ describe('isco', () => {
   });
 });
 
+describe('isco: logins da equipa', () => {
+  it('um IP que entrou com sucesso é da equipa e não conta, mesmo com falhas antes', () => {
+    const log = `2026-11-20T09:00:00+00:00 h sshd-session[1]: Connection closed by authenticating user ubuntu 198.51.100.24 port 1 [preauth]
+2026-11-20T09:00:05+00:00 h sshd-session[2]: Accepted publickey for ubuntu from 198.51.100.24 port 2 ssh2
+2026-11-20T09:01:00+00:00 h sshd-session[3]: Invalid user admin from 45.1.2.3 port 1`;
+    assert.deepEqual(contarLinhas(log), { tentativas: 1, ipsDistintos: 1, desde: '2026-11-20T09:01:00+00:00' });
+  });
+});
+
 describe('linha do tempo', () => {
   it('fases pelo tipo do evento', () => {
     assert.equal(faseDe({ hora: '', pedidoId: 'p', tipo: 'feito' }), 'fechar');
@@ -37,7 +46,8 @@ describe('relógio de exposição', () => {
     ];
     const html = renderizar([], ev);
     assert.match(html, /class="relogio fechada"/);
-    assert.match(html, /exposto 38 s/);
+    assert.match(html, /<div class="seg">38 s<\/div>/);
+    assert.match(html, /FECHADO \d\d:\d\d:\d\d/);
     assert.match(renderizar([], ev.slice(0, 1)), /class="relogio exposta"/);
     assert.match(renderizar([], []), /à espera da infraestrutura nova/);
   });
@@ -93,16 +103,17 @@ describe('ecrã da demo (4 zonas)', () => {
     const ciclo = cicloAtual(ev);
     assert.equal(ciclo[0].tipo, 'infra-no-ar');
     assert.deepEqual(ciclo.map(agenteDe), ['chefe', 'atacante', 'defesa', 'dono', 'defesa', 'defesa']);
-    assert.equal(fraseDe(ciclo[1]), 'Encontrou: PostgreSQL 5432.');
+    assert.equal(fraseDe(ciclo[1]), 'Aberto a toda a Internet: PostgreSQL 5432.');
     assert.equal(fraseDe(ciclo[4]), 'A fechar TCP 5432 de 0.0.0.0/0.');
     assert.deepEqual(portasDoCiclo(ciclo).map((p) => p.estado), ['fechada']);
     assert.deepEqual(portasDoCiclo(ciclo.slice(0, 3)).map((p) => p.estado), ['aberta']);
 
     const pedido = { id: 'p1', titulo: 'PostgreSQL aberto', texto: '', estado: 'feito' as const, acao: { tipo: 'remover_regra' as const, securityGroupId: 's', regra } };
     const html = renderizar([pedido], ev, 'tk');
-    assert.match(html, /exposto 38 s/);
-    assert.match(html, /<b class="mau">open<\/b> \(visto pelo atacante\)/);
+    assert.match(html, /<div class="seg">38 s<\/div>/);
+    assert.match(html, /Desfazer última ação/);
     assert.match(html, /name="id" value="p1"/);
+    assert.match(html, /dono · Telegram/);
     assert.ok(!html.includes('velho'));
   });
 });
@@ -118,5 +129,57 @@ describe('painel escuta só em 127.0.0.1 por omissão', () => {
     } finally {
       srv.close();
     }
+  });
+});
+
+describe('certificado, provas e isco (ecrãs do desenho)', () => {
+  const inv = { tipo: 'criar_regra', securityGroupId: 's', regra: { protocol: 'TCP', source: '0.0.0.0/0', startPort: 5432, endPort: 5432 } } as const;
+  const regra = { id: 'r', protocol: 'TCP', source: '0.0.0.0/0', startPort: 5432, endPort: 5432 };
+  const ev = [
+    { hora: '2026-11-20T10:00:00Z', pedidoId: 'm1', tipo: 'pedido', quem: 'migrador' },
+    { hora: '2026-11-20T10:00:05Z', pedidoId: 'm1', tipo: 'feito', quem: 'migrador', depois: { objetos: 1540, checksumsOk: true, testes: { antes: true, depois: true } } },
+    { hora: '2026-11-20T10:00:06Z', pedidoId: '-', tipo: 'infra-no-ar', quem: 'orquestrador' },
+    { hora: '2026-11-20T10:00:09Z', pedidoId: 'm2', tipo: 'feito', quem: 'migrador', depois: { tabelas: 5, linhas: 17518, checksumsOk: true, testes: { antes: true, depois: true } } },
+    { hora: '2026-11-20T10:00:10Z', pedidoId: 'p1', tipo: 'pedido', quem: 'defesa', depois: { achado: { alvo: '198.51.100.7', porta: 5432, servico: 'PostgreSQL' }, titulo: 'PostgreSQL aberto a toda a internet' } },
+    { hora: '2026-11-20T10:00:20Z', pedidoId: 'p1', tipo: 'aprovado', quem: 'consola' },
+    { hora: '2026-11-20T10:00:21Z', pedidoId: 'p1', tipo: 'verificado', quem: 'defesa', depois: { ip: '198.51.100.7', porta: 5432, fase: 'antes', estado: 'open' } },
+    { hora: '2026-11-20T10:00:30Z', pedidoId: 'p1', tipo: 'feito', quem: 'defesa', inverso: inv },
+    { hora: '2026-11-20T10:00:33Z', pedidoId: 'p1', tipo: 'verificado', quem: 'defesa', depois: { ip: '198.51.100.7', porta: 5432, fase: 'depois', estado: 'filtered' } },
+  ];
+  const pedidos = [{ id: 'p1', titulo: 'PostgreSQL aberto a toda a internet', texto: '', estado: 'feito' as const, acao: { tipo: 'remover_regra' as const, securityGroupId: 's', regra } }];
+
+  it('provas: migração dos dois passos e nmap antes/depois', async () => {
+    const { provas, cicloAtual } = await import('@mwbe/painel');
+    const p = provas(cicloAtual(ev));
+    assert.equal(p.objetos, 1540);
+    assert.equal(p.linhas, 17518);
+    assert.equal(p.checksums, true);
+    assert.deepEqual([p.nmapAntes?.estado, p.nmapDepois?.estado], ['open', 'filtered']);
+    assert.equal(p.ultimoFecho?.pedidoId, 'p1');
+  });
+
+  it('certificado só com números medidos', async () => {
+    const { renderizarCertificado } = await import('@mwbe/painel');
+    const html = renderizarCertificado(pedidos, ev, 'Leaseweb, Amesterdão (NL)', new Date('2026-11-20T10:05:00Z'));
+    assert.match(html, /A migração terminou e ficou segura\./);
+    assert.match(html, /1\.540 copiados/);
+    assert.match(html, /17\.518 linhas em 5 tabelas/);
+    assert.match(html, /Tempo exposto<\/span><span>24 s/);
+    assert.match(html, /5432 filtered ✓/);
+    assert.match(html, /\/desfazer p1/);
+    assert.match(html, /dono · consola/);
+    const semFecho = renderizarCertificado([], ev.slice(0, 5));
+    assert.match(semFecho, /Há pontos por fechar/);
+  });
+
+  it('isco: hora de arranque a partir de /proc/uptime e ecrã sem QR por omissão', async () => {
+    const { ligadaDesde, renderizarIsco } = await import('@mwbe/painel');
+    assert.equal(ligadaDesde('3600.5 1234.0\n', Date.parse('2026-11-20T10:00:00Z')), '2026-11-20T08:59:59.500Z');
+    assert.equal(ligadaDesde('lixo'), undefined);
+    const html = renderizarIsco({ tentativas: 4317, ipsDistintos: 389, desde: '2026-11-20T08:00:00Z', lidoEm: '2026-11-20T10:00:00Z', ligadaEm: '2026-11-20T07:45:00Z' });
+    assert.match(html, /4\.317/);
+    assert.match(html, /389 IPs diferentes/);
+    assert.match(html, /ligada às 07:45/);
+    assert.ok(!html.includes('Júri'));
   });
 });
