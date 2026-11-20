@@ -28,11 +28,11 @@ const regra: Regra = { id: 'r1', protocol: 'TCP', source: '0.0.0.0/0', startPort
 function todas(comValores: boolean): string[] {
   const v = <T>(x: T) => (comValores ? x : undefined);
   return [
-    msgAbertura({ app: v('encomendas') }),
-    msgPlano({ servicos: v([{ servico: 'S3', destino: 'MinIO', selfOuGerido: 'self-hosted' as const }]), ramLivreGb: v(8), motivoRegra: v('Cabe na VM.') }),
+    msgAbertura({ app: v('orders') }),
+    msgPlano({ servicos: v([{ servico: 'S3', destino: 'MinIO', selfOuGerido: 'self-hosted' as const }]), ramLivreGb: v(8), motivoRegra: v('It fits on the VM.') }),
     msgPlanoAprovado({ quem: v('Ana'), hora: v('14:02') }),
     msgMigracao({ nObjetos: v(120), okS3: v(true), nLinhas: v(5000), okBd: v(true), okAntes: v(true), okDepois: v(true) }),
-    msgAtaque({ porta: v(5432), gravidade: v('alta') }),
+    msgAtaque({ porta: v(5432), gravidade: v('high') }),
     msgDefesa(),
     msgFechado({ horaFecho: v('14:05'), segundos: v(42), pedidoId: v('p-1') }),
     msgAtacanteConfirma(),
@@ -44,19 +44,20 @@ function todas(comValores: boolean): string[] {
 }
 
 describe('shared/mensagens', () => {
-  it('PENSAR: uma linha fixa por passo, com o agente certo', () => {
+  it('PENSAR: uma linha fixa por passo, com o agente certo, em inglês', () => {
     const passos: PassoDemo[] = ['abertura', 'plano', 'confirmacao', 'migrar', 'atacar', 'defender', 'codigo', 'validar', 'relatorio'];
     assert.deepEqual(Object.keys(PENSAR), passos);
     assert.deepEqual(
       passos.map((p) => PENSAR[p].agente),
       ['chefe', 'migrador', 'chefe', 'migrador', 'atacante', 'defesa', 'migrador', 'chefe', 'chefe'],
     );
-    assert.equal(PENSAR.defender.texto, 'A explicar o risco e a preparar o fecho reversível.');
-    assert.ok(Object.values(PENSAR).every((p) => /^[A-ZÀ].*\.$/.test(p.texto) && !/\d/.test(p.texto)));
+    assert.equal(PENSAR.defender.texto, 'Explaining the risk and preparing a reversible fix.');
+    assert.ok(Object.values(PENSAR).every((p) => /^[A-Z].*\.$/.test(p.texto) && !/\d/.test(p.texto)));
   });
 
-  it('preencher: sem valor -> "não medido"; boolean -> ✓/✗; número com vírgula', () => {
-    assert.equal(preencher('{a}|{b}|{c}|{d}|{e}|{f}', { a: 'x', b: true, c: false, d: 3.5, e: '' }), `x|✓|✗|3,5|${NAO_MEDIDO}|${NAO_MEDIDO}`);
+  it('preencher: sem valor -> "not measured"; boolean -> ✓/✗; número com ponto', () => {
+    assert.equal(NAO_MEDIDO, 'not measured');
+    assert.equal(preencher('{a}|{b}|{c}|{d}|{e}|{f}', { a: 'x', b: true, c: false, d: 3.5, e: '' }), `x|✓|✗|3.5|${NAO_MEDIDO}|${NAO_MEDIDO}`);
     assert.equal(preencher('{x}', { x: Number.NaN }), NAO_MEDIDO);
     assert.equal(preencher('{toString}', {}), NAO_MEDIDO); // não lê propriedades herdadas
   });
@@ -65,31 +66,31 @@ describe('shared/mensagens', () => {
     for (const m of [...todas(true), ...todas(false)]) assert.doesNotMatch(m, /\{[a-z_]+\}/i, m);
   });
 
-  it('sem valores medidos, cada variável sai como "não medido" (nada inventado)', () => {
-    assert.equal(msgPlanoAprovado({}), `Plano aprovado por ${NAO_MEDIDO} às ${NAO_MEDIDO}. @migrador, avança.`);
-    assert.equal(msgValidacao({}), `Validação final: testes ${NAO_MEDIDO}, nada exposto ${NAO_MEDIDO}, dados iguais ${NAO_MEDIDO}.`);
-    assert.match(msgMigracao({ nObjetos: 0, okS3: false }), /Ficheiros: 0 copiados · checksum ✗\n· Base de dados: não medido linhas/);
+  it('sem valores medidos, cada variável sai como "not measured" (nada inventado)', () => {
+    assert.equal(msgPlanoAprovado({}), `Plan approved by ${NAO_MEDIDO} at ${NAO_MEDIDO}. @migrador, go ahead.`);
+    assert.equal(msgValidacao({}), `Final check: tests ${NAO_MEDIDO}, nothing exposed ${NAO_MEDIDO}, data identical ${NAO_MEDIDO}.`);
+    assert.match(msgMigracao({ nObjetos: 0, okS3: false }), /Files: 0 copied · checksum ✗\n· Database: not measured rows/);
   });
 
-  it('textos iguais ao mensagens-demo.md', () => {
-    assert.equal(msgAbertura({ app: 'encomendas' }), 'Bom dia. Vamos tirar a app encomendas da AWS e trazê-la para a Leaseweb, com segurança. Eu aviso em cada passo.');
+  it('textos em inglês, com a estrutura do mensagens-demo.md', () => {
+    assert.equal(msgAbertura({ app: 'orders' }), 'Good morning. We are moving the orders app from AWS to Leaseweb, safely. I will report at every step.');
     assert.equal(
       msgMigracao({ nObjetos: 120, okS3: true, nLinhas: 5000, okBd: true, okAntes: true, okDepois: true }),
-      'Migração concluída.\n· Ficheiros: 120 copiados · checksum ✓\n· Base de dados: 5000 linhas · checksum ✓\n· Testes da app: antes ✓ · depois ✓\nA infraestrutura nova está no ar. @atacante, a tua vez.',
+      'Migration complete.\n· Files: 120 copied · checksum ✓\n· Database: 5000 rows · checksum ✓\n· App tests: before ✓ · after ✓\nThe new infrastructure is live. @atacante, your turn.',
     );
     assert.equal(
-      msgAtaque({ porta: 5432, gravidade: 'alta' }),
-      'Encontrei a base de dados nova aberta a toda a Internet (porta 5432).\nGravidade: alta. Qualquer pessoa pode tentar entrar.\n@defesa',
+      msgAtaque({ porta: 5432, gravidade: 'high' }),
+      'I found the new database open to the whole Internet (port 5432).\nSeverity: high. Anyone can try to get in.\n@defesa',
     );
     assert.equal(
       msgFechado({ horaFecho: '14:05', segundos: 42, pedidoId: 'p-1' }),
-      'Fechado às 14:05 e confirmado. Tempo exposto: 42 s.\nGuardei como voltar atrás: /desfazer p-1\n@atacante, confirma.',
+      'Closed at 14:05 and confirmed. Time exposed: 42 s.\nUndo saved: /desfazer p-1\n@atacante, please confirm.',
     );
-    assert.equal(msgValidacao({ testes: true, nadaExposto: true, dadosIguais: true }), 'Validação final: testes ✓, nada exposto ✓, dados iguais ✓.');
-    assert.equal(msgAtacanteConfirma(), 'Confirmo. Já não chego lá.');
+    assert.equal(msgValidacao({ testes: true, nadaExposto: true, dadosIguais: true }), 'Final check: tests ✓, nothing exposed ✓, data identical ✓.');
+    assert.equal(msgAtacanteConfirma(), 'Confirmed. I can no longer reach it.');
   });
 
-  it('plano: uma linha por serviço, com contagem e lista', () => {
+  it('plano: uma linha por serviço, com contagem e lista; "gerido" sai como "managed"', () => {
     const m = msgPlano({
       servicos: [
         { servico: 'S3', destino: 'MinIO', selfOuGerido: 'self-hosted' },
@@ -97,17 +98,17 @@ describe('shared/mensagens', () => {
         { servico: 'RDS', destino: 'Scaleway DB-DEV-S', selfOuGerido: 'gerido' },
       ],
       ramLivreGb: 8,
-      motivoRegra: 'A base de dados é crítica.',
+      motivoRegra: 'The database is critical.',
     });
     assert.equal(
       m,
-      'Encontrei 3 serviços da AWS na app: S3, SQS, RDS.\nProposta:\n· S3 → MinIO (self-hosted)\n· SQS → RabbitMQ (self-hosted)\n· RDS → Scaleway DB-DEV-S (gerido)\nA VM tem 8 GB livres. A base de dados é crítica.',
+      'I found 3 AWS services in the app: S3, SQS, RDS.\nProposal:\n· S3 → MinIO (self-hosted)\n· SQS → RabbitMQ (self-hosted)\n· RDS → Scaleway DB-DEV-S (managed)\nThe VM has 8 GB free. The database is critical.',
     );
   });
 
   it('defesa: a IA só troca a explicação; a proposta fica fixa', () => {
     assert.equal(msgDefesa(), `${MODELOS.defesaExplicacao}\n${MODELOS.defesaProposta}`);
-    assert.equal(msgDefesa({ explicacaoIA: '  Texto da IA.  ' }), `Texto da IA.\n${MODELOS.defesaProposta}`);
+    assert.equal(msgDefesa({ explicacaoIA: '  AI text.  ' }), `AI text.\n${MODELOS.defesaProposta}`);
     assert.equal(msgDefesa({ explicacaoIA: '   ' }), msgDefesa());
   });
 
@@ -116,26 +117,32 @@ describe('shared/mensagens', () => {
     assert.match(msgCodigo({ numero: 7, nFicheiros: 3, url: 'https://example.com/pr/7' }), /\nhttps:\/\/example\.com\/pr\/7$/);
     assert.equal(
       msgFimRelatorio({ minutos: 12, nFalhas: 1 }),
-      'Em 12 min saímos da AWS para a Leaseweb, fechámos 1 falha(s) e corrigimos a causa no código. Nada saiu da UE.',
+      'In 12 min we moved from AWS to Leaseweb, closed 1 issue(s) and fixed the cause in the code. Nothing left the EU.',
     );
-    assert.match(msgFimRelatorio({ minutos: 12, nFalhas: 1, certificado: 'CERTIFICADO' }), /^CERTIFICADO\n\nEm 12 min/);
+    assert.match(msgFimRelatorio({ minutos: 12, nFalhas: 1, certificado: 'CERTIFICATE' }), /^CERTIFICATE\n\nIn 12 min/);
   });
 
-  it('botões: migrar -> Aprovar plano / Ignorar; remover_regra -> Fechar / Ignorar', () => {
-    assert.deepEqual(botoesPara({ tipo: 'migrar', passo: 's3' }), { aprovar: 'Aprovar plano', ignorar: 'Ignorar' });
-    assert.deepEqual(botoesPara({ tipo: 'remover_regra', securityGroupId: 'sg-1', regra }), { aprovar: 'Fechar', ignorar: 'Ignorar' });
+  it('botões em inglês: Approve plan / Close / Approve PR, e Ignore', () => {
+    assert.deepEqual(botoesPara({ tipo: 'migrar', passo: 's3' }), { aprovar: 'Approve plan', ignorar: 'Ignore' });
+    assert.deepEqual(botoesPara({ tipo: 'remover_regra', securityGroupId: 'sg-1', regra }), { aprovar: 'Close', ignorar: 'Ignore' });
+    assert.deepEqual(botoesPara({ tipo: 'aprovar_pr', repo: 'dono/app', numero: 7 }), { aprovar: 'Approve PR', ignorar: 'Ignore' });
   });
 
   it('nenhuma mensagem promete uma ação por mensagem', () => {
-    const promessa = /\b(vou|irei|posso) (fechar|abrir|apagar|migrar|desfazer|alterar|mudar|remover)\b/i;
+    const promessa = /\b(I will|I'll|I can|I am going to) (close|open|delete|migrate|undo|change|remove)\b/i;
     for (const m of [...todas(true), ...Object.values(PENSAR).map((p) => p.texto)]) assert.doesNotMatch(m, promessa, m);
   });
 
-  it('respostas fixas iguais ao doc', () => {
+  it('respostas fixas em inglês', () => {
     assert.deepEqual(RESPOSTAS_FIXAS, {
-      foraDoEstado: 'Não tenho essa informação. Escreva /estado para ver o ponto da situação.',
-      pedidoIgnorado: 'Ok, fica como está. Fica registado que decidiu não fechar.',
-      erroApi: 'A Leaseweb não respondeu a tempo. Não mudei nada. Vou tentar outra vez.',
+      foraDoEstado: "I don't have that information. Type /estado to see the current status.",
+      pedidoIgnorado: 'OK, leaving it as it is. Your decision not to close it is logged.',
+      erroApi: 'Leaseweb did not answer in time. I changed nothing. I will try again.',
     });
+  });
+
+  it('nada em português nas mensagens (a demo é em inglês)', () => {
+    for (const m of [...todas(true), ...todas(false), ...Object.values(PENSAR).map((p) => p.texto)])
+      assert.doesNotMatch(m, /\b(não|está|serviços|aberta|Fechado|Plano|Migração)\b/, m);
   });
 });
