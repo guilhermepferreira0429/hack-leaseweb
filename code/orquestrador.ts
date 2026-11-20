@@ -293,13 +293,22 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     falar('chefe', 'dono', deps.chefe.resumir(lerAuditoria(), deps.estado.listarPedidos()));
   }
 
+  /** Regista os callbacks do canal. Se o canal ainda for stub, avisa e o fluxo segue (sem decisões, só o resumo). */
   function ligar(): void {
-    deps.telegram.aoResponder((id, decisao, quem) => {
-      aoResponder(id, decisao, quem).catch((e) => falha('resposta do dono', e));
-    });
-    deps.telegram.aoMensagemDoDono((agente, texto) => {
-      aoMensagemDoDono(agente, texto).catch((e) => falha('mensagem do dono', e));
-    });
+    try {
+      deps.telegram.aoResponder((id, decisao, quem) => {
+        aoResponder(id, decisao, quem).catch((e) => falha('resposta do dono', e));
+      });
+    } catch (erro) {
+      void falha('ligar as respostas do dono (aoResponder)', erro);
+    }
+    try {
+      deps.telegram.aoMensagemDoDono((agente, texto) => {
+        aoMensagemDoDono(agente, texto).catch((e) => falha('mensagem do dono', e));
+      });
+    } catch (erro) {
+      void falha('ligar as mensagens do dono (aoMensagemDoDono)', erro);
+    }
   }
 
   return { ligar, correr, aoResponder, aoMensagemDoDono };

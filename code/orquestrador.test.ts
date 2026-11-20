@@ -29,6 +29,8 @@ type Cenario = {
   portaFechada?: boolean;
   /** bus, auditoria, notificar e correlacionar a lançar de forma síncrona, como os stubs naoImplementado. */
   stubs?: boolean;
+  /** aoResponder e aoMensagemDoDono a lançar, como o telegram.ts ainda em stub. */
+  canalStub?: boolean;
 };
 
 const stub = (): never => {
@@ -55,8 +57,8 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
         const d = (cenario.decisao ?? (() => 'aprovar'))(pedido);
         if (d) setImmediate(() => aoResponder?.(pedido.id, d, cenario.quem ?? DONO));
       },
-      aoResponder: (cb) => (aoResponder = cb),
-      aoMensagemDoDono: (cb) => (aoMensagem = cb),
+      aoResponder: cenario.canalStub ? stub : (cb) => void (aoResponder = cb),
+      aoMensagemDoDono: cenario.canalStub ? stub : (cb) => void (aoMensagem = cb),
       notificar: cenario.stubs
         ? stub
         : async (t) => {
@@ -222,6 +224,13 @@ describe('orquestrador', () => {
     await t.orq.correr();
     // bus, auditoria, notificar e correlacionar rebentam; a migração falha; mesmo assim a defesa fecha.
     assert.equal(t.corrigidos.length, 1);
+  });
+
+  it('canal em stub: ligar() não rebenta e avisa', () => {
+    const t = montar({ canalStub: true }, { migrar: false, atacar: false });
+    // montar() já chamou ligar(); se lançasse, nem chegávamos aqui.
+    assert.ok(t.notificacoes.some((n) => /aoResponder/.test(n)));
+    assert.ok(t.notificacoes.some((n) => /aoMensagemDoDono/.test(n)));
   });
 
   it('o atacante diz se ainda chega à porta depois de fechar', async () => {
