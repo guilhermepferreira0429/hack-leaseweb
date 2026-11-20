@@ -338,6 +338,8 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       );
       // Várias portas fechadas no ciclo: basta uma ainda aberta para não estar tudo fechado.
       medido.nadaExposto = (medido.nadaExposto ?? true) && ainda.length === 0;
+      // Para o certificado (secção 3, "Confirmação do atacante").
+      auditar({ pedidoId: pedido.id, tipo: "confirmacao-atacante", quem: "atacante", depois: { chega: ainda.length > 0 } });
       falar(
         "atacante",
         "todos",

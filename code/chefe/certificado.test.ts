@@ -47,68 +47,70 @@ describe('chefe/relogioExposicao', () => {
   });
 });
 
-describe('chefe/certificado', () => {
-  it('fluxo da demo: dados, prova, ataque, fecho com aprovação humana e exposição', () => {
-    const t = certificado(demo, [migrar, fechar], 'Leaseweb, Amesterdão (NL)', new Date(em(50)));
-    assert.match(t, /^Certificado de migração · /);
-    assert.match(t, /MinIO, em Leaseweb, Amesterdão \(NL\)/);
-    assert.match(t, /20 ficheiros copiados, impressão digital \(sha256\) igual dos dois lados; os mesmos testes da app passam antes e depois/);
-    assert.match(t, /1 porta aberta: PostgreSQL 5432 \(203\.0\.113\.10\)/);
-    assert.match(t, /Fechado: PostgreSQL aberto a toda a internet, às \d\d:\d\d, aprovado por uma pessoa às \d\d:\d\d; inverso guardado/);
-    assert.match(t, /Exposição: 38 segundos/);
-    assert.match(t, /cada porta fechada tem o inverso guardado/);
-    assert.doesNotMatch(t, /\b42\b/, 'não mostra ids do Telegram');
+describe('chefe/certificado (modelo de docs/certificado-migracao.md)', () => {
+  const LOCAL = 'Leaseweb, Frankfurt (DE)';
+  const pg: Pedido = { id: 'p1', titulo: 'Migrar Postgres', texto: '', acao: { tipo: 'migrar', passo: 'postgres' }, estado: 'feito' };
+  const fl: Pedido = { id: 'f1', titulo: 'Migrar SQS', texto: '', acao: { tipo: 'migrar', passo: 'fila' }, estado: 'feito' };
+  const sg: Pedido = { id: 's1', titulo: 'Migrar segredos', texto: '', acao: { tipo: 'migrar', passo: 'segredos' }, estado: 'feito' };
+  const ch: Pedido = { id: 'c1', titulo: 'Migrar cache', texto: '', acao: { tipo: 'migrar', passo: 'cache' }, estado: 'feito' };
+  const completo = [
+    ...demo,
+    ev('p1', 'feito', 5, { depois: { tabelas: 5, linhas: 17498, checksumsOk: true } }),
+    ev('f1', 'feito', 5, { depois: { mensagens: 50, checksumsOk: true } }),
+    ev('s1', 'feito', 5, { depois: { segredos: 16, checksumsOk: true } }),
+    ev('c1', 'feito', 5, { depois: { chaves: 594, checksumsOk: true } }),
+    ev('a1', 'confirmacao-atacante', 46, { depois: { chega: false } }),
+    ev('m1', 'migracao-codigo', 50, { depois: { causas: 1, url: 'https://github.com/dono/app/pull/7' } }),
+  ];
+
+  it('as 4 secções, com id CERT-AAAAMMDD-HHMM e só números medidos', () => {
+    const t = certificado(completo, [migrar, pg, fl, sg, ch, fechar], LOCAL, new Date(em(50)));
+    assert.match(t, /^CERTIFICADO DE MIGRAÇÃO · CERT-20261120-1400\n20\/11\/2026 14:00 · Leaseweb, Frankfurt \(DE\)\n/);
+    assert.match(t, /RESUMO\nMigrámos 5 serviços da AWS para Leaseweb, Frankfurt \(DE\), com a impressão digital dos dados igual dos dois lados\. O atacante encontrou 1 porta aberta e foi fechada com aprovação\. Exposição: 38 segundos\./);
+    assert.match(t, /1\. ONDE ESTÃO OS DADOS\n· S3 → MinIO · Leaseweb, Frankfurt \(DE\) · self-hosted\n· RDS PostgreSQL → PostgreSQL/);
+    assert.match(t, /· ElastiCache Redis → Valkey · Leaseweb, Frankfurt \(DE\) · self-hosted/);
+    assert.match(t, /2\. PROVA DE QUE NADA SE PERDEU\n· Ficheiros: 20 copiados · checksum ✓\n· Base de dados: 17498 linhas em 5 tabelas · checksum ✓\n· Filas: 50 mensagens passadas · checksum ✓\n· Segredos: 16 passados, sem nunca mostrar um valor · checksum ✓\n· Cache: 594 chaves copiadas · checksum ✓\n· Testes da app: antes ✓ · depois ✓/);
+    assert.match(t, /3\. SEGURANÇA DEPOIS DA MIGRAÇÃO\n· Encontrado: 1 falha: PostgreSQL 5432\n· PostgreSQL aberto a toda a internet → fechada às 14:00, aprovado por uma pessoa, no Telegram\n· Tempo exposto: 38 segundos\n· Confirmação do atacante: já não chega lá ✓\n· Causa corrigida no código/);
+    assert.match(t, /4\. COMO VOLTAR ATRÁS\n· 1 ação guardada com o inverso · desfazer: \/desfazer a1/);
+    assert.match(t, /Destino dos dados: Leaseweb, Frankfurt \(DE\)\. Gerado automaticamente a partir do registo de auditoria/);
+    assert.doesNotMatch(t, /Nenhum dado saiu da UE/, 'não se afirma o que não foi medido');
+    assert.doesNotMatch(t, /203\.0\.113\.10/, 'o certificado não precisa do IP');
   });
 
-  it('não inventa o local nem números que não foram medidos', () => {
-    const t = certificado([ev('m1', 'feito', 5, { depois: { checksumsOk: true } })], [migrar], undefined, new Date(em(9)));
-    assert.match(t, /Dados: ficheiros do S3 passados para MinIO\./);
-    assert.match(t, /Prova: Ficheiros copiados/);
-    assert.doesNotMatch(t, /Exposição|Ataque/);
-    assert.doesNotMatch(t, /inverso/, 'sem inverso guardado não se promete desfazer');
+  it('o que falta sai "não medido"; não inventa o local', () => {
+    const t = certificado([ev('m1', 'feito', 5, { depois: { checksumsOk: true } })], [migrar], undefined, new Date(em(50)));
+    assert.match(t, /^CERTIFICADO DE MIGRAÇÃO · CERT-\d{8}-\d{4}\n\S+ \S+ · não medido\n/);
+    assert.match(t, /· Ficheiros: não medido copiados · checksum ✓/);
+    assert.match(t, /· Testes da app: antes não medido · depois não medido/);
+    assert.match(t, /· Encontrado: não medido/);
+    assert.match(t, /· Confirmação do atacante: não medido/);
+  });
+
+  it('checksum diferente: ✗ em destaque e o aviso de migração incompleta', () => {
+    const t = certificado([...completo, ev('f1', 'feito', 49, { depois: { mensagens: 50, checksumsOk: false } })], [migrar, pg, fl, sg, ch, fechar], LOCAL, new Date(em(50)));
+    assert.match(t, /· Filas: 50 mensagens passadas · checksum ✗/);
+    assert.match(t, /✗ ATENÇÃO: há um checksum diferente\. A migração não está completa\./);
+    assert.match(t, /mas há pelo menos um checksum diferente/);
   });
 
   it('reconhecimento: usa o mais recente', () => {
     const velho = ev('-', 'reconhecimento', 1, { depois: { portas: [{ alvo: '198.51.100.7', porta: 22, servico: 'SSH' }] } });
     const t = certificado([velho, ...demo], [migrar, fechar], undefined, new Date(em(50)));
-    assert.match(t, /PostgreSQL 5432/);
-    assert.doesNotMatch(t, /198.51.100.7/);
+    assert.match(t, /· Encontrado: 1 falha: PostgreSQL 5432/);
+    assert.doesNotMatch(t, /SSH 22/);
   });
 
-  it('base de dados migrada (nível B) aparece com a prova por tabela', () => {
-    const pg: Pedido = { id: 'p1', titulo: 'Copiar a base de dados', texto: '', acao: { tipo: 'migrar', passo: 'postgres' }, estado: 'feito' };
-    const eventos = [...demo, ev('p1', 'feito', 48, { depois: { tabelas: 1, linhas: 20, checksumsOk: true } })];
-    const t = certificado(eventos, [migrar, pg, fechar], undefined, new Date(em(50)));
-    assert.match(t, /Base de dados: 1 tabela e 20 linhas copiadas para PostgreSQL; contagem e sha256 iguais em cada tabela\./);
-    assert.match(t, /20 ficheiros copiados/, 'o S3 continua a ser o primeiro passo');
-  });
-
-  it('filas migradas (SQS -> RabbitMQ) aparecem com a contagem e o sha256', () => {
-    const fl: Pedido = { id: 'f1', titulo: 'Passar as filas', texto: '', acao: { tipo: 'migrar', passo: 'fila' }, estado: 'feito' };
-    const eventos = [...demo, ev('f1', 'feito', 49, { depois: { mensagens: 5, checksumsOk: true } })];
-    const t = certificado(eventos, [migrar, fl, fechar], 'Leaseweb, Amesterdão (NL)', new Date(em(50)));
-    assert.match(t, /Filas: 5 mensagens passadas do SQS para RabbitMQ, em Leaseweb, Amesterdão \(NL\); contagem e sha256 iguais\./);
-    const recusada = certificado(eventos, [migrar, { ...fl, estado: 'ignorado' }, fechar], undefined, new Date(em(50)));
-    assert.doesNotMatch(recusada, /Filas:/, 'sem aprovação não se diz que as filas passaram');
-  });
-
-  it('modo noite: o fecho não diz "aprovado por uma pessoa"', () => {
+  it('modo noite: o fecho diz modo noite, não "uma pessoa"', () => {
     const noite = demo.map((e) => (e.tipo === 'aprovado' ? { ...e, quem: 'modo-noite' } : e));
     const t = certificado(noite, [migrar, fechar], undefined, new Date(em(50)));
-    assert.match(t, /pelo modo noite \(sem resposta do dono\), só aberto aos IPs conhecidos; inverso guardado/);
-    assert.doesNotMatch(t, /aprovado por uma pessoa/);
+    assert.match(t, /aprovado por modo noite \(sem resposta do dono\), só os IPs conhecidos entram/);
+    assert.doesNotMatch(t, /uma pessoa/);
   });
 
-  it('segredos e cache aparecem com a prova, sem valores', () => {
-    const sg: Pedido = { id: 's1', titulo: 'segredos', texto: '', acao: { tipo: 'migrar', passo: 'segredos' }, estado: 'feito' };
-    const ch: Pedido = { id: 'c1', titulo: 'cache', texto: '', acao: { tipo: 'migrar', passo: 'cache' }, estado: 'feito' };
-    const eventos = [...demo, ev('s1', 'feito', 47, { depois: { segredos: 16, checksumsOk: true } }), ev('c1', 'feito', 47, { depois: { chaves: 594, checksumsOk: true } })];
-    const t = certificado(eventos, [migrar, sg, ch, fechar], 'Leaseweb, Frankfurt (DE)', new Date(em(50)));
-    assert.match(t, /Segredos: 16 segredos passados do Secrets Manager e do Parameter Store para o OpenBao, em Leaseweb, Frankfurt \(DE\); contagem e sha256 iguais, sem nunca mostrar um valor\./);
-    assert.match(t, /Cache: 594 chaves copiadas do ElastiCache para o Valkey, em Leaseweb, Frankfurt \(DE\); tipo, valor e TTL com sha256 iguais\./);
-  });
-
-  it('migração não aprovada', () => {
-    assert.match(certificado([], [{ ...migrar, estado: 'ignorado' }]), /Migração: não aprovada/);
+  it('migração não aprovada e sem ataque', () => {
+    const t = certificado([], [{ ...migrar, estado: 'ignorado' }], LOCAL, new Date(em(50)));
+    assert.match(t, /· S3 → MinIO · Leaseweb, Frankfurt \(DE\) · self-hosted · não aprovado/);
+    assert.match(t, /A migração não ficou concluída\./);
+    assert.match(t, /4\. COMO VOLTAR ATRÁS\n· Nenhuma ação com inverso neste ciclo/);
   });
 });

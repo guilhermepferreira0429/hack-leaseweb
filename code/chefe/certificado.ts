@@ -33,81 +33,139 @@ export function relogioExposicao(eventos: EventoAuditoria[], agora: Date = new D
   return { inicio: inicio.hora, fim: fecho?.hora, segundos: Math.max(0, Math.round((t1 - t0) / 1000)), aindaExposta: !fecho };
 }
 
-type ProvaMigracao = { objetos?: number; checksumsOk?: boolean; testes?: { antes?: boolean; depois?: boolean } };
+type ProvaPasso = {
+  objetos?: number;
+  tabelas?: number;
+  linhas?: number;
+  mensagens?: number;
+  segredos?: number;
+  chaves?: number;
+  checksumsOk?: boolean;
+  testes?: { antes?: boolean; depois?: boolean };
+};
 type Reconhecimento = { achados?: number; portas?: { alvo: string; porta: number; servico: string | null }[] };
 
+const NAO_MEDIDO = 'não medido';
+const OK = (v: boolean | undefined) => (v === undefined ? NAO_MEDIDO : v ? '✓' : '✗');
+
+/** Cada serviço migrado: de onde vem, para onde foi, e como se escreve a prova (docs/certificado-migracao.md). */
+const SERVICOS: { passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache'; aws: string; destino: string; frase: (p: ProvaPasso) => string }[] = [
+  { passo: 's3', aws: 'S3', destino: 'MinIO', frase: (p) => `Ficheiros: ${p.objetos ?? NAO_MEDIDO} copiados` },
+  {
+    passo: 'postgres',
+    aws: 'RDS PostgreSQL',
+    destino: 'PostgreSQL',
+    frase: (p) => `Base de dados: ${p.linhas ?? NAO_MEDIDO} linhas em ${p.tabelas ?? NAO_MEDIDO} ${p.tabelas === 1 ? 'tabela' : 'tabelas'}`,
+  },
+  { passo: 'fila', aws: 'SQS', destino: 'RabbitMQ', frase: (p) => `Filas: ${p.mensagens ?? NAO_MEDIDO} mensagens passadas` },
+  { passo: 'segredos', aws: 'Secrets Manager e Parameter Store', destino: 'OpenBao', frase: (p) => `Segredos: ${p.segredos ?? NAO_MEDIDO} passados, sem nunca mostrar um valor` },
+  { passo: 'cache', aws: 'ElastiCache Redis', destino: 'Valkey', frase: (p) => `Cache: ${p.chaves ?? NAO_MEDIDO} chaves copiadas` },
+];
+
+/** CERT-AAAAMMDD-HHMM, na hora de Lisboa. */
+export function idCertificado(agora: Date = new Date()): string {
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Lisbon',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(agora);
+  const v = (t: string) => p.find((x) => x.type === t)?.value ?? '00';
+  return `CERT-${v('year')}${v('month')}${v('day')}-${v('hour')}${v('minute')}`;
+}
+
 /**
- * Certificado de migração para o dono (texto simples, cabe numa mensagem do Telegram).
- * `localDados`: onde ficam os dados, dito por nós (LOCAL_DADOS no .env, ex.: "Leaseweb, Amesterdão (NL)").
+ * Certificado de migração (docs/certificado-migracao.md), para o Telegram. Só factos da auditoria e do estado:
+ * o que não se mediu sai "não medido". Não é uma certificação oficial; serve de registo (RGPD, NIS2).
+ * `localDados`: onde ficam os dados, dito por nós (LOCAL_DADOS no .env, ex.: "Leaseweb, Frankfurt (DE)").
  */
 export function certificado(eventos: EventoAuditoria[], pedidos: Pedido[], localDados?: string, agora: Date = new Date()): string {
-  const linhas = [`Certificado de migração · ${DATA(agora.toISOString())} ${HORA(agora.toISOString())}`];
+  const iso = agora.toISOString();
+  const onde = localDados?.trim() || NAO_MEDIDO;
+  const provaDe = (id: string) => eventos.filter((e) => e.pedidoId === id && e.tipo === 'feito').at(-1)?.depois as ProvaPasso | undefined;
 
-  const migracao = doPasso(pedidos, 's3');
-  const prova = migracao && (eventos.filter((e) => e.pedidoId === migracao.id && e.tipo === 'feito').at(-1)?.depois as ProvaMigracao | undefined);
-  if (migracao?.estado === 'feito' && prova) {
-    linhas.push(`Dados: ficheiros do S3 passados para MinIO${localDados ? `, em ${localDados}` : ''}.`);
-    const n = typeof prova.objetos === 'number' ? `${prova.objetos} ficheiros copiados` : 'Ficheiros copiados';
-    const testes = prova.testes?.antes && prova.testes?.depois ? '; os mesmos testes da app passam antes e depois' : '';
-    linhas.push(`Prova: ${n}, impressão digital (sha256) ${prova.checksumsOk ? 'igual dos dois lados' : 'DIFERENTE em pelo menos um'}${testes}.`);
-  } else if (migracao) {
-    linhas.push(`Migração: ${migracao.estado === 'ignorado' ? 'não aprovada' : 'por concluir'}.`);
-  }
-
-  const pg = doPasso(pedidos, 'postgres');
-  const provaPg = pg && (eventos.filter((e) => e.pedidoId === pg.id && e.tipo === 'feito').at(-1)?.depois as { tabelas?: number; linhas?: number; checksumsOk?: boolean } | undefined);
-  if (pg?.estado === 'feito' && provaPg) {
-    const quanto = typeof provaPg.tabelas === 'number' && typeof provaPg.linhas === 'number' ? `${provaPg.tabelas} ${provaPg.tabelas === 1 ? 'tabela' : 'tabelas'} e ${provaPg.linhas} linhas` : 'Tabelas';
-    linhas.push(`Base de dados: ${quanto} copiadas para PostgreSQL${localDados ? `, em ${localDados}` : ''}; contagem e sha256 ${provaPg.checksumsOk ? 'iguais' : 'DIFERENTES'} em cada tabela.`);
-  }
-
-  const fl = doPasso(pedidos, 'fila');
-  const provaFila = fl && (eventos.filter((e) => e.pedidoId === fl.id && e.tipo === 'feito').at(-1)?.depois as { mensagens?: number; checksumsOk?: boolean } | undefined);
-  if (fl?.estado === 'feito' && provaFila) {
-    const quanto = typeof provaFila.mensagens === 'number' ? `${provaFila.mensagens} ${provaFila.mensagens === 1 ? 'mensagem passada' : 'mensagens passadas'}` : 'Mensagens passadas';
-    linhas.push(`Filas: ${quanto} do SQS para RabbitMQ${localDados ? `, em ${localDados}` : ''}; contagem e sha256 ${provaFila.checksumsOk ? 'iguais' : 'DIFERENTES'}.`);
-  }
-
-  const sg = doPasso(pedidos, 'segredos');
-  const provaSg = sg && (eventos.filter((e) => e.pedidoId === sg.id && e.tipo === 'feito').at(-1)?.depois as { segredos?: number; checksumsOk?: boolean } | undefined);
-  if (sg?.estado === 'feito' && provaSg) {
-    const quanto = typeof provaSg.segredos === 'number' ? `${provaSg.segredos} ${provaSg.segredos === 1 ? 'segredo passado' : 'segredos passados'}` : 'Segredos passados';
-    linhas.push(`Segredos: ${quanto} do Secrets Manager e do Parameter Store para o OpenBao${localDados ? `, em ${localDados}` : ''}; contagem e sha256 ${provaSg.checksumsOk ? 'iguais' : 'DIFERENTES'}, sem nunca mostrar um valor.`);
-  }
-
-  const ch = doPasso(pedidos, 'cache');
-  const provaCh = ch && (eventos.filter((e) => e.pedidoId === ch.id && e.tipo === 'feito').at(-1)?.depois as { chaves?: number; checksumsOk?: boolean } | undefined);
-  if (ch?.estado === 'feito' && provaCh) {
-    const quanto = typeof provaCh.chaves === 'number' ? `${provaCh.chaves} ${provaCh.chaves === 1 ? 'chave copiada' : 'chaves copiadas'}` : 'Chaves copiadas';
-    linhas.push(`Cache: ${quanto} do ElastiCache para o Valkey${localDados ? `, em ${localDados}` : ''}; tipo, valor e TTL com sha256 ${provaCh.checksumsOk ? 'iguais' : 'DIFERENTES'}.`);
-  }
+  const migrados = SERVICOS.map((s) => {
+    const pedido = doPasso(pedidos, s.passo);
+    return { ...s, pedido, prova: pedido?.estado === 'feito' ? provaDe(pedido.id) : undefined };
+  }).filter((s) => s.pedido);
+  const feitos = migrados.filter((s) => s.prova);
+  const algumDiferente = feitos.some((s) => s.prova!.checksumsOk === false);
+  const testes = feitos.find((s) => s.prova!.testes)?.prova!.testes;
 
   const recon = eventos.filter((e) => e.tipo === 'reconhecimento').at(-1)?.depois as Reconhecimento | undefined;
-  if (recon?.portas?.length) {
-    const lista = recon.portas.slice(0, 4).map((p) => `${p.servico ?? 'serviço'} ${p.porta} (${p.alvo})`).join(', ');
-    linhas.push(`Ataque às nossas máquinas: ${recon.portas.length} ${recon.portas.length === 1 ? 'porta aberta' : 'portas abertas'}: ${lista}${recon.portas.length > 4 ? ', …' : ''}.`);
-  } else if (recon) {
-    linhas.push('Ataque às nossas máquinas: nenhuma porta aberta encontrada.');
-  }
-
   const fechos = eventos.filter(eFecho);
+  const exp = relogioExposicao(eventos, agora);
+  const confirmacao = eventos.filter((e) => e.tipo === 'confirmacao-atacante').at(-1)?.depois as { chega?: boolean } | undefined;
+  const codigo = eventos.filter((e) => e.tipo === 'migracao-codigo').at(-1)?.depois as { causas?: number; url?: string } | undefined;
+  const comInverso = eventos.filter((e) => e.tipo === 'feito' && e.inverso);
+
+  const l: string[] = [`CERTIFICADO DE MIGRAÇÃO · ${idCertificado(agora)}`, `${DATA(iso)} ${HORA(iso)} · ${onde}`, ''];
+
+  // Resumo: frases fixas a partir dos números abaixo (a IA não entra aqui; a demo nunca espera por ela).
+  const resumo: string[] = [];
+  if (feitos.length) {
+    resumo.push(
+      `Migrámos ${feitos.length} ${feitos.length === 1 ? 'serviço' : 'serviços'} da AWS para ${onde}` +
+        (algumDiferente ? ', mas há pelo menos um checksum diferente.' : ', com a impressão digital dos dados igual dos dois lados.'),
+    );
+  } else if (migrados.length) {
+    resumo.push('A migração não ficou concluída.');
+  }
+  if (recon) {
+    const n = recon.portas?.length ?? 0;
+    resumo.push(
+      n === 0
+        ? 'O atacante não encontrou portas abertas.'
+        : `O atacante encontrou ${n} ${n === 1 ? 'porta aberta' : 'portas abertas'} e ${fechos.length === 0 ? 'ainda nenhuma foi fechada' : `${fechos.length === 1 ? 'foi fechada' : `${fechos.length} foram fechadas`} com aprovação`}.`,
+    );
+  }
+  if (exp && !exp.aindaExposta) resumo.push(`Exposição: ${duracao(exp.segundos * 1000)}.`);
+  l.push('RESUMO', resumo.length ? resumo.join(' ') : NAO_MEDIDO, '');
+
+  l.push('1. ONDE ESTÃO OS DADOS');
+  if (migrados.length === 0) l.push(`· ${NAO_MEDIDO}`);
+  for (const s of migrados) {
+    const estado = s.prova ? '' : ` · ${s.pedido!.estado === 'ignorado' ? 'não aprovado' : 'por concluir'}`;
+    l.push(`· ${s.aws} → ${s.destino} · ${onde} · self-hosted${estado}`);
+  }
+  l.push('');
+
+  l.push('2. PROVA DE QUE NADA SE PERDEU');
+  if (feitos.length === 0) l.push(`· ${NAO_MEDIDO}`);
+  for (const s of feitos) l.push(`· ${s.frase(s.prova!)} · checksum ${OK(s.prova!.checksumsOk)}`);
+  l.push(`· Testes da app: antes ${OK(testes?.antes)} · depois ${OK(testes?.depois)}`);
+  if (algumDiferente) l.push('✗ ATENÇÃO: há um checksum diferente. A migração não está completa.');
+  l.push('');
+
+  l.push('3. SEGURANÇA DEPOIS DA MIGRAÇÃO');
+  if (!recon) l.push(`· Encontrado: ${NAO_MEDIDO}`);
+  else {
+    const portas = recon.portas ?? [];
+    l.push(`· Encontrado: ${portas.length} ${portas.length === 1 ? 'falha' : 'falhas'}${portas.length ? `: ${portas.slice(0, 4).map((p) => `${p.servico ?? 'serviço'} ${p.porta}`).join(', ')}` : ''}`);
+  }
   for (const f of fechos.slice(0, 4)) {
     const pedido = pedidos.find((p) => p.id === f.pedidoId);
     const aprov = eventos.find((e) => e.pedidoId === f.pedidoId && e.tipo === 'aprovado');
-    const desfeito = pedido?.estado === 'desfeito' ? ' (depois desfeito pelo dono)' : '';
-    linhas.push(
-      `Fechado: ${pedido?.titulo ?? f.pedidoId}, às ${HORA(f.hora)}` +
-        `${aprov ? (aprov.quem === 'modo-noite' ? ', pelo modo noite (sem resposta do dono), só aberto aos IPs conhecidos' : `, aprovado por uma pessoa às ${HORA(aprov.hora)}`) : ''}; inverso guardado${desfeito}.`,
-    );
+    const quem = !aprov ? NAO_MEDIDO : aprov.quem === 'modo-noite' ? 'modo noite (sem resposta do dono), só os IPs conhecidos entram' : 'uma pessoa, no Telegram';
+    const desfeito = pedido?.estado === 'desfeito' ? ' · depois desfeito pelo dono' : '';
+    l.push(`· ${pedido?.titulo ?? f.pedidoId} → fechada às ${HORA(f.hora)}, aprovado por ${quem}${desfeito}`);
   }
+  l.push(`· Tempo exposto: ${exp && !exp.aindaExposta ? `${exp.segundos} segundos` : exp?.aindaExposta && fechos.length === 0 && recon?.portas?.length ? 'ainda exposta' : NAO_MEDIDO}`);
+  l.push(`· Confirmação do atacante: ${confirmacao?.chega === undefined ? NAO_MEDIDO : confirmacao.chega ? 'ainda chega lá ✗' : 'já não chega lá ✓'}`);
+  if (codigo?.causas) l.push(`· Causa corrigida no código: regra aberta na configuração da infraestrutura${codigo.url ? ` (${codigo.url})` : ''}`);
+  l.push('');
 
-  const exp = relogioExposicao(eventos, agora);
-  if (exp && !exp.aindaExposta) linhas.push(`Exposição: ${duracao(exp.segundos * 1000)} entre a infraestrutura nova ficar no ar e a porta fechar.`);
-  else if (exp?.aindaExposta && fechos.length === 0 && pedidos.some((p) => p.acao.tipo === 'remover_regra'))
-    linhas.push(`Exposição: ainda há portas por fechar (${duracao(exp.segundos * 1000)} desde que a infraestrutura ficou no ar).`);
+  l.push('4. COMO VOLTAR ATRÁS');
+  if (comInverso.length === 0) l.push('· Nenhuma ação com inverso neste ciclo');
+  else {
+    const ids = [...new Set(comInverso.map((e) => e.pedidoId))];
+    l.push(`· ${ids.length} ${ids.length === 1 ? 'ação guardada' : 'ações guardadas'} com o inverso · desfazer: ${ids.slice(0, 3).map((id) => `/desfazer ${id}`).join(', ')}`);
+  }
+  l.push('');
 
-  // Só se promete o inverso se ele estiver mesmo guardado.
-  const comInverso = eventos.some((e) => e.inverso) ? '; cada porta fechada tem o inverso guardado para desfazer' : '';
-  linhas.push(`Registo: ${eventos.length} ${eventos.length === 1 ? 'evento' : 'eventos'} na auditoria${comInverso}.`);
-  return linhas.join('\n');
+  l.push(`Destino dos dados: ${onde}. Gerado automaticamente a partir do registo de auditoria (${eventos.length} ${eventos.length === 1 ? 'evento' : 'eventos'}).`);
+  return l.join('\n');
 }
