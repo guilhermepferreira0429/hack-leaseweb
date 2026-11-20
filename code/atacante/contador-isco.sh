@@ -16,9 +16,9 @@ desde=${1:-08:00}
 logs=${AUTH_LOGS:-/var/log/auth.log.1 /var/log/auth.log}
 
 case "$desde" in
-  [0-9][0-9]:[0-9][0-9]) ;;
+  [0-1][0-9]:[0-5][0-9] | 2[0-3]:[0-5][0-9]) ;;
   *)
-    echo "uso: $0 [HH:MM]" >&2
+    echo "uso: $0 [HH:MM] (00:00 a 23:59)" >&2
     exit 2
     ;;
 esac
