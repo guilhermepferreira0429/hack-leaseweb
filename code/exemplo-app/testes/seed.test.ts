@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 import { GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import type { S3Client } from '@aws-sdk/client-s3';
-import { GetQueueUrlCommand, ReceiveMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+import { GetQueueAttributesCommand, GetQueueUrlCommand, ReceiveMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+import * as amqp from 'amqplib';
 import pg from 'pg';
 import { carregarEnvLocal, clienteS3, lerAmbiente } from '../adaptadores';
 import {
@@ -152,12 +153,38 @@ describe('seed: ler da infraestrutura', { skip: salto }, () => {
     assert.equal(e.total, original.totalCentimos);
   });
 
-  it('lê uma mensagem da fila encomendas-novas sem a consumir, e a encomenda existe como "nova"', async () => {
+  /** Lê uma mensagem sem a consumir: SQS com VisibilityTimeout 0, RabbitMQ com get + nack(requeue). */
+  async function espreitarMensagem(): Promise<string | 'vazia'> {
+    if (amb!.fila.tipo === 'rabbitmq') {
+      const ligacao = await amqp.connect(amb!.fila.rabbitmqUrl!);
+      // Sem estes ouvintes, um canal fechado pelo servidor (ex.: 404 fila inexistente) mata o processo.
+      ligacao.on('error', () => {});
+      try {
+        const canal = await ligacao.createChannel();
+        canal.on('error', () => {});
+        await canal.checkQueue(FILA_ENCOMENDAS); // lança se a fila não existir no RabbitMQ
+        const m = await canal.get(FILA_ENCOMENDAS, { noAck: false });
+        if (!m) return 'vazia';
+        canal.nack(m, false, true);
+        await canal.close();
+        return m.content.toString('utf8');
+      } finally {
+        await ligacao.close().catch(() => {});
+      }
+    }
     const { QueueUrl } = await sqs.send(new GetQueueUrlCommand({ QueueName: FILA_ENCOMENDAS }));
-    // VisibilityTimeout 0: a mensagem fica logo visível outra vez; o teste não estraga a fila.
     const r = await sqs.send(new ReceiveMessageCommand({ QueueUrl, MaxNumberOfMessages: 1, VisibilityTimeout: 0, WaitTimeSeconds: 2 }));
-    const corpo = r.Messages?.[0]?.Body;
-    assert.ok(corpo, `a fila ${FILA_ENCOMENDAS} tem mensagens`);
+    if (r.Messages?.[0]?.Body) return r.Messages[0].Body;
+    const a = await sqs.send(new GetQueueAttributesCommand({ QueueUrl, AttributeNames: ['ApproximateNumberOfMessages', 'ApproximateNumberOfMessagesNotVisible'] }));
+    const n = Number(a.Attributes?.ApproximateNumberOfMessages ?? 0) + Number(a.Attributes?.ApproximateNumberOfMessagesNotVisible ?? 0);
+    return n === 0 ? 'vazia' : '';
+  }
+
+  it('lê uma mensagem da fila encomendas-novas sem a consumir, e a encomenda existe como "nova"', async (t) => {
+    const corpo = await espreitarMensagem();
+    // Depois do migrarFila() a fila do SQS fica vazia: as mensagens estão no RabbitMQ (FILA_TIPO=rabbitmq).
+    if (corpo === 'vazia' && amb!.fila.tipo === 'sqs') return t.skip('fila já migrada para o RabbitMQ (correr com FILA_TIPO=rabbitmq)');
+    assert.ok(corpo && corpo !== 'vazia', `a fila ${FILA_ENCOMENDAS} (${amb!.fila.tipo}) tem mensagens`);
     assert.ok(dados.mensagens.includes(corpo), 'a mensagem é uma das que a seed enviou');
     const m = JSON.parse(corpo) as { tipo: string; encomenda: string; totalCentimos: number };
     assert.equal(m.tipo, 'encomenda-nova');
