@@ -75,6 +75,10 @@ Preços sem IVA. "A confirmar" = o serviço existe mas não encontrámos o preç
 | Balanceador (ELB) | Load balancer como serviço (HAProxy), corre numa instância | Preço da instância escolhida | kb.leaseweb.com (load balancer of Public Cloud) |
 | Kubernetes (EKS) | Managed Kubernetes | Gestão sem custo extra; base € 21,60/mês; vCPU € 0,0038/h, RAM € 0,0019/GB/h | leaseweb.com/en/configure/vc/product/entityKey/KUBERNETES/2001 |
 | CDN (CloudFront) | Leaseweb CDN | A confirmar com a Leaseweb (listagens de terceiros dão cerca de 0,01 $/GB; plano pay-as-you-go antigo a € 49/mês com 2 TB) | Confirmar com a Leaseweb |
+| DDoS (Shield) | DDoS IP Protection Standard | Incluído sem custo extra em todos os serviços | kb.leaseweb.com (DDoS IP Protection) |
+| DDoS (Shield Advanced) | DDoS IP Protection Advanced / Customized / Always-on | Advanced: pequena taxa por IP (valor não publicado); restantes sob consulta | europeanpurpose.com/category/ddos-protection-services |
+| WAF | Leaseweb Cyber Security (WAF) | A confirmar com a Leaseweb | leaseweb.us (folheto Cyber Security) |
+| Backups (AWS Backup) | Acronis Backup (Public Cloud, VPS, dedicados) | 25 GB € 3,75/mês · 100 GB € 10,00/mês · 500 GB € 41,25/mês · 1000 GB € 81,75/mês | leaseweb.com/add-ons/backup/acronis |
 | Bases de dados geridas | **Não encontrámos** na Public Cloud | — | Confirmar no dia com a Leaseweb |
 
 ### Serviços geridos europeus quando a Leaseweb não tem
@@ -104,6 +108,13 @@ Preços sem IVA. "A confirmar" = o serviço existe mas não encontrámos o preç
 | Fargate / App Runner | Scaleway | Serverless Containers | Memória € 0,10 por 100k GB-s; vCPU € 1,0 por 100k vCPU-s (com free tier) | scaleway.com/fr/tarifs/serverless |
 | Cognito | Clever Cloud (França) | Keycloak as a Service | desde € 47/mês | clever-cloud.com (PDF Keycloak as a Service, jul/2026) |
 | Cognito | Cloud-IAM (França) | Keycloak gerido; grátis até 100 utilizadores (sem SLA, alojado na AWS) | Pagos a confirmar | europeanpurpose.com/tool/cloud-iam |
+| OpenSearch (pesquisa e logs) | OVHcloud | Managed OpenSearch, faturado por uso (inclui IOPS, backups e tráfego) | A confirmar | ovhcloud.com/en-in/public-cloud/opensearch |
+| OpenSearch Dashboards | OVHcloud | Dashboards dedicados (Logs Data Platform) | € 4,99/instância/mês | ovhcloud.com/en-ie/identity-security-operations/pricing |
+| Secrets Manager / KMS | OVHcloud | Secret Manager e KMS | Chaves a cerca de 0,05 £/chave/mês (UK); segredos a confirmar na região UE | ovhcloud.com/en-gb/identity-security-operations/pricing |
+| AWS Backup | IONOS (Alemanha) | Backup Service (Acronis) | 0,082 $/GB/30 dias + 2 $/dispositivo para extras | cloud.ionos.com/storage/backup |
+| IoT Core | Scaleway | IoT Hub Shared: 10 dispositivos, 50.000 mensagens/mês | Grátis | scaleway.com/en/pricing/managed-services |
+| IoT Core | Scaleway | IoT Hub Dedicated: 2M mensagens/mês | € 0,02/hora; excedente € 0,735/milhão | idem |
+| WAF | Bunny.net | Bunny Shield | A confirmar | bitdoze.com/bunny-net-review |
 | S3 (comparação) | Exoscale | Object Storage Standard | € 0,0184/GB/mês | exoscale.com/object-storage/classes |
 | S3 (comparação) | OVHcloud | Object Storage Standard | 8,3 $/TiB/mês | pricingsaas.com/companies/ovhcloud.publiccloud |
 
@@ -114,6 +125,9 @@ Preços sem IVA. "A confirmar" = o serviço existe mas não encontrámos o preç
   - não crítico e cabe na VM → **self-hosted na Leaseweb** (tabela de recursos acima);
   - crítico ou não cabe → **o gerido europeu mais barato desta tabela**, com o preço e a data.
 - Preço "a confirmar" → mostrar o fornecedor, dizer "preço a confirmar" e não fazer contas.
+- **DDoS:** a proteção Standard da Leaseweb já vem incluída; não há nada a migrar nem a pagar à partida. Só se recomenda subir de nível se o cliente for alvo frequente.
+- **Backups:** a Leaseweb tem Acronis integrado, por isso é a primeira escolha. É também a resposta à regra "dados pessoais sem backups → gerido": um Postgres self-hosted com backups Acronis da Leaseweb pode ficar em self-hosted.
+- **IoT:** só aparece se a app usar AWS IoT. Começar no plano grátis da Scaleway e subir para dedicado com mais de 10 dispositivos.
 - **CDN:** a Leaseweb tem CDN, por isso é a primeira escolha; se o preço não estiver confirmado, mostrar a Bunny.net como alternativa europeia com preço.
 - **Identidade (Cognito):** self-hosted Keycloak só se houver quem o mantenha; senão Keycloak gerido europeu. Cuidado: o plano grátis da Cloud-IAM corre na AWS, por isso não serve para soberania.
 
