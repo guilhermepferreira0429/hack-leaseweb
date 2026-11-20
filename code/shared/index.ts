@@ -2,6 +2,7 @@ export * from './tipos';
 export * from './config';
 export * from './llm';
 export * from './voz';
+export * from './glossario';
 export * from './mensagens';
 export type { Agente, Mensagem } from './bus';
 export * as bus from './bus';
