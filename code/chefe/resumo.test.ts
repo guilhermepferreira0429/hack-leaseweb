@@ -48,6 +48,13 @@ describe('chefe/resumir', () => {
     assert.match(texto, /3 ficheiros, checksums iguais.*Base de dados copiada \(2 tabelas\), também com checksums iguais\./);
   });
 
+  it('deteção falhada: não diz que não há portas abertas', () => {
+    const erro = ev('-', 'erro', 1, { fase: 'deteção pela API', erro: 'LSW_SG_GERIDOS vazio' });
+    const texto = resumir([erro], []);
+    assert.match(texto, /não conseguiu verificar os security groups/);
+    assert.doesNotMatch(texto, /não encontrou portas abertas/);
+  });
+
   it('sem falhas e migração não aprovada', () => {
     const texto = resumir([], [migrar('ignorado')]);
     assert.match(texto, /Migração não aprovada/);

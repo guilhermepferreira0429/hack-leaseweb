@@ -40,7 +40,9 @@ function linhaMigracao(pedidos: Pedido[], eventos: EventoAuditoria[]): string | 
 
 function linhaDefesa(pedidos: Pedido[], eventos: EventoAuditoria[]): string {
   const falhas = pedidos.filter((p) => p.acao.tipo === 'remover_regra');
-  // Diz o que a defesa viu, não uma garantia: se não lhe deram security groups, nem olhou.
+  // Diz o que a defesa viu, não uma garantia. Se a deteção falhou, não viu nada: não se diz que está tudo fechado.
+  const detecaoFalhou = eventos.some((e) => e.tipo === 'erro' && (e.depois as { fase?: string } | undefined)?.fase === 'deteção pela API');
+  if (falhas.length === 0 && detecaoFalhou) return 'A defesa não conseguiu verificar os security groups: não sabemos se há portas abertas.';
   if (falhas.length === 0) return 'A defesa não encontrou portas abertas a toda a internet.';
   const feitos = falhas.filter((p) => p.estado === 'feito');
   const desfeitos = falhas.filter((p) => p.estado === 'desfeito');
