@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { decidirDestino, simularProvisionamento, VMS_LEASEWEB, type CapacidadeVm, type EntradaServico } from './index';
+import { decidirDestino, resumoSimulacao, simularProvisionamento, VMS_LEASEWEB, type CapacidadeVm, type EntradaServico } from './index';
 
 const HOJE = new Date('2026-11-20T12:00:00Z');
 const VM: CapacidadeVm = { ramLivreGb: 122, vcpuLivres: 32, discoLivreGb: 100 };
@@ -93,5 +93,30 @@ describe('simularProvisionamento (dry-run na Leaseweb)', () => {
   it('determinístico', () => {
     const decisoes = decidir([{ servico: 'postgres', nome: 'encomendas', dadosGb: 5 }, { servico: 'segredos', nome: 'db' }]);
     assert.deepEqual(simularProvisionamento(decisoes, { redeApp: '10.0.1.0/24' }), simularProvisionamento(decisoes, { redeApp: '10.0.1.0/24' }));
+  });
+});
+
+describe('resumoSimulacao (versão curta para o Telegram)', () => {
+  it('exemplo: no máximo 3 linhas, com o número de recursos, o tipo, onde, para quê e o custo de cada', () => {
+    const sim = simularProvisionamento(decidir([{ servico: 'postgres', nome: 'encomendas', dadosGb: 5 }, { servico: 'segredos', nome: 'db' }]));
+    assert.equal(
+      resumoSimulacao(sim),
+      'DRY-RUN: I would create 4 resources on Leaseweb via API (lsw.c3.large in Amsterdam for PostgreSQL and OpenBao, about €30.02/month each).\nNothing was created.',
+    );
+  });
+
+  it('VMs diferentes: cada uma com o seu custo; o Object Storage aparece como pedido no portal', () => {
+    const sim = simularProvisionamento(
+      decidir([{ servico: 'postgres', dadosGb: 5 }, { servico: 'cache', dadosGb: 4, criticidade: 'alta' }, { servico: 's3', dadosGb: 10, criticidade: 'alta' }]),
+    );
+    const r = resumoSimulacao(sim);
+    assert.ok(r.split('\n').length <= 3);
+    assert.match(r, /^DRY-RUN: I would create 4 resources on Leaseweb via API \(in Amsterdam: lsw\.c3\.large for PostgreSQL \(about €30\.02\/month\) and lsw\.r3\.large for Valkey \(about €40\.49\/month\)\)\./);
+    assert.match(r, /\nPlus Leaseweb Object Storage on demand for S3, ordered in the portal\.\nNothing was created\.$/);
+  });
+
+  it('sem nada a criar: diz que é dry-run e que nada foi criado', () => {
+    const r = resumoSimulacao(simularProvisionamento(decidirDestino({ servicos: [{ servico: 'fila' }], vm: VM, temBackups: true, hoje: HOJE })));
+    assert.equal(r, 'DRY-RUN: no Leaseweb VM to create for these services.\nNothing was created.');
   });
 });

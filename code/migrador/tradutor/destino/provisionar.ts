@@ -51,20 +51,28 @@ function escolherVm(d: Decisao, ramRecomendadaGb = 0) {
   return VMS_LEASEWEB.find((v) => v.ramGb >= precisa);
 }
 
-export function simularProvisionamento(
-  decisoes: Decisao[],
-  opcoes: OpcoesSimulacao = {},
-): { chamadas: ChamadaSimulada[]; texto: string } {
+/** Resultado da simulação. `vms` e `portal` servem o resumo curto (resumoSimulacao). */
+export type Simulacao = {
+  chamadas: ChamadaSimulada[];
+  texto: string;
+  vms: { servico: string; type: string; custoMes: number; discoGb: number }[];
+  portal: { servicoAws: string; plano: string }[];
+};
+
+export function simularProvisionamento(decisoes: Decisao[], opcoes: OpcoesSimulacao = {}): Simulacao {
   const rede = opcoes.redeApp?.trim();
   if (rede === '0.0.0.0/0' || rede === '::/0') throw new Error('simularProvisionamento: redeApp nunca pode ser a Internet inteira.');
   const origem = rede || '{appNetwork}';
 
   const chamadas: ChamadaSimulada[] = [];
   const linhas: string[] = [];
+  const vms: Simulacao['vms'] = [];
+  const portal: Simulacao['portal'] = [];
 
   // 1. Geridos que já são da Leaseweb (ex.: Object Storage para o S3): não há chamada documentada, é pelo portal.
   for (const d of decisoes.filter((x) => x.destino === 'gerido' && x.fornecedor === 'Leaseweb')) {
     const opcao = GERIDO_LEASEWEB[d.servico];
+    portal.push({ servicoAws: d.servicoAws, plano: opcao?.plano ?? d.plano ?? d.servico });
     chamadas.push({
       metodo: 'PORTAL',
       caminho: `Customer Portal: ${opcao?.plano ?? d.plano ?? d.servico}`,
@@ -90,6 +98,7 @@ export function simularProvisionamento(
     const disco = Math.max(DISCO_MINIMO_GB, Math.ceil(d.precisa.discoGb));
     const custo = Math.round((vm.precoMes + disco * DISCO_GB_MES) * 100) / 100;
     const sg = `{securityGroupId:${ref}}`;
+    vms.push({ servico: alvo.nome, type: vm.type, custoMes: custo, discoGb: disco });
     chamadas.push(
       {
         metodo: 'POST',
@@ -134,5 +143,34 @@ export function simularProvisionamento(
     ...(passos.length > 0 ? ['API calls I would make (not sent):', ...passos] : []),
     'Instance types and prices to be confirmed with GET /instanceTypes.',
   ].join('\n');
-  return { chamadas, texto };
+  return { chamadas, texto, vms, portal };
+}
+
+function juntar(itens: string[]): string {
+  return itens.length <= 1 ? itens.join('') : `${itens.slice(0, -1).join(', ')} and ${itens.at(-1)}`;
+}
+
+/**
+ * Versão curta da simulação para o Telegram (no máximo 3 linhas). O texto completo vai para a auditoria e o painel.
+ * Só usa o que a simulação calculou: nenhum número novo.
+ */
+export function resumoSimulacao(sim: Simulacao): string {
+  const linhas: string[] = [];
+  if (sim.vms.length > 0) {
+    const recursos = sim.chamadas.filter((c) => c.caminho === '/instances' || c.caminho === '/securityGroups').length;
+    const tipos = [...new Set(sim.vms.map((v) => v.type))];
+    const custos = [...new Set(sim.vms.map((v) => v.custoMes))];
+    const servicos = juntar(sim.vms.map((v) => v.servico));
+    const detalhe =
+      tipos.length === 1 && custos.length === 1
+        ? `${tipos[0]} in Amsterdam for ${servicos}, about €${formatarNumero(custos[0]!)}/month${sim.vms.length > 1 ? ' each' : ''}`
+        : `in Amsterdam: ${juntar(sim.vms.map((v) => `${v.type} for ${v.servico} (about €${formatarNumero(v.custoMes)}/month)`))}`;
+    linhas.push(`DRY-RUN: I would create ${recursos} resources on Leaseweb via API (${detalhe}).`);
+  } else {
+    linhas.push('DRY-RUN: no Leaseweb VM to create for these services.');
+  }
+  if (sim.portal.length > 0)
+    linhas.push(`Plus ${juntar(sim.portal.map((p) => `Leaseweb ${p.plano} for ${p.servicoAws}`))}, ordered in the portal.`);
+  linhas.push('Nothing was created.');
+  return linhas.join('\n');
 }
