@@ -452,7 +452,15 @@ ${resumo}`,
         quem: "migrador",
         depois: { texto },
       });
-      falar("migrador", "dono", texto);
+      // A recomendação mostra o raciocínio e os preços; nada se contrata. Hoje migra-se tudo para a VM.
+      const geridos = /proponho/i.test(texto);
+      falar(
+        "migrador",
+        "dono",
+        geridos
+          ? `${texto}\nIsto é só a minha recomendação: nesta migração fica tudo na VM (self-hosted) e não contrato nada. Passar um serviço para gerido é uma decisão vossa, para depois.`
+          : texto,
+      );
     } catch (erro) {
       await falha("decisor de destino", erro);
     }

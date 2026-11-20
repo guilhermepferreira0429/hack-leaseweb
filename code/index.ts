@@ -8,7 +8,8 @@
 //   npm run dev -- --sem-segredos       salta o passo Secrets Manager/SSM -> OpenBao
 //   npm run dev -- --sem-cache          salta o passo ElastiCache Redis -> Valkey
 // A lógica está em orquestrador.ts; aqui só se ligam os módulos reais.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statfsSync } from "node:fs";
+import { availableParallelism, freemem } from "node:os";
 import { fileURLToPath } from "node:url";
 import {
   auditoria,
@@ -76,9 +77,18 @@ async function planoDestino(
 ): Promise<string | undefined> {
   const n = (v: string | undefined) =>
     v && Number(v) > 0 ? Number(v) : undefined;
-  const ram = n(process.env.VM_DESTINO_RAM_GB);
-  const vcpu = n(process.env.VM_DESTINO_VCPU);
-  const disco = n(process.env.VM_DESTINO_DISCO_GB);
+  // A capacidade mede-se nesta máquina (é a VM de destino: os serviços self-hosted correm aqui).
+  // VM_DESTINO_* no .env, se existirem, sobrepõem-se à medição (ex.: simular uma VM pequena).
+  let discoMedido: number | undefined;
+  try {
+    const st = statfsSync(process.platform === "win32" ? "C:/" : "/");
+    discoMedido = Math.floor((st.bavail * st.bsize) / 1e9);
+  } catch {
+    discoMedido = undefined;
+  }
+  const ram = n(process.env.VM_DESTINO_RAM_GB) ?? Math.floor(freemem() / 1e9);
+  const vcpu = n(process.env.VM_DESTINO_VCPU) ?? availableParallelism();
+  const disco = n(process.env.VM_DESTINO_DISCO_GB) ?? discoMedido;
   if (!ram || !vcpu || !disco || servicos.length === 0) return undefined;
   const vm = { ramLivreGb: ram, vcpuLivres: vcpu, discoLivreGb: disco };
   const decisoes = decidirDestino({
