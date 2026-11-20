@@ -424,11 +424,11 @@ async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: U
     }
     return;
   }
-  let paraQuem: Agente | null = null;
-  if (m.chat.type === 'private') paraQuem = agente;
-  else if (nomeBot && m.text.includes(`@${nomeBot}`)) paraQuem = agente;
-  // Comandos no grupo (/estado) chegam a todos os bots com privacy desligado: só um os trata.
-  else if (agente !== principal()) return;
+  // No grupo a mesma mensagem chega aos 4 bots: só o mencionado (ou o principal) a trata.
+  // `esteBotResponde` evita que um comando tocado numa mensagem de outro bot seja tratado duas vezes.
+  if (!esteBotResponde(m.chat.type, m.text, nomeBot, agente)) return;
+  const paraQuem: Agente | null =
+    m.chat.type === 'private' || (nomeBot && m.text.includes(`@${nomeBot}`)) ? agente : null;
   for (const cb of cbsMensagem) cb(paraQuem, texto);
 }
 
