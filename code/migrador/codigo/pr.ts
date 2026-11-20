@@ -112,6 +112,38 @@ export async function abrirPR(
 
 export const PREFIXO_RAMO_APP = 'migracao/leaseweb-';
 
+/** Chamada à API REST do GitHub. Injetável nos testes. */
+export type ApiGitHub = (metodo: 'GET' | 'POST' | 'PUT' | 'DELETE', caminho: string, corpo?: unknown) => Promise<any>;
+
+/**
+ * API do GitHub com o token (fetch, sem o gh CLI, que a VM não tem). O token só vai no cabeçalho
+ * Authorization; os erros levam o método, o caminho e o estado HTTP, nunca o token.
+ */
+export function apiGitHub(token: string): ApiGitHub {
+  return async (metodo, caminho, corpo) => {
+    const r = await fetch(`https://api.github.com${caminho}`, {
+      method: metodo,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'hack-leaseweb-migrador',
+        ...(corpo === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      body: corpo === undefined ? undefined : JSON.stringify(corpo),
+      signal: AbortSignal.timeout(20_000),
+    });
+    const texto = await r.text();
+    if (!r.ok) throw new Error(`GitHub ${metodo} ${caminho}: HTTP ${r.status} ${texto.slice(0, 200)}`);
+    return texto ? JSON.parse(texto) : undefined;
+  };
+}
+
+/** Com token (ou uma API injetada) usa a API do GitHub; sem nada, o gh CLI da máquina. */
+function apiDe(opcoes: { token?: string; api?: ApiGitHub }): ApiGitHub | undefined {
+  return opcoes.api ?? (opcoes.token ? apiGitHub(opcoes.token) : undefined);
+}
+
 export function nomeRamoApp(agora: Date = new Date()): string {
   return `${PREFIXO_RAMO_APP}${agora.toISOString().replace(/\D/g, '').slice(0, 14)}`;
 }
@@ -131,7 +163,7 @@ export function ambienteDoToken(token?: string): Record<string, string> | undefi
 
 export async function abrirPRNoRepoDaApp(
   pedido: Omit<PedidoPR, 'dirAppNoRepo' | 'id'>,
-  opcoes: { repo: string; token?: string; real?: boolean; diff: string; executar?: Executar; agora?: Date },
+  opcoes: { repo: string; token?: string; real?: boolean; diff: string; executar?: Executar; agora?: Date; api?: ApiGitHub },
 ): Promise<ResultadoPR> {
   if (!/^[\w.-]+\/[\w.-]+$/.test(opcoes.repo)) throw new Error(`repo inválido: ${opcoes.repo}`);
   const ramo = nomeRamoApp(opcoes.agora);
@@ -171,6 +203,11 @@ export async function abrirPRNoRepoDaApp(
     await git('git', ['-c', 'user.name=Migrador hack-leaseweb', '-c', 'user.email=migrador@users.noreply.github.com', 'commit', '-m', pedido.titulo, '-m', pedido.corpo], arvore, env);
     // Só o ramo novo (refspec explícito). O main do repo da app só muda com um merge decidido por uma pessoa.
     await git('git', ['push', 'origin', `${ramo}:${ramo}`], arvore, env);
+    const api = apiDe(opcoes);
+    if (api) {
+      const pr = (await api('POST', `/repos/${opcoes.repo}/pulls`, { title: pedido.titulo, head: ramo, base: 'main', body: pedido.corpo })) as { html_url?: string };
+      return { ramo, ficheiros, simulado: false, url: pr?.html_url };
+    }
     const url = await git('gh', ['pr', 'create', '--repo', opcoes.repo, '--base', 'main', '--head', ramo, '--title', pedido.titulo, '--body', pedido.corpo], arvore, env);
     return { ramo, ficheiros, simulado: false, url: url.split('\n').at(-1) };
   } finally {
@@ -185,9 +222,18 @@ export async function abrirPRNoRepoDaApp(
 export async function aprovarPR(
   repo: string,
   numero: number,
-  opcoes: { token?: string; executar?: Executar; cwd?: string } = {},
+  opcoes: { token?: string; executar?: Executar; cwd?: string; api?: ApiGitHub } = {},
 ): Promise<{ commit?: string }> {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !(numero > 0)) throw new Error(`PR inválido: ${repo}#${numero}`);
+  const api = apiDe(opcoes);
+  if (api) {
+    const pr = (await api('GET', `/repos/${repo}/pulls/${numero}`)) as { head?: { ref?: string } };
+    const m = (await api('PUT', `/repos/${repo}/pulls/${numero}/merge`, { merge_method: 'squash' })) as { sha?: string };
+    const ramo = pr?.head?.ref;
+    // Só se apaga um ramo do migrador, nunca o main.
+    if (ramo && ramo.startsWith(PREFIXO_RAMO_APP)) await api('DELETE', `/repos/${repo}/git/refs/heads/${ramo}`).catch(() => undefined);
+    return { commit: m?.sha && /^[0-9a-f]{7,40}$/.test(m.sha) ? m.sha : undefined };
+  }
   const gh = opcoes.executar ?? executarReal;
   const env = ambienteDoToken(opcoes.token);
   const cwd = opcoes.cwd ?? tmpdir();
@@ -202,7 +248,7 @@ export async function reverterPR(
   repo: string,
   numero: number,
   commit: string | undefined,
-  opcoes: { token?: string; executar?: Executar; agora?: Date } = {},
+  opcoes: { token?: string; executar?: Executar; agora?: Date; api?: ApiGitHub } = {},
 ): Promise<{ url?: string; ramo: string }> {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !(numero > 0)) throw new Error(`PR inválido: ${repo}#${numero}`);
   if (!commit || !/^[0-9a-f]{7,40}$/.test(commit)) throw new Error(`não sei que commit reverter do PR #${numero}`);
@@ -218,6 +264,11 @@ export async function reverterPR(
     await git('git', ['push', 'origin', `${ramo}:${ramo}`], arvore, env);
     const titulo = `Reverter o PR #${numero} (pedido pelo dono com /desfazer)`;
     const corpo = `Desfaz o PR #${numero}, a pedido do dono no Telegram. O ramo principal só muda quando alguém fizer merge deste PR.`;
+    const api = apiDe(opcoes);
+    if (api) {
+      const pr = (await api('POST', `/repos/${repo}/pulls`, { title: titulo, head: ramo, base: 'main', body: corpo })) as { html_url?: string };
+      return { url: pr?.html_url, ramo };
+    }
     const url = await git('gh', ['pr', 'create', '--repo', repo, '--base', 'main', '--head', ramo, '--title', titulo, '--body', corpo], arvore, env);
     return { url: url.split('\n').at(-1), ramo };
   } finally {

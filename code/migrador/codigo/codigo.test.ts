@@ -252,17 +252,23 @@ describe('migrador de código', () => {
         await mkdir(join(args.at(-1)!, 'src'), { recursive: true });
         await writeFile(join(args.at(-1)!, 'src', 'armazenamento.ts'), original);
       }
-      return cmd === 'gh' ? 'https://github.com/dono/app/pull/2' : '';
+      return '';
     };
+    const pedidosApi: { metodo: string; caminho: string; corpo?: { head?: string; base?: string } }[] = [];
+    const api = async (metodo: string, caminho: string, corpo?: unknown) => (
+      pedidosApi.push({ metodo, caminho, corpo: corpo as { head?: string; base?: string } }), { html_url: 'https://github.com/dono/app/pull/2' }
+    );
     const TOKEN = 'github_pat_FALSO_123';
-    const r = await migrarCodigo(dirApp, { raizRepo: raiz, id: 'x', testesOk: true, real: true, repoApp: 'dono/app', token: TOKEN, executar });
+    const r = await migrarCodigo(dirApp, { raizRepo: raiz, id: 'x', testesOk: true, real: true, repoApp: 'dono/app', token: TOKEN, executar, api });
     assert.equal(r.pr?.url, 'https://github.com/dono/app/pull/2');
     assert.match(r.pr!.ramo, /^migracao\/leaseweb-\d{14}$/);
     assert.deepEqual(r.pr!.ficheiros.sort(), [FICHEIRO_CONFIG, 'src/armazenamento.ts']);
     const linhas = comandos.map((c) => c.linha);
     assert.ok(linhas[0]!.startsWith('git clone --depth 1 https://github.com/dono/app.git '));
     assert.ok(linhas.includes(`git push origin ${r.pr!.ramo}:${r.pr!.ramo}`));
-    assert.ok(linhas.some((l) => l.startsWith(`gh pr create --repo dono/app --base main --head ${r.pr!.ramo}`)));
+    // Sem gh CLI (a VM não o tem): o PR abre pela API do GitHub, do ramo novo para main.
+    assert.deepEqual(pedidosApi.map((p) => `${p.metodo} ${p.caminho} ${p.corpo?.head}->${p.corpo?.base}`), [`POST /repos/dono/app/pulls ${r.pr!.ramo}->main`]);
+    assert.ok(!linhas.some((l) => l.startsWith('gh ')), 'com token não se usa o gh CLI');
     assert.ok(!linhas.some((l) => l.includes(TOKEN)), 'o token nunca aparece nos argumentos');
     assert.ok(comandos.every((c) => c.env?.GH_TOKEN === TOKEN), 'o token vai por variável de ambiente');
     assert.ok(!linhas.some((l) => /git push\b.*\bmain\b/.test(l)));
@@ -319,22 +325,37 @@ describe('migrador de código', () => {
     assert.match(await readFile(r.pr!.diffEm!, 'utf8'), /Segurança \(a causa da falha que a defesa fechou pela API da Leaseweb\)/);
   });
 
-  it('aprovarPR faz squash merge com o token por variável; reverterPR abre um PR com o revert', async () => {
+  it('aprovarPR faz squash merge pela API e apaga só o ramo do migrador; reverterPR abre um PR com o revert', async () => {
     const cmds: { linha: string; env?: Record<string, string> }[] = [];
     const executar = async (cmd: string, args: string[], _cwd: string, env?: Record<string, string>) => {
       cmds.push({ linha: `${cmd} ${args.join(' ')}`, env });
-      if (args[0] === 'pr' && args[1] === 'view') return 'abc1234def';
-      if (cmd === 'gh' && args[1] === 'create') return 'https://github.com/dono/app/pull/9';
       return '';
     };
-    const r = await aprovarPR('dono/app', 7, { token: 'tok', executar });
+    const chamadas: string[] = [];
+    const api = async (metodo: string, caminho: string) => {
+      chamadas.push(`${metodo} ${caminho}`);
+      if (metodo === 'GET') return { head: { ref: 'migracao/leaseweb-20261120120000' } };
+      if (metodo === 'PUT') return { sha: 'abc1234def' };
+      if (metodo === 'POST') return { html_url: 'https://github.com/dono/app/pull/9' };
+      return undefined;
+    };
+    const r = await aprovarPR('dono/app', 7, { token: 'tok', executar, api });
     assert.equal(r.commit, 'abc1234def');
-    assert.ok(cmds[0]!.linha.startsWith('gh pr merge 7 --repo dono/app --squash'));
-    assert.ok(cmds.every((c) => c.env?.GH_TOKEN === 'tok' && !c.linha.includes('tok ')));
-    await assert.rejects(aprovarPR('não é um repo', 7, { executar }), /PR inválido/);
+    assert.deepEqual(chamadas, [
+      'GET /repos/dono/app/pulls/7',
+      'PUT /repos/dono/app/pulls/7/merge',
+      'DELETE /repos/dono/app/git/refs/heads/migracao/leaseweb-20261120120000',
+    ]);
+    assert.equal(cmds.length, 0, 'o merge não precisa de git nem de gh');
+    await assert.rejects(aprovarPR('não é um repo', 7, { executar, api }), /PR inválido/);
+
+    // Um PR cujo ramo não é do migrador: faz o merge mas não apaga o ramo.
+    chamadas.length = 0;
+    await aprovarPR('dono/app', 8, { api: async (m: string, c: string) => (chamadas.push(`${m} ${c}`), m === 'GET' ? { head: { ref: 'main' } } : { sha: 'abc1234' }) });
+    assert.ok(!chamadas.some((c) => c.startsWith('DELETE')));
 
     cmds.length = 0;
-    const v = await reverterPR('dono/app', 7, 'abc1234def', { token: 'tok', executar });
+    const v = await reverterPR('dono/app', 7, 'abc1234def', { token: 'tok', executar, api });
     assert.equal(v.url, 'https://github.com/dono/app/pull/9');
     assert.match(v.ramo, /^migracao\/leaseweb-reverter-7-\d{14}$/);
     const linhas = cmds.map((c) => c.linha);

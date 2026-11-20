@@ -3,7 +3,7 @@
 // migrador, que o orquestrador corre antes; sem testes a passar, não há PR. Nunca há push para main.
 import { relative, resolve, sep } from 'node:path';
 import { encontrarUsosAws, type UsoAws } from './encontrar';
-import { abrirPR, abrirPRNoRepoDaApp, type Executar, type ResultadoPR } from './pr';
+import { abrirPR, abrirPRNoRepoDaApp, type ApiGitHub, type Executar, type ResultadoPR } from './pr';
 import { proporAlteracao, validarAlteracao, type CausaCorrigida } from './propor';
 
 export * from './encontrar';
@@ -37,6 +37,8 @@ export interface OpcoesCodigo {
   /** Token só para o repo da app (GITHUB_TOKEN_EXEMPLO). Sem ele, usam-se as credenciais do git/gh da máquina. */
   token?: string;
   executar?: Executar;
+  /** API do GitHub injetada (testes). Sem ela, com token usa-se a API real; sem token, o gh CLI. */
+  api?: ApiGitHub;
 }
 
 function corpoPR(usos: UsoAws[], ficheiros: string[], fora: string[], causas: CausaCorrigida[]): string {
@@ -74,7 +76,7 @@ export async function migrarCodigo(dirApp: string, opcoes: OpcoesCodigo): Promis
   if (opcoes.repoApp) {
     const pr = await abrirPRNoRepoDaApp(
       { alteracoes: proposta.alteracoes, titulo, corpo },
-      { repo: opcoes.repoApp, token: opcoes.token, real: opcoes.real, diff: proposta.diff, executar: opcoes.executar },
+      { repo: opcoes.repoApp, token: opcoes.token, real: opcoes.real, diff: proposta.diff, executar: opcoes.executar, api: opcoes.api },
     );
     return { ...base, pr };
   }
