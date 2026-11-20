@@ -2,6 +2,8 @@
 
 O deck do pitch de 5 minutos (ensaiado para 4:30), em HTML simples: sem build, sem dependências, sem internet.
 São 12 slides: estatísticas e problema primeiro, a demo e o painel ao meio, o antes/depois e o mercado depois, o fecho no fim.
+A história segue uma empresa fictícia, a **Encomendas Lusas** (Porto), que é a própria app da demo: os números
+medidos (N, T, X, testes) são os da corrida dela e as estatísticas são reais, com fonte nos anexos.
 Abre-se com **duplo clique em `index.html`** (Chrome ou Edge), carrega-se em **F** para ecrã inteiro e em **P**
 para abrir a vista do apresentador no segundo ecrã. As duas janelas andam juntas.
 

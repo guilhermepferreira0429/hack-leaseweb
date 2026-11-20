@@ -31,10 +31,10 @@
       html: (p, v) => `
         <div class="lado-a-lado abertura">
           <div class="estat isco${recua(p, 1)}">
-            <div ${E(0, 'ao-vivo lilas')}><span class="ponto"></span>LIVE · BAIT VM ON LEASEWEB</div>
+            <div ${E(0, 'ao-vivo lilas')}><span class="ponto"></span>ENCOMENDAS LUSAS · BAIT VM ON LEASEWEB</div>
             <div ${E(1, 'numero gigante coral')}>${conta(v.n, 'N', 300)}</div>
             <div ${E(2, 'legenda')}>attempts to break in<br>since 08:00.</div>
-            <div ${E(4, 'mono muted nota-isco')}>Nobody told anyone it exists.</div>
+            <div ${E(4, 'mono muted nota-isco')}>A server with her new setup · 500 customers, 5,000 orders a year, all on AWS.<br>Nobody told anyone it exists.</div>
           </div>
           <div class="divisor${p >= 1 ? ' cresce' : ''}"></div>
           <div ${ap(p, 1, 'estat inquerito')}>
@@ -57,7 +57,7 @@
             <div ${E(1, 'numero gigante coral')}>${conta(49, '?', 200)}<small>%</small></div>
             <div class="problema-texto">
               ${rotulo('SANS CLOUD SECURITY SURVEY · 2026', 'muted', E(0))}
-              <div ${E(2, 'legenda')}>of companies need more than a day to close a critical gap they already know about.</div>
+              <div ${E(2, 'legenda')}>of companies like her need more than a day to close a critical gap they already know about.</div>
               <div ${E(3, 'mini-stats')}>
               <div class="mini"><div class="mini-n">45%</div><div class="mini-d">of incidents start with misconfiguration<br><em>SANS 2026</em></div></div>
               <div class="mini"><div class="mini-n">55%</div><div class="mini-d">need &gt; 3 months to leave<br><em>Leaseweb 2026</em></div></div>
@@ -71,7 +71,7 @@
               <span class="barra-valor coral">&gt; 24 h</span>
             </div>
             <div ${ap(p, 1, 'barra-linha')}>
-              <span class="barra-rotulo verde">Today, live</span>
+              <span class="barra-rotulo verde">For Lusas, today</span>
               <div class="barra-pista"><div class="barra verde curta"></div><span class="faisca"></span></div>
               <span class="barra-valor verde">seconds</span>
             </div>
@@ -119,7 +119,7 @@
         return `
         <div class="lado-a-lado para-quem">
           <div class="pq-texto">
-            ${rotulo("FOR OWNERS WHO AREN'T TECHNICAL", 'lilas', E(0))}
+            ${rotulo("FOR ANA, WHO ISN'T TECHNICAL", 'lilas', E(0))}
             <div ${E(1, 'frase-xl')}>Your whole<br>IT team,<br><span class="verde">inside Telegram.</span></div>
           </div>
           <div ${E(2, 'telemovel')}>
@@ -158,7 +158,7 @@
         return `
         <div class="demo">
           <div class="cabeca-demo">
-            <div ${E(0, 'ao-vivo verde etiqueta')}><span class="ponto"></span>LIVE ON LEASEWEB</div>
+            <div ${E(0, 'ao-vivo verde etiqueta')}><span class="ponto"></span>ENCOMENDAS LUSAS · LIVE ON LEASEWEB</div>
             <div ${E(1, 'nota-honesta')}>AWS side simulated · everything on Leaseweb is real</div>
           </div>
           <div ${E(1, 'progresso')}><div class="progresso-barra" style="--k:${Math.min(p, 8) / 8}"></div></div>
@@ -345,7 +345,7 @@
       passos: 0,
       html: (p, v) => `
         <div class="centro-v">
-          <div ${E(0, 'titulo')}>Built today. Measured today.</div>
+          <div ${E(0, 'titulo')}>Encomendas Lusas, measured today.</div>
           <div class="placar escada">
             <div class="kpi"><div class="numero medio">${conta(v.x, 'X', 400)}<small> min</small></div><div class="legenda-p">from a hyperscaler to Leaseweb</div></div>
             <div class="kpi verde"><div class="numero medio verde">${conta(v.t, 'T', 500)}<small> s</small></div><div class="legenda-p">exposed. Not a day.</div></div>
@@ -365,7 +365,7 @@
         return `
         <div class="centro-v bd">
           <div class="bd-cab">
-            <div class="rotulo">TIME · COST · RISK</div>
+            <div class="rotulo">ENCOMENDAS LUSAS · TIME · COST · RISK</div>
             <div ${E(0, 'titulo')}>Before. After.</div>
           </div>
           <div class="bd-grelha">
