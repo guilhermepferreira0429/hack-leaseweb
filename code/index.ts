@@ -15,6 +15,7 @@ import { analisar, migrarFila, migrarPostgres, migrarS3, verificar } from '@mwbe
 import { certificado, estadoAtual, resumir } from '@mwbe/chefe';
 import { iniciarPainel } from '@mwbe/painel';
 import { decidirDestino, mensagemDestino, resumoPlano, traduzir } from './migrador/tradutor/index';
+import { migrarCodigo } from './migrador/codigo/index';
 import { criarConsola, DONO_CONSOLA } from './consola';
 import { criarOrquestrador } from './orquestrador';
 
@@ -71,7 +72,18 @@ async function main(): Promise<void> {
         desfazer: (id) => defesa.desfazer(id, canal.telegram.notificar),
       },
       atacante: { reconhecer },
-      migrador: { analisar, migrarS3, migrarPostgres, migrarFila: args.has('--sem-fila') ? undefined : migrarFila, verificar, planoInfra, planoDestino },
+      migrador: {
+        analisar,
+        migrarS3,
+        migrarPostgres,
+        migrarFila: args.has('--sem-fila') ? undefined : migrarFila,
+        verificar,
+        planoInfra,
+        planoDestino,
+        // PR real no GitHub só com MIGRADOR_PR=real; por omissão é um ensaio (o diff fica numa pasta temporária).
+        migrarCodigo: (planoId, testesOk) =>
+          migrarCodigo(`${RAIZ}code/exemplo-app`, { raizRepo: RAIZ, id: planoId, testesOk, real: process.env.MIGRADOR_PR === 'real' }),
+      },
       voz: { responder: (agente, pergunta, estadoTexto) => responderComoAgente(agente, pergunta, estadoTexto) },
       chefe: { resumir, estadoAtual, certificado: (eventos, pedidos) => certificado(eventos, pedidos, process.env.LOCAL_DADOS || undefined) },
     },

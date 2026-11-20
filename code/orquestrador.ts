@@ -49,6 +49,8 @@ export interface Dependencias {
     migrarSegredos?(): Promise<{ segredos: number; iguais: boolean }>;
     /** ElastiCache Redis -> Valkey, com prova por chave, tipo e valor. */
     migrarCache?(): Promise<{ chaves: number; iguais: boolean }>;
+    /** Migrador de código: PR com a app a usar a Leaseweb. Só se os testes passaram; nunca push para main. */
+    migrarCodigo?(planoId: string, testesOk: boolean): Promise<ResultadoCodigo>;
     /** Resumo do tradutor AWS (Terraform) -> Leaseweb, só plano. undefined = não há configuração AWS para traduzir. */
     planoInfra?(): Promise<string | undefined>;
     /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
@@ -64,6 +66,14 @@ export interface Dependencias {
     /** Certificado de migração (ideia wow 3), dito pelo chefe no fim. */
     certificado?(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
   };
+}
+
+/** O que o migrador de código devolve (code/migrador/codigo). */
+export interface ResultadoCodigo {
+  ficheiros: string[];
+  fora: string[];
+  problemas: string[];
+  pr?: { ramo: string; simulado: boolean; url?: string };
 }
 
 export interface Opcoes {
@@ -322,7 +332,10 @@ ${resumo}`);
 
     // Um só "Aprovar plano": o pedido aprovado é o do primeiro passo; os outros nascem aprovados por ele.
     const titulo = `Migrar para a Leaseweb: ${passos.map((s) => NOME_SERVICO[s]).join(', ')}`;
-    const pedidoPlano = await pedirMigracao(passos[0], titulo, plano, { servicos, passos, plano });
+    const texto = deps.migrador.migrarCodigo
+      ? `${plano}\nNo fim preparo um pull request para a app passar a usar a Leaseweb. O ramo principal só muda quando alguém fizer merge.`
+      : plano;
+    const pedidoPlano = await pedirMigracao(passos[0], titulo, texto, { servicos, passos, plano });
     if (!pedidoPlano) return;
 
     const feitos: { passo: PassoMigracao; pedido: Pedido; copia: Copia }[] = [];
@@ -356,7 +369,43 @@ ${resumo}`);
     const testesTexto = testesOk
       ? 'Testes da app a passar dos dois lados'
       : `Testes antes ${testes.antes ? 'ok' : 'falharam'}, depois ${testes.depois ? 'ok' : 'falharam'}`;
-    falar('migrador', 'atacante', `${feitos.map((f) => f.copia.frase).join('. ')}. ${testesTexto}. @atacante, a infraestrutura nova está no ar.`);
+    const provas = `${feitos.map((f) => f.copia.frase).join('. ')}. ${testesTexto}.`;
+    if (deps.migrador.migrarCodigo) {
+      falar('migrador', 'dono', provas);
+      await migrarCodigoDaApp(pedidoPlano.id, testesOk);
+      falar('migrador', 'atacante', '@atacante, a infraestrutura nova está no ar.');
+    } else {
+      falar('migrador', 'atacante', `${provas} @atacante, a infraestrutura nova está no ar.`);
+    }
+  }
+
+  /** O código da app passa a apontar para a Leaseweb, por pull request. Um erro aqui não trava a demo. */
+  async function migrarCodigoDaApp(planoId: string, testesOk: boolean): Promise<void> {
+    try {
+      const r = await deps.migrador.migrarCodigo!(planoId, testesOk);
+      auditar({
+        pedidoId: planoId,
+        tipo: 'migracao-codigo',
+        quem: 'migrador',
+        depois: { ficheiros: r.ficheiros, problemas: r.problemas, fora: r.fora, ramo: r.pr?.ramo, url: r.pr?.url, simulado: r.pr?.simulado },
+      });
+      if (!r.pr) {
+        const porque = r.problemas.length ? r.problemas.join('; ') : 'não há nada para mudar no código';
+        falar('migrador', 'dono', `Não abri o pull request do código: ${porque}.`);
+        return;
+      }
+      const n = r.ficheiros.length;
+      const onde = r.pr.url ?? `ramo ${r.pr.ramo}, ensaio sem GitHub: o diff ficou no cérebro`;
+      falar(
+        'migrador',
+        'dono',
+        `Código: ${r.pr.simulado ? 'preparei' : 'abri'} um pull request com ${n} ${n === 1 ? 'ficheiro' : 'ficheiros'} (${r.ficheiros.join(', ')}) ` +
+          `para a app usar a Leaseweb, com os testes a passar e sem segredos (${onde}). O ramo principal só muda com o vosso merge.` +
+          (r.fora.length ? ` Fica fora: ${r.fora.length} ${r.fora.length === 1 ? 'ponto' : 'pontos'}, explicados no PR.` : ''),
+      );
+    } catch (erro) {
+      await falha('migrador de código', erro);
+    }
   }
 
   type Copia = { ok: boolean; prova: object; frase: string };

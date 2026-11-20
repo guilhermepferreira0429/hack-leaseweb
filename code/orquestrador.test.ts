@@ -393,6 +393,39 @@ describe('orquestrador', () => {
     assert.ok(testes.falas.some((f) => /Testes antes ok, depois falharam/.test(f.texto)));
   });
 
+  it('migrador de código: no mesmo plano, depois dos testes; sem PR diz porquê; um erro não trava', async () => {
+    const t = montar({}, { atacar: false });
+    const chamadas: [string, boolean][] = [];
+    t.deps.migrador.migrarCodigo = async (id, ok) => (
+      chamadas.push([id, ok]),
+      { ficheiros: ['leaseweb.env.example'], fora: [], problemas: [], pr: { ramo: `migrador/leaseweb-${id}`, simulado: false, url: 'https://github.com/x/y/pull/3' } }
+    );
+    await t.orq.correr();
+    const plano = t.pedidosEnviados.find((p) => p.pedido.acao.tipo === 'migrar')!.pedido;
+    assert.equal(t.pedidosEnviados.filter((p) => p.pedido.acao.tipo === 'migrar').length, 1, 'o PR não pede outro clique');
+    assert.match(plano.texto, /No fim preparo um pull request/);
+    assert.deepEqual(chamadas, [[plano.id, true]]);
+    const migrador = textos(t.falas, 'migrador');
+    const iPR = migrador.findIndex((f) => /Código: abri um pull request com 1 ficheiro \(leaseweb\.env\.example\).*https:\/\/github\.com\/x\/y\/pull\/3/.test(f));
+    assert.ok(iPR > 0, 'o PR é anunciado');
+    assert.equal(migrador.at(-1), '@atacante, a infraestrutura nova está no ar.', 'a passagem ao atacante continua a ser a última fala');
+    assert.ok(t.eventos.some((e) => e.tipo === 'migracao-codigo' && (e.depois as { url?: string }).url === 'https://github.com/x/y/pull/3'));
+
+    const sem = montar({}, { atacar: false });
+    sem.deps.migrador.verificar = async () => ({ antes: true, depois: false });
+    sem.deps.migrador.migrarCodigo = async (_id, ok) => ({ ficheiros: [], fora: [], problemas: ok ? [] : ['os testes da app não passaram contra a Leaseweb'] });
+    await sem.orq.correr();
+    assert.ok(sem.falas.some((f) => /Não abri o pull request do código: os testes da app não passaram contra a Leaseweb\./.test(f.texto)));
+
+    const erro = montar({}, { atacar: false });
+    erro.deps.migrador.migrarCodigo = async () => {
+      throw new Error('gh não está autenticado');
+    };
+    await erro.orq.correr();
+    assert.ok(erro.notificacoes.some((n) => /migrador de código.*gh não está autenticado/.test(n)));
+    assert.equal(erro.corrigidos.length, 1, 'a defesa segue');
+  });
+
   it('plano: segredos e cache entram quando o migrador os tiver, e a prova não leva valores', async () => {
     const t = montar({}, { atacar: false });
     t.deps.migrador.analisar = async () => ({ servicos: ['s3', 'segredos', 'cache'], plano: 'plano' });
