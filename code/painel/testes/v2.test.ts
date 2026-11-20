@@ -138,10 +138,10 @@ describe('painel v2: rotas', () => {
     return `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
   };
 
-  it('/ é o v2, /v1 o ecrã anterior e /relatorio.pdf vem como ficheiro PDF', async () => {
+  it('/ é o v2, /v1 foi removido e /relatorio.pdf vem como ficheiro PDF', async () => {
     const b = await base();
     assert.match(await (await fetch(`${b}/`)).text(), /AGENT CHAIN/);
-    assert.match(await (await fetch(`${b}/v1`)).text(), /INFRAESTRUTURA/);
+    assert.equal((await fetch(`${b}/v1`)).status, 404, 'o ecrã antigo /v1 foi removido');
     const r = await fetch(`${b}/relatorio.pdf`);
     assert.equal(r.status, 200);
     assert.match(r.headers.get('content-disposition') ?? '', /^attachment; filename="[\w.-]+\.pdf"$/);

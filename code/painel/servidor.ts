@@ -14,7 +14,7 @@ import { carregarEnv } from '@mwbe/shared';
 import { paginaCertificado } from './certificado';
 import { paginaIsco } from './isco';
 import { paginaPalco } from './palco';
-import { paginaLinhaTempo, estadoJson } from './linha-tempo';
+import { estadoJson } from './linha-tempo';
 import { paginaRelatorio, paginaV2 } from './v2';
 
 type Rota = (req: IncomingMessage, res: ServerResponse) => Promise<void>;
@@ -27,7 +27,6 @@ export interface OpcoesPainel {
 
 const ROTAS: Record<string, Rota> = {
   '/': paginaV2,
-  '/v1': paginaLinhaTempo,
   '/relatorio.pdf': paginaRelatorio,
   '/isco': paginaIsco,
   '/estado.json': estadoJson,
