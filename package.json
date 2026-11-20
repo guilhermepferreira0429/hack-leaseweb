@@ -1,0 +1,35 @@
+{
+  "name": "migrate-without-being-exposed",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Migrate from AWS to Leaseweb Public Cloud without being exposed: migrator, recon and human-approved defence agents.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "code/shared",
+    "code/migrador",
+    "code/atacante",
+    "code/defesa",
+    "code/painel",
+    "code/exemplo-app"
+  ],
+  "scripts": {
+    "dev:painel": "tsx watch code/painel/index.ts",
+    "dev:migrador": "tsx code/migrador/index.ts",
+    "dev:atacante": "tsx code/atacante/index.ts",
+    "dev:defesa": "tsx code/defesa/index.ts",
+    "dev:exemplo": "tsx code/exemplo-app/index.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "tsx --test \"code/**/*.test.ts\"",
+    "origem:up": "docker compose -f env/docker-compose.origem.yml --env-file env/.env up -d",
+    "origem:down": "docker compose -f env/docker-compose.origem.yml --env-file env/.env down"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

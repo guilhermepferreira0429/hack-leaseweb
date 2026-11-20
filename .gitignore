@@ -1,0 +1,19 @@
+# segredos
+.env
+.env.*
+!.env.example
+
+# dependências e build
+node_modules/
+dist/
+
+# dados gerados em runtime
+auditoria.jsonl
+*.log
+dados/
+
+# editores e SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
