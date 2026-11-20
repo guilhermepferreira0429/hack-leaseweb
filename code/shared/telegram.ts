@@ -372,7 +372,7 @@ async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: U
   const texto = nomeBot ? m.text.replaceAll(`@${nomeBot}`, '').trim() : m.text.trim();
   if (!podeComandar(m.from.id)) {
     // /atacar de quem não está na lista: responde no chat e não chega ao orquestrador.
-    if (/^\/atacar(?:@\S+)?(?:\s|$)/.test(texto)) {
+    if (/^\/atacar(?:@\S+)?(?:\s|$)/.test(texto) && esteBotResponde(m.chat.type, m.text, nomeBot, agente)) {
       await chamar(token, 'sendMessage', { chat_id: m.chat.id, text: 'sem permissão' }).catch((e: unknown) =>
         console.warn('[telegram]', e instanceof Error ? e.message : e),
       );
@@ -391,4 +391,16 @@ async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: U
 function principal(): Agente {
   const t = cfg().tokens;
   return t.chefe ? 'chefe' : t.defesa ? 'defesa' : ((Object.keys(t) as Agente[]).find((a) => t[a]) ?? 'chefe');
+}
+
+/**
+ * No grupo, a mesma mensagem chega aos 4 bots. Só um deve responder a um comando:
+ * em privado, o bot da conversa; com menção, o bot mencionado; sem menção, o principal.
+ * Sem isto, um único /atacar de quem não está na lista dava 4 avisos "sem permissão".
+ */
+export function esteBotResponde(tipoChat: string, textoOriginal: string, nomeBot: string, agente: Agente): boolean {
+  if (tipoChat === 'private') return true;
+  const mencoes: string[] = textoOriginal.match(/@\w+/g) ?? [];
+  if (mencoes.length > 0) return Boolean(nomeBot) && mencoes.includes(`@${nomeBot}`);
+  return agente === principal();
 }
