@@ -335,12 +335,18 @@ async function tratarUpdate(token: string, agente: Agente, nomeBot: string, u: U
     }
     await chamar(token, 'answerCallbackQuery', { callback_query_id: q.id, text: botao.decisao === 'aprovar' ? 'Aprovado.' : 'Ignorado.' });
     const hora = new Date().toTimeString().slice(0, 5);
-    // Tira os botões já: um segundo toque não faz nada.
+    // Tira os botões já (editMessageReplyMarkup): um segundo toque não faz nada.
     if (q.message) {
+      const alvo = { chat_id: q.message.chat.id, message_id: q.message.message_id };
+      await chamar(token, 'editMessageReplyMarkup', { ...alvo, reply_markup: { inline_keyboard: [] } }).catch((e: unknown) =>
+        console.warn('[telegram]', e instanceof Error ? e.message : e),
+      );
+      // Sem o texto original (ex.: processo reiniciado) não se reescreve a mensagem: perdia-se o pedido.
       const guardada = mensagensDosPedidos.get(botao.pedidoId);
-      const texto = `${guardada?.texto ?? ''}\n\n${botao.decisao === 'aprovar' ? 'Aprovado' : 'Ignorado'} por ${q.from.first_name ?? q.from.id} às ${hora}.`.trim();
-      if (guardada) guardada.texto = texto;
-      await chamar(token, 'editMessageText', { chat_id: q.message.chat.id, message_id: q.message.message_id, text: texto.slice(0, 4000) }).catch(() => {});
+      if (guardada) {
+        guardada.texto = `${guardada.texto}\n\n${botao.decisao === 'aprovar' ? 'Aprovado' : 'Ignorado'} por ${q.from.first_name ?? q.from.id} às ${hora}.`;
+        await chamar(token, 'editMessageText', { ...alvo, text: guardada.texto.slice(0, 4000) }).catch(() => {});
+      }
     }
     for (const cb of cbsResposta) cb(botao.pedidoId, botao.decisao, String(q.from.id));
     return;
