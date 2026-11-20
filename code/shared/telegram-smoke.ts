@@ -174,9 +174,11 @@ async function main(): Promise<void> {
 
   // e)
   let relatorio: Chamada | undefined;
+  let pedidosRelatorio: string[] = [];
   try {
     await telegram.falar(agente, '[Teste de fumo] O relatório a seguir é um exemplo, não um incidente real.');
     const r = montarRelatorio('smoke-achado', eventosExemplo());
+    pedidosRelatorio = r.botoes.map((b) => b.pedidoId);
     await telegram.enviarComDesfazer(agente, r.texto, r.botoes);
     relatorio = chamadas.findLast((c) => c.metodo === 'sendMessage' && temBotao(c, 'desfazer:'));
   } catch (e) {
@@ -185,14 +187,21 @@ async function main(): Promise<void> {
   passo('e) relatório de exemplo com Desfazer no grupo', Boolean(relatorio?.ok && relatorio && String(relatorio.corpo.chat_id) === grupoId));
   const relatorioId = (relatorio?.resultado as { message_id?: number } | undefined)?.message_id;
 
-  // f) toque num botão Desfazer do relatório (ao vivo). Sem isto, os botões ficam mortos quando o teste sai.
+  // f) toque num botão Desfazer do relatório (ao vivo). O polling fica vivo toda a janela, para TODOS os
+  // botões responderem; sem isto, o teste saía ao primeiro toque e os restantes ficavam mortos.
   if (relatorio?.ok) {
-    console.log(`\n>>> Carrega num botão Desfazer do relatório (${ESPERA_DESFAZER_MS / 1000} s), com a conta de um aprovador.\n`);
-    const desfez = await ate(() => desfazeres.length > 0, ESPERA_DESFAZER_MS);
-    const d = desfazeres[0];
-    // O transport tira só o botão carregado (editMessageReplyMarkup à mensagem do relatório).
-    const tirado = chamadas.some((c) => c.metodo === 'editMessageReplyMarkup' && c.corpo.message_id === relatorioId);
-    passo('f) botão Desfazer recebido e removido', desfez && Boolean(d && aprovadores.includes(d.quem)) && tirado, d ? `${d.pedidoId} por ${d.quem}` : 'ninguém carregou a tempo');
+    const alvo = Math.max(1, pedidosRelatorio.length);
+    console.log(`\n>>> Carrega nos ${pedidosRelatorio.length} botões Desfazer do relatório (${ESPERA_DESFAZER_MS / 1000} s), com a conta de um aprovador.\n`);
+    // Espera todos os botões, ou o tempo acabar; o que vier primeiro.
+    await ate(() => desfazeres.length >= alvo, ESPERA_DESFAZER_MS);
+    const validos = desfazeres.filter((x) => aprovadores.includes(x.quem));
+    // O transport tira só o botão carregado (editMessageReplyMarkup à mensagem do relatório), uma vez por toque.
+    const remocoes = chamadas.filter((c) => c.metodo === 'editMessageReplyMarkup' && c.corpo.message_id === relatorioId).length;
+    passo(
+      'f) botões Desfazer recebidos e removidos',
+      validos.length > 0 && remocoes >= validos.length,
+      validos.length ? `${validos.length}/${pedidosRelatorio.length} carregados: ${validos.map((x) => x.pedidoId).join(', ')}` : 'ninguém carregou a tempo',
+    );
   } else {
     passo('f) botão Desfazer recebido e removido', false, 'relatório não foi enviado (passo e falhou)');
   }
