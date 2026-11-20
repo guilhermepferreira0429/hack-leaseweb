@@ -1,5 +1,5 @@
-// Telegram é o palco: um bot por agente. Chefe, migrador e defesa falam no grupo "Direção";
-// o atacante fala só em privado com o dono (recebe o comando por mensagem direta e não fala com os outros bots).
+// Telegram é o palco: um bot por agente, todos no grupo "Direção".
+// O atacante também fala no grupo (o fluxo vê-se seguido); sem grupo, fala em privado com o dono.
 // Long polling (getUpdates), sem webhook.
 // Ver docs/telegram.md e docs/agentes-telegram.md.
 // Botões: callback_data = "aprovar:<pedidoId>" | "ignorar:<pedidoId>".
@@ -67,10 +67,10 @@ function tokenPara(agente: Agente): { token: string; proprio: boolean } | undefi
   return outro ? { token: outro, proprio: false } : undefined;
 }
 
-/** Para onde fala cada bot: o atacante só fala em privado com o dono; os outros, no grupo. */
-function destino(agente: Agente): string {
+/** Todos falam no grupo; sem grupo, no privado do dono. */
+function destino(): string {
   const { grupoId, donoId } = cfg();
-  const d = agente === 'atacante' ? donoId || grupoId : grupoId || donoId;
+  const d = grupoId || donoId;
   if (!d) throw new Error('TELEGRAM_GRUPO_ID ou TELEGRAM_DONO_ID em falta.');
   return d;
 }
@@ -135,10 +135,10 @@ export function textoParaPrivado(texto: string): string {
 async function enviarTexto(agente: Agente, texto: string, teclado?: unknown): Promise<MensagemEnviada & { token: string }> {
   const t = tokenPara(agente);
   if (!t) throw new Error('Nenhum TELEGRAM_TOKEN_* configurado.');
-  // O atacante fala em privado: o texto encenado para o grupo não faz sentido tal e qual.
-  const conteudo = agente === 'atacante' ? textoParaPrivado(texto) : texto;
+  // Só sem grupo é que o texto encenado para o grupo é limpo (o atacante fala em privado).
+  const conteudo = agente === 'atacante' && !cfg().grupoId ? textoParaPrivado(texto) : texto;
   const corpo = {
-    chat_id: destino(agente),
+    chat_id: destino(),
     text: (t.proprio ? conteudo : `[${NOME_AGENTE[agente]}] ${conteudo}`).slice(0, 4000),
     ...(teclado ? { reply_markup: teclado } : {}),
   };
