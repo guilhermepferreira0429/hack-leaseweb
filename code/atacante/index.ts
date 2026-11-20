@@ -182,7 +182,12 @@ export async function mainForcaBruta(args: string[] = process.argv.slice(2)): Pr
     return 1;
   }
 
-  const alvo = args.find((a) => !a.startsWith('--')) ?? [...allowlist][0]!;
+  const alvoPedido = args.find((a) => !a.startsWith('--'));
+  if (!alvoPedido && allowlist.size > 1) {
+    console.error('[atacante] há vários IPs na allowlist: indica o alvo do passo SSH.');
+    return 1;
+  }
+  const alvo = alvoPedido ?? [...allowlist][0]!;
   const texto = await readFile(new URL('./wordlist.txt', import.meta.url), 'utf8');
   const lista = lerWordlist(texto);
   // A senha exata da demo pode vir do .env (git-ignored); a wordlist já traz a combinada.
