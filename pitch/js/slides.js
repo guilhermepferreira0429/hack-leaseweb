@@ -402,12 +402,14 @@
     {
       id: 'a-qa',
       ...anexo('A9', 'Every question, one answer', `
-        <div class="qa-grelha">
-          ${(window.PERGUNTAS ?? []).map(
-            (q) => `<div class="qa-item"><div class="qa-p">${q.p}</div><div class="qa-r">${q.r.replace('{testes}', String(window.CONFIG?.aoVivo?.testes ?? '?'))}</div><div class="qa-quem">${q.quem}</div></div>`,
-          ).join('')}
+        <div class="qa-scroll">
+          <div class="qa-grelha">
+            ${(window.PERGUNTAS ?? []).map(
+              (q) => `<div class="qa-item"><div class="qa-p">${q.p}</div><div class="qa-r">${q.r.replace('{testes}', String(window.CONFIG?.aoVivo?.testes ?? '?'))}</div><div class="qa-quem">${q.quem}</div></div>`,
+            ).join('')}
+          </div>
         </div>
-        <div class="mono muted">The long answers and sources: docs/perguntas-juri.md · A1–A8 for the deep dives.</div>`),
+        <div class="qa-nota mono muted"><span>The long answers and sources: docs/perguntas-juri.md · A1–A8 for the deep dives.</span><span class="qa-hint">↓ scroll</span></div>`),
     },
   ].map((a) => ({ ...a, passos: 0, anexo: true }));
 

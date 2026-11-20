@@ -42,10 +42,13 @@
 
   // ---------- desenhar um slide ----------
   const numeroDe = (i) => (S[i].anexo ? `annex ${S[i].codigo}` : `${String(i + 1).padStart(2, '0')} / ${String(window.PRIMEIRO_ANEXO).padStart(2, '0')}`);
+  const anexos = S.map((s, j) => ({ s, j })).filter(({ s }) => s.anexo);
+  const navAnexos = (i) =>
+    `<nav class="anexos-nav">${anexos.map(({ s, j }) => `<button data-i="${j}"${j === i ? ' class="on"' : ''}>${s.codigo}</button>`).join('')}</nav>`;
   const htmlSlide = (i, p) =>
     `<section class="slide${S[i].anexo ? ' e-anexo' : ''}" data-id="${S[i].id}">
       <div class="conteudo">${S[i].html(p, estado.valores)}</div>
-      <footer class="rodape"><span>hack-leaseweb</span><span>${numeroDe(i)}</span></footer>
+      <footer class="rodape">${S[i].anexo ? navAnexos(i) : '<span>hack-leaseweb</span>'}<span>${numeroDe(i)}</span></footer>
     </section>`;
 
   // Atualiza o DOM só onde muda, para as transições CSS correrem entre cliques do mesmo slide.
@@ -363,6 +366,14 @@
       t: 'arrancarRelogio',
       T: 'zerarRelogio',
     };
+    if (modo === 'palco' && (k === 'ArrowDown' || k === 'ArrowUp')) {
+      const caixa = document.querySelector('.slide.ativo .qa-scroll');
+      if (caixa) {
+        e.preventDefault();
+        caixa.scrollBy({ top: k === 'ArrowDown' ? 260 : -260, behavior: 'smooth' });
+        return;
+      }
+    }
     if (mapa[k]) {
       e.preventDefault();
       enviar(mapa[k]);
@@ -424,6 +435,11 @@
       if (m) ir(+m[1], +m[2]);
     });
     document.addEventListener('click', (e) => {
+      const anexo = e.target.closest('.anexos-nav button');
+      if (anexo) {
+        acoes.ir(+anexo.dataset.i);
+        return;
+      }
       if (!e.target.closest('.sobre') && e.button === 0) acoes.seguinte();
     });
     aoMudar(false);

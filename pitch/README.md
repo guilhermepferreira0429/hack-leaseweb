@@ -15,7 +15,7 @@ para abrir a vista do apresentador no segundo ecrã. As duas janelas andam junta
 | ← · PageUp | Recuar |
 | Shift + → / ← | Slide seguinte / anterior |
 | número + Enter | Ir para o slide (por exemplo `5` Enter para a demo e `6` para o como funciona) |
-| A, depois 1–9 | Anexos. O A9 mostra todas as perguntas do júri de uma vez. As setas param no fecho e nunca entram nos anexos |
+| A, depois 1–9 | Anexos; no rodapé de cada anexo há um seletor A1–A9. O A9 tem todas as perguntas do júri, com scroll (roda ou ↑/↓). As setas param no fecho e nunca entram nos anexos |
 | Esc (num anexo) · End | Voltar ao fecho |
 | O | Vista geral de todos os slides |
 | P | Vista do apresentador: guião do clique atual, slide seguinte, cronómetro, perguntas (Q) |
