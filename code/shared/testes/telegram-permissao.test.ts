@@ -1,6 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { configurarTelegram, podeComandar } from '../telegram';
+import { configurarTelegram, esteBotResponde, podeComandar } from '../telegram';
+
+function comTokens(tokens: Record<string, string>, corpo: () => void): void {
+  configurarTelegram({ tokens, grupoId: '', donoId: '42', aprovadores: ['7', '8'] });
+  try {
+    corpo();
+  } finally {
+    // Não deixar a configuração de teste a afetar o resto da suite.
+    configurarTelegram({ tokens: {}, grupoId: '', donoId: '', aprovadores: [] });
+  }
+}
 
 describe('telegram/permissao /atacar', () => {
   it('só o dono e os aprovadores podem comandar o ataque', () => {
@@ -14,5 +24,33 @@ describe('telegram/permissao /atacar', () => {
       // Não deixar a configuração de teste a afetar o resto da suite.
       configurarTelegram({ tokens: {}, grupoId: '', donoId: '', aprovadores: [] });
     }
+  });
+
+  it('em privado responde sempre o bot da conversa', () => {
+    comTokens({ chefe: 'a', atacante: 'b' }, () => {
+      assert.equal(esteBotResponde('private', '/atacar', 'BotAtacante', 'atacante'), true);
+      assert.equal(esteBotResponde('private', '/atacar', '', 'defesa'), true);
+    });
+  });
+
+  it('no grupo sem menção responde só o principal (um aviso, não quatro)', () => {
+    comTokens({ chefe: 'a', migrador: 'b', atacante: 'c', defesa: 'd' }, () => {
+      assert.equal(esteBotResponde('group', '/atacar', 'BotChefe', 'chefe'), true);
+      for (const agente of ['migrador', 'atacante', 'defesa'] as const) {
+        assert.equal(esteBotResponde('group', '/atacar', 'BotQualquer', agente), false);
+      }
+    });
+    // Sem bot do chefe, o principal passa a ser a defesa (como no `principal()`).
+    comTokens({ defesa: 'd' }, () => {
+      assert.equal(esteBotResponde('group', '/atacar', 'BotDefesa', 'defesa'), true);
+    });
+  });
+
+  it('no grupo com menção responde só o bot mencionado', () => {
+    comTokens({ chefe: 'a', atacante: 'c' }, () => {
+      assert.equal(esteBotResponde('group', '/atacar@BotAtacante', 'BotAtacante', 'atacante'), true);
+      assert.equal(esteBotResponde('group', '/atacar@BotAtacante', 'BotChefe', 'chefe'), false);
+      assert.equal(esteBotResponde('group', '/atacar@BotAtacante', '', 'defesa'), false);
+    });
   });
 });
