@@ -1,7 +1,7 @@
-// npm run dev:migrador [-- --so-analisar | --so-s3] [--fila]
+// npm run dev:migrador [-- --so-analisar | --so-s3]
 // Corre o migrador sozinho (sem pedir aprovação); na demo corre pelo orquestrador (npm run dev).
 // Por omissão: S3 -> MinIO e, se DATABASE_URL_DESTINO estiver definida, Postgres -> Postgres na Leaseweb.
-// --fila: também SQS -> RabbitMQ (move as mensagens de todas as filas; pede RABBITMQ_URL).
+// E, se RABBITMQ_URL estiver definida, SQS -> RabbitMQ (move as mensagens de todas as filas).
 import { join } from 'node:path';
 import { analisar } from './analisar';
 import { carregarEnv, RAIZ_REPO } from './ambiente';
@@ -45,7 +45,8 @@ async function main(): Promise<void> {
     falhou ||= !p.checksumsOk;
   }
 
-  if (servicos.includes('fila') && process.argv.includes('--fila')) {
+  const comFila = servicos.includes('fila') && !process.argv.includes('--so-s3') && Boolean(process.env.RABBITMQ_URL?.trim());
+  if (comFila) {
     t0 = Date.now();
     const f = await migrarFilaDetalhado();
     const total = f.filas.reduce((s, x) => s + x.mensagens, 0);

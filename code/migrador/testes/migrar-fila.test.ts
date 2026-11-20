@@ -46,8 +46,10 @@ const salto = await sondar();
 
 async function contarRabbit(): Promise<number> {
   const m = await amqp.connect(RABBITMQ_URL);
+  m.on('error', () => {});
   try {
     const c = await m.createChannel();
+    c.on('error', () => {});
     return (await c.checkQueue(FILA)).messageCount;
   } finally {
     await m.close();
@@ -77,7 +79,9 @@ describe('migrador: migrarFila', { skip: salto }, () => {
     sqs.destroy();
     const m = await amqp.connect(RABBITMQ_URL).catch(() => undefined);
     if (m) {
+      m.on('error', () => {});
       const c = await m.createChannel();
+      c.on('error', () => {});
       await c.deleteQueue(FILA).catch(() => {});
       await m.close().catch(() => {});
     }
