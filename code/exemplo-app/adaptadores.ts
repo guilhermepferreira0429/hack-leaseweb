@@ -2,7 +2,8 @@
 // (AWS via LocalStack, ou Leaseweb com MinIO) escolhe-se por variáveis de ambiente.
 //   ARMAZENAMENTO_ENDPOINT, ARMAZENAMENTO_BUCKET, ARMAZENAMENTO_ACCESS_KEY, ARMAZENAMENTO_SECRET_KEY
 //   DATABASE_URL
-//   FILA_URL, FILA_NOME (SQS no LocalStack)
+//   FILA_TIPO=sqs (por omissão): FILA_URL, FILA_NOME no LocalStack
+//   FILA_TIPO=rabbitmq: RABBITMQ_URL e FILA_NOME (Leaseweb)
 // Sem ARMAZENAMENTO_* a app usa o LocalStack (a "AWS" da demo), com as credenciais de teste dele.
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -22,6 +23,7 @@ import {
   SendMessageCommand,
   SQSClient,
 } from '@aws-sdk/client-sqs';
+import * as amqp from 'amqplib';
 import pg from 'pg';
 
 export interface Armazenamento {
@@ -57,7 +59,17 @@ export function carregarEnvLocal(): void {
 export interface Ambiente {
   armazenamento: { endpoint: string; bucket: string; accessKey: string; secretKey: string; regiao: string };
   databaseUrl: string;
-  fila: { endpoint: string; nome: string; accessKey: string; secretKey: string; regiao: string };
+  fila: {
+    /** sqs (LocalStack, a "AWS") ou rabbitmq (Leaseweb). */
+    tipo: 'sqs' | 'rabbitmq';
+    endpoint: string;
+    nome: string;
+    accessKey: string;
+    secretKey: string;
+    regiao: string;
+    /** Só para rabbitmq. */
+    rabbitmqUrl?: string;
+  };
 }
 
 /** Lê o ambiente. Valores vazios contam como não definidos. */
@@ -68,6 +80,12 @@ export function lerAmbiente(env: NodeJS.ProcessEnv = process.env): Ambiente {
   const databaseUrl = v('DATABASE_URL');
   if (!databaseUrl || databaseUrl.includes('<senha>')) {
     throw new Error('DATABASE_URL não está definida no .env (ver env/.env.example)');
+  }
+  const tipoFila = (v('FILA_TIPO') ?? 'sqs').toLowerCase();
+  if (tipoFila !== 'sqs' && tipoFila !== 'rabbitmq') throw new Error(`FILA_TIPO desconhecido: ${tipoFila} (sqs ou rabbitmq)`);
+  const rabbitmqUrl = v('RABBITMQ_URL');
+  if (tipoFila === 'rabbitmq' && (!rabbitmqUrl || rabbitmqUrl.includes('<senha>'))) {
+    throw new Error('FILA_TIPO=rabbitmq mas RABBITMQ_URL não está definida no .env');
   }
   return {
     armazenamento: {
@@ -80,6 +98,8 @@ export function lerAmbiente(env: NodeJS.ProcessEnv = process.env): Ambiente {
     },
     databaseUrl,
     fila: {
+      tipo: tipoFila,
+      rabbitmqUrl,
       endpoint: v('FILA_URL') ?? localstack,
       nome: v('FILA_NOME') ?? 'encomendas-criadas',
       accessKey: v('FILA_ACCESS_KEY') ?? 'test',
@@ -170,9 +190,63 @@ export function criarBaseDados(env?: NodeJS.ProcessEnv): BaseDados {
   };
 }
 
-/** SQS (@aws-sdk/client-sqs). A migração da fila fica como slide. */
+/** SQS (@aws-sdk/client-sqs) ou RabbitMQ (amqplib), conforme FILA_TIPO. O resto da app não muda. */
 export function criarFila(env?: NodeJS.ProcessEnv): Fila {
   const c = lerAmbiente(env).fila;
+  return c.tipo === 'rabbitmq' ? criarFilaRabbitMq(c.rabbitmqUrl!, c.nome) : criarFilaSqs(c);
+}
+
+/** RabbitMQ: fila durável, mensagens persistentes, publisher confirms e ack manual. */
+function criarFilaRabbitMq(url: string, nome: string): Fila {
+  let ligacao: Promise<{ modelo: amqp.ChannelModel; canal: amqp.ConfirmChannel }> | undefined;
+  const ligar = (): Promise<{ modelo: amqp.ChannelModel; canal: amqp.ConfirmChannel }> =>
+    (ligacao ??= (async () => {
+      const modelo = await amqp.connect(url);
+      modelo.on('error', () => {});
+      const canal = await modelo.createConfirmChannel();
+      canal.on('error', () => {});
+      await canal.assertQueue(nome, { durable: true });
+      return { modelo, canal };
+    })().catch((erro) => {
+      ligacao = undefined;
+      throw erro;
+    }));
+
+  return {
+    async enviar(mensagem) {
+      const { canal } = await ligar();
+      canal.sendToQueue(nome, Buffer.from(mensagem), { persistent: true, contentType: 'application/json' });
+      await canal.waitForConfirms();
+    },
+    async receber(maximo = 10) {
+      const { canal } = await ligar();
+      const corpos: string[] = [];
+      // Como o SQS com WaitTimeSeconds=1: espera até 1 s pela primeira mensagem.
+      const limite = Date.now() + 1000;
+      while (corpos.length < Math.max(maximo, 1)) {
+        const m = await canal.get(nome, { noAck: false });
+        if (m) {
+          corpos.push(m.content.toString());
+          canal.ack(m);
+        } else if (corpos.length === 0 && Date.now() < limite) {
+          await new Promise((r) => setTimeout(r, 100));
+        } else {
+          break;
+        }
+      }
+      return corpos;
+    },
+    async fechar() {
+      if (!ligacao) return;
+      const atual = ligacao;
+      ligacao = undefined;
+      const { modelo } = await atual.catch(() => ({ modelo: undefined }));
+      await modelo?.close().catch(() => {});
+    },
+  };
+}
+
+function criarFilaSqs(c: Ambiente['fila']): Fila {
   const sqs = new SQSClient({
     endpoint: c.endpoint,
     region: c.regiao,
