@@ -89,17 +89,21 @@ export function paraAchado(porta: PortaTestada): Achado {
   };
 }
 
-/** Recusa IPs fora de ALVOS_PERMITIDOS; testa os restantes e devolve só as portas abertas. */
+/**
+ * Recusa IPs fora de ALVOS_PERMITIDOS; testa os restantes e devolve só as portas abertas.
+ * `portas` permite à confirmação do fecho verificar só a porta que acabou de ser fechada.
+ */
 export async function reconhecer(
   alvos: string[],
   allowlist: ReadonlySet<string> = allowlistDoAmbiente(),
+  portas: readonly number[] = PORTAS_ALVO,
 ): Promise<Achado[]> {
   // Primeiro valida todos: se um alvo não estiver na lista, nada é contactado.
   for (const alvo of alvos) garantirPermitido(alvo, allowlist);
 
   const achados: Achado[] = [];
   for (const alvo of alvos) {
-    for (const porta of await verificarPortas(alvo, allowlist)) {
+    for (const porta of await verificarPortas(alvo, allowlist, portas)) {
       if (porta.estado === 'aberta') achados.push(paraAchado(porta));
     }
   }
