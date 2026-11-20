@@ -19,6 +19,7 @@
   ],
   "scripts": {
     "dev": "tsx code/index.ts",
+    "demo": "bash env/preparar-demo.sh && tsx code/index.ts",
     "dev:painel": "tsx watch code/painel/cli.ts",
     "dev:migrador": "tsx code/migrador/cli.ts",
     "dev:atacante": "tsx code/atacante/cli.ts",

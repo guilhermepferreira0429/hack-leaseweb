@@ -62,11 +62,17 @@ async function planoInfra(): Promise<string | undefined> {
   return resumoPlano(traduzir(readFileSync(ficheiro, "utf8")));
 }
 
-const NOME_SERVICO = { s3: "S3", postgres: "PostgreSQL", fila: "SQS" } as const;
+const NOME_SERVICO = {
+  s3: "S3",
+  postgres: "PostgreSQL",
+  fila: "SQS",
+  segredos: "Secrets Manager",
+  cache: "ElastiCache",
+} as const;
 
 /** Decisor de destino: só fala se a capacidade da VM destino estiver no .env (VM_DESTINO_*); nada se adivinha. */
 async function planoDestino(
-  servicos: ("s3" | "postgres" | "fila")[],
+  servicos: (keyof typeof NOME_SERVICO)[],
 ): Promise<string | undefined> {
   const n = (v: string | undefined) =>
     v && Number(v) > 0 ? Number(v) : undefined;
@@ -159,6 +165,13 @@ async function main(): Promise<void> {
       donoId: consola
         ? DONO_CONSOLA
         : process.env.TELEGRAM_DONO_ID || undefined,
+      // O jurado (ideia wow 1) e outros aprovadores; o telegram.ts já só entrega cliques destes.
+      aprovadores: consola
+        ? undefined
+        : (process.env.TELEGRAM_APROVADORES ?? "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
       // Modo noite só com MODO_NOITE_MINUTOS e MODO_NOITE_IPS no .env (falha fechado: sem eles, não há).
       modoNoiteMs:
         (defesa.configModoNoite()?.minutos ?? 0) * 60_000 || undefined,
@@ -169,6 +182,8 @@ async function main(): Promise<void> {
     },
   );
 
+  // Botões "Desfazer" do relatório do incidente (David) -> desfazer() da defesa (Enio). Na --consola há /desfazer.
+  if (!consola) defesa.ligarDesfazer({ aoDesfazer: telegram.aoDesfazer, notificar: telegram.notificar });
   orquestrador.ligar();
   await orquestrador.correr();
 
