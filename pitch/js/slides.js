@@ -112,11 +112,11 @@
       passos: 0,
       html: () => {
         const msgs = [
-          ['Migrator', '', 'Found 3 AWS services: S3, Postgres, SQS.\nPlan: MinIO, PostgreSQL and RabbitMQ, all self-hosted.', 'Approve plan'],
-          ['Attacker', 'lilas', 'The new database is open to the whole internet (port 5432).\nSeverity: high. Anyone can try to get in. @defense', ''],
+          ['Migrator', '', 'I found 3 AWS services in the app: S3, Postgres, SQS.\nProposal: MinIO, PostgreSQL and RabbitMQ, all self-hosted.', 'Approve plan'],
+          ['Attacker', 'lilas', 'The new database is open to the whole internet (port 5432).\nSeverity: high. Anyone can try to get in. @defesa', ''],
           ['Defense', 'verde', 'Your customer database is open to the whole internet. Someone outside can guess the password and get in.\nI propose closing outside access. Undo is saved.', 'Close'],
-          ['Defense', 'verde', 'Closed and confirmed from outside. Exposed for T seconds.\nUndo: /desfazer', ''],
-          ['Chief', '', 'In X minutes: off AWS, on Leaseweb, one gap closed, cause fixed in code. Nothing left the EU.', ''],
+          ['Defense', 'verde', 'Closed and confirmed. Time exposed: T seconds.\nUndo saved: /desfazer', ''],
+          ['Chief', '', 'In X min we moved from AWS to Leaseweb, closed one issue and fixed the cause. Nothing left the EU.', ''],
         ];
         return `
         <div class="lado-a-lado para-quem">
