@@ -100,7 +100,7 @@ describe('painel v2: logs ao vivo', () => {
 describe('painel v2: ecrã', () => {
   it('três colunas, relógio, vítima CLOSED, download e Undo só com token', () => {
     const html = renderizarV2(pedidos, ciclo, { token: 'tk', local: 'Leaseweb Amsterdam, NL', agora: new Date(t(40)) });
-    for (const s of ['AGENT CHAIN', 'DEFENSE · THINKING NOW', 'SERVICES', 'LIVE LOGS', 'VICTIM VM', 'Download report', 'href="/relatorio.html"', 'Undo last action'])
+    for (const s of ['AGENT CHAIN', 'DEFENSE · THINKING NOW', 'SERVICES', 'LIVE LOGS', 'VICTIM VM', 'Download report (PDF)', 'href="/relatorio.pdf"', 'Undo last action'])
       assert.ok(html.includes(s), s);
     assert.match(html, /class="p p-closed">CLOSED</);
     assert.match(html, /AWS \(sim\) → Leaseweb Amsterdam, NL/);
@@ -135,13 +135,15 @@ describe('painel v2: rotas', () => {
     return `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
   };
 
-  it('/ é o v2, /v1 o ecrã anterior e /relatorio.html vem como ficheiro', async () => {
+  it('/ é o v2, /v1 o ecrã anterior e /relatorio.pdf vem como ficheiro PDF', async () => {
     const b = await base();
     assert.match(await (await fetch(`${b}/`)).text(), /AGENT CHAIN/);
     assert.match(await (await fetch(`${b}/v1`)).text(), /INFRAESTRUTURA/);
-    const r = await fetch(`${b}/relatorio.html`);
+    const r = await fetch(`${b}/relatorio.pdf`);
     assert.equal(r.status, 200);
-    assert.match(r.headers.get('content-disposition') ?? '', /^attachment; filename="[\w.-]+\.html"$/);
-    assert.match(r.headers.get('content-type') ?? '', /text\/html/);
+    assert.match(r.headers.get('content-disposition') ?? '', /^attachment; filename="[\w.-]+\.pdf"$/);
+    assert.equal(r.headers.get('content-type'), 'application/pdf');
+    assert.equal(Buffer.from(await r.arrayBuffer()).subarray(0, 5).toString(), '%PDF-');
+    assert.equal((await fetch(`${b}/relatorio.html`)).status, 404, 'o HTML deixou de existir');
   });
 });
