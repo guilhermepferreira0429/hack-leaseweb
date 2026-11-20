@@ -1,7 +1,6 @@
 // Painel HTTP no cérebro. Por omissão escuta só em 127.0.0.1 (ver por túnel: ssh -L 3000:localhost:3000 ...).
 // Abrir de fora só de propósito: PAINEL_HOST=0.0.0.0 com o security group fechado ao nosso IP.
 //   GET  /             ecrã da demo v2 (inglês): cadeia dos agentes, serviços, logs ao vivo, relógio, Undo e Download
-//   GET  /v1           o ecrã anterior (linha do tempo), mantido como recurso
 //   GET  /relatorio.pdf   o relatório A4 do ciclo (certificado + incidentes) em PDF, para descarregar
 //   GET  /isco         contador de tentativas de entrada na VM isco (abertura do pitch); ?json para números
 //   GET  /palco        o ecrã para o júri (inglês, uma tela, números grandes)
