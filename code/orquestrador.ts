@@ -41,6 +41,8 @@ export interface Dependencias {
     analisar(dirApp: string): Promise<{ servicos: ('s3' | 'postgres' | 'fila')[]; plano: string }>;
     migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }>;
     verificar(): Promise<{ antes: boolean; depois: boolean }>;
+    /** Resumo do tradutor AWS (Terraform) -> Leaseweb, só plano. undefined = não há configuração AWS para traduzir. */
+    planoInfra?(): Promise<string | undefined>;
   };
   chefe: { resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string; estadoAtual(pedidos: Pedido[]): string };
 }
@@ -230,10 +232,25 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
 
   // ---------- fases ----------
 
+  /** O tradutor só informa (dry-run): um erro dele não trava a migração dos dados. */
+  async function mostrarPlanoInfra(): Promise<void> {
+    if (!deps.migrador.planoInfra) return;
+    try {
+      const resumo = await deps.migrador.planoInfra();
+      if (!resumo) return;
+      auditar({ pedidoId: '-', tipo: 'migracao-plano-infra', quem: 'migrador', depois: { resumo } });
+      falar('migrador', 'dono', `Li a configuração da AWS (Terraform) e traduzi-a para a Leaseweb. Por agora é só o plano, ainda não criei nada:
+${resumo}`);
+    } catch (erro) {
+      await falha('tradução da configuração AWS', erro);
+    }
+  }
+
   async function faseMigrar(): Promise<void> {
     const { servicos, plano } = await deps.migrador.analisar(opcoes.dirApp);
     const nomes = servicos.map((s) => NOME_SERVICO[s]).join(', ');
     falar('migrador', 'dono', `Encontrei ${servicos.length} serviços AWS na app: ${nomes}. Começo pelo S3 para MinIO na Leaseweb.`);
+    await mostrarPlanoInfra();
     if (!servicos.includes('s3')) return;
 
     const pedido: Pedido = {

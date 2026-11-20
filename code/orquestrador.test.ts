@@ -127,6 +127,7 @@ function montar(cenario: Cenario = {}, opcoes: Partial<Opcoes> = {}) {
   });
   orq.ligar();
   return {
+    deps,
     orq,
     falas,
     eventos,
@@ -257,6 +258,23 @@ describe('orquestrador', () => {
     await esperar();
     await esperar();
     assert.equal(t.corrigidos.length, 1);
+  });
+
+  it('tradutor: o plano da infraestrutura sai antes do pedido de migração; se falhar, migra na mesma', async () => {
+    const ok = montar({}, { atacar: false });
+    ok.deps.migrador.planoInfra = async () => 'Move-se hoje: 1 VM.';
+    await ok.orq.correr();
+    const iPlano = ok.falas.findIndex((f) => /Move-se hoje: 1 VM/.test(f.texto));
+    assert.ok(iPlano >= 0, 'o plano foi dito');
+    assert.match(ok.falas[iPlano].texto, /só o plano, ainda não criei nada/);
+
+    const falha = montar({}, { atacar: false });
+    falha.deps.migrador.planoInfra = async () => {
+      throw new Error('segredo detetado');
+    };
+    await falha.orq.correr();
+    assert.ok(falha.notificacoes.some((n) => /tradução da configuração AWS/.test(n)));
+    assert.ok(falha.falas.some((f) => /ficheiros copiados/.test(f.texto)), 'a migração S3 continuou');
   });
 
   it('o atacante diz se ainda chega à porta depois de fechar', async () => {

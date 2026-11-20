@@ -5,6 +5,7 @@
 //   npm run dev -- --consola            o terminal faz de Telegram (ensaio e plano B); aprova-se com "s"
 //   npm run dev -- --uma-vez            sai no fim do ciclo (para ensaios), em vez de ficar à escuta
 // A lógica está em orquestrador.ts; aqui só se ligam os módulos reais.
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { auditoria, bus, estado, telegram } from '@mwbe/shared';
 import * as defesa from '@mwbe/defesa';
@@ -12,6 +13,7 @@ import { reconhecer } from '@mwbe/atacante';
 import { analisar, migrarS3, verificar } from '@mwbe/migrador';
 import { estadoAtual, resumir } from '@mwbe/chefe';
 import { iniciarPainel } from '@mwbe/painel';
+import { resumoPlano, traduzir } from './migrador/tradutor/index';
 import { criarConsola, DONO_CONSOLA } from './consola';
 import { criarOrquestrador } from './orquestrador';
 
@@ -23,6 +25,13 @@ function carregarEnv(): void {
   } catch {
     console.warn('[orquestrador] sem .env na raiz: a usar só as variáveis do ambiente.');
   }
+}
+
+/** Configuração AWS a traduzir: TERRAFORM_ORIGEM no .env, ou o exemplo da demo. Lida como texto (segredos com linha). */
+async function planoInfra(): Promise<string | undefined> {
+  const ficheiro = process.env.TERRAFORM_ORIGEM || `${RAIZ}code/migrador/tradutor/exemplo/main.tf.json`;
+  if (!existsSync(ficheiro)) return undefined;
+  return resumoPlano(traduzir(readFileSync(ficheiro, 'utf8')));
 }
 
 function lista(valor: string | undefined): string[] {
@@ -48,7 +57,7 @@ async function main(): Promise<void> {
       auditoria,
       defesa: { ...defesa, tratar: (achado) => defesa.tratar(achado, canal.telegram.pedirAprovacao) },
       atacante: { reconhecer },
-      migrador: { analisar, migrarS3, verificar },
+      migrador: { analisar, migrarS3, verificar, planoInfra },
       chefe: { resumir, estadoAtual },
     },
     {
