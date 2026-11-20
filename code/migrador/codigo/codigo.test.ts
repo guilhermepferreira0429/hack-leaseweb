@@ -202,7 +202,7 @@ describe('migrador de código', () => {
     const config = p.alteracoes.find((a) => a.ficheiro === FICHEIRO_CONFIG)!.depois;
     assert.match(config, /SEGREDOS_TIPO=openbao/);
     assert.match(config, /OPENBAO_ADDR=http:\/\/<openbao-na-leaseweb>:8200/);
-    assert.match(config, /# AWS_REGION/);
+    assert.match(config, /AWS_REGION=us-east-1/);
     assert.ok(!p.alteracoes.some((a) => a.ficheiro === 'src/mais.ts'), 'mais.ts não muda: nada de forcePathStyle duplicado');
     assert.ok(p.fora.some((f) => /src\/mais\.ts:8: o cliente S3 é criado a partir de uma variável/.test(f)));
     assert.ok(p.fora.some((f) => /rds-signer/.test(f)));
@@ -220,6 +220,25 @@ describe('migrador de código', () => {
     assert.match(config.depois, /VALKEY_URL=redis:\/\/:<senha>@<valkey-na-leaseweb>:6379/);
     const mau = { ...p, alteracoes: [{ ...config, depois: `${config.depois}X=redis://:abc123@h:6379\n` }] };
     assert.ok(validarAlteracao(mau, usos).some((x) => /parece ter um segredo/.test(x)));
+  });
+
+  it('revisão 2: região e endpoint do SDK ficam; dois URLs no mesmo JSON; valores entre aspas; o ficheiro gerado não volta a contar', async () => {
+    const json = '{"a":"postgres://<u>:<senha>@h/x","b":"redis://:realpw@h2"}';
+    assert.ok(!semSegredos(json).includes('realpw'));
+    assert.ok(semSegredos(json).includes('postgres://<u>:<senha>@h/x'), 'o marcador fica');
+    assert.equal(semSegredos('password: "ab;cd"'), 'password: "***"');
+    assert.equal(semSegredos("DB_PASSWORD='frase com espacos'"), "DB_PASSWORD='***'");
+
+    const { dirApp } = await appLegada();
+    const usos = await encontrarUsosAws(dirApp);
+    const p = await proporAlteracao(dirApp, usos);
+    const config = p.alteracoes.find((a) => a.ficheiro === FICHEIRO_CONFIG)!.depois;
+    assert.match(config, /AWS_REGION=us-east-1/, 'o S3Client contra o MinIO continua a precisar de região');
+    assert.doesNotMatch(config, /# AWS_REGION/);
+    await writeFile(join(dirApp, FICHEIRO_CONFIG), config);
+    const outra = await encontrarUsosAws(dirApp);
+    assert.equal(outra.length, usos.length, 'o leaseweb.env.example gerado não conta como uso');
+    assert.ok(!outra.some((u) => u.tipo === 'credencial' && u.ficheiro === FICHEIRO_CONFIG));
   });
 
   it('a app tem de estar dentro do repo', async () => {

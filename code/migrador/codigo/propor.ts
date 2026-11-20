@@ -40,6 +40,10 @@ const DESTINO: Record<string, string> = {
   OPENBAO_TOKEN: '<token do OpenBao; só no .env>',
   CACHE_TIPO: 'valkey',
   VALKEY_URL: 'redis://:<senha>@<valkey-na-leaseweb>:6379',
+  // O SDK da AWS continua a falar com o MinIO: precisa de uma região (o MinIO aceita us-east-1) e do endpoint.
+  AWS_REGION: 'us-east-1',
+  AWS_DEFAULT_REGION: 'us-east-1',
+  AWS_ENDPOINT_URL_S3: 'http://<minio-na-leaseweb>:9000',
 };
 
 /** Variáveis que deixam de ser precisas no destino (o RabbitMQ não usa as chaves do SQS). */
@@ -90,8 +94,14 @@ function configuracao(usos: UsoAws[]): string | undefined {
       else linhas.push(`# ${nome}: fica igual (o mesmo nome no destino)`);
     }
   }
+  const doSdk = [...new Set(usos.filter((u) => u.tipo === 'variavel' && u.servico === 'outro').map((u) => u.nome!))].sort();
+  const mantidas = doSdk.filter((n) => n in DESTINO);
+  if (mantidas.length) {
+    linhas.push('', '# SDK da AWS a falar com o MinIO (a API é a mesma)');
+    for (const n of mantidas) linhas.push(`${n}=${DESTINO[n]}`);
+  }
   const credenciais = [
-    ...new Set(usos.filter((u) => u.tipo === 'credencial' || (u.tipo === 'variavel' && u.servico === 'outro')).map((u) => u.nome!)),
+    ...new Set([...usos.filter((u) => u.tipo === 'credencial').map((u) => u.nome!), ...doSdk.filter((n) => !(n in DESTINO))]),
   ].sort();
   if (credenciais.length) {
     linhas.push('', '# Variáveis e credenciais da AWS: deixam de ser precisas. Não se copiam; apaguem-nas do .env.');

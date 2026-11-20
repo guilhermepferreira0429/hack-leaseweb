@@ -53,9 +53,11 @@ export async function abrirPR(
   opcoes: { raizRepo: string; real?: boolean; diff: string; executar?: Executar; agora?: Date },
 ): Promise<ResultadoPR> {
   const pasta = pedido.dirAppNoRepo;
-  if (!pasta || isAbsolute(pasta) || pasta.split('/').includes('..')) throw new Error(`a app tem de estar dentro do repo: ${pasta}`);
+  // Vazio = a app está na raiz do repo. Absoluto ou com .. = fora do repo: recusa.
+  if (isAbsolute(pasta) || pasta.split('/').includes('..')) throw new Error(`a app tem de estar dentro do repo: ${pasta}`);
+  const noRepo = (ficheiro: string) => (pasta ? `${pasta}/${ficheiro}` : ficheiro);
   const ramo = nomeRamo(pedido.id, opcoes.agora);
-  const ficheiros = pedido.alteracoes.map((a) => `${pasta}/${a.ficheiro}`);
+  const ficheiros = pedido.alteracoes.map((a) => noRepo(a.ficheiro));
   if (ficheiros.length === 0) throw new Error('não há nada para mudar: o PR não se abre');
   if (ficheiros.some((f) => f.split('/').includes('..'))) throw new Error('um ficheiro do PR sai da pasta da app');
 
@@ -70,9 +72,11 @@ export async function abrirPR(
   // Um ficheiro alterado tem de estar no GitHub igual ao que o migrador leu. Senão, o PR desfazia trabalho de alguém.
   for (const a of pedido.alteracoes) {
     if (a.antes === null) continue;
-    const noGitHub = await git('git', ['show', `${BASE}:${pasta}/${a.ficheiro}`], opcoes.raizRepo).catch(() => undefined);
-    if (noGitHub === undefined || noGitHub.trim() !== a.antes.trim()) {
-      throw new Error(`${pasta}/${a.ficheiro} no ${BASE} não é igual ao local: falta o push do revisor antes do PR`);
+    const noGitHub = await git('git', ['show', `${BASE}:${noRepo(a.ficheiro)}`], opcoes.raizRepo).catch(() => undefined);
+    // CRLF (Windows, core.autocrlf) e LF contam como iguais.
+    const normal = (t: string) => t.replace(/\r\n/g, '\n').trim();
+    if (noGitHub === undefined || normal(noGitHub) !== normal(a.antes)) {
+      throw new Error(`${noRepo(a.ficheiro)} no ${BASE} não é igual ao local: falta o push do revisor antes do PR`);
     }
   }
 

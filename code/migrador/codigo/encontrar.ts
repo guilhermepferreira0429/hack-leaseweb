@@ -82,11 +82,20 @@ export function semSegredos(linha: string): string {
   return (
     linha
       // nome = valor, nome: valor e "nome": "valor" (JSON), com o nome sensível.
-      .replace(/\b([A-Za-z_]\w*)(["']?)(\s*[=:]\s*)(["']?)([^\s"',;]+)\4/g, (todo, nome: string, aspaNome: string, sep: string, aspa: string, valor: string) =>
-        NOME_SENSIVEL.test(nome) && !/^(process\.env|\$|<)/.test(valor) && !valor.includes('(') ? `${nome}${aspaNome}${sep}${aspa}***${aspa}` : todo,
+      // Entre aspas, o valor vai até à aspa que fecha (pode ter espaços, ; ou ,); sem aspas, até ao separador.
+      .replace(
+        /\b([A-Za-z_]\w*)(["']?)(\s*[=:]\s*)(?:(["'])(.*?)\4|([^\s"',;]+))/g,
+        (todo, nome: string, aspaNome: string, sep: string, aspa: string | undefined, comAspas: string | undefined, semAspas: string | undefined) => {
+          const valor = comAspas ?? semAspas ?? '';
+          if (!NOME_SENSIVEL.test(nome) || /^(process\.env|\$|<)/.test(valor) || valor.includes('(') || valor === '') return todo;
+          return `${nome}${aspaNome}${sep}${aspa ?? ''}***${aspa ?? ''}`;
+        },
       )
-      // Senha num URL, com utilizador vazio (redis://:senha@) e com / ou @ na senha: tapa até ao último @.
-      .replace(/(\b[a-z][a-z0-9+.-]*:\/\/[^\s/:@]*:)\S*@/gi, (todo, inicio: string) => (todo.slice(inicio.length).startsWith('<') ? todo : `${inicio}***@`))
+      // Senha num URL, com utilizador vazio (redis://:senha@) e com / ou @ na senha: tapa até ao último @ do
+      // mesmo valor (pára em espaços, aspas e vírgulas, para dois URLs na mesma linha não se juntarem).
+      .replace(/(\b[a-z][a-z0-9+.-]*:\/\/[^\s/:@"'`,]*:)[^\s"'`,]*@/gi, (todo, inicio: string) =>
+        todo.slice(inicio.length).startsWith('<') ? todo : `${inicio}***@`,
+      )
       .replace(/\b(AKIA|ASIA)[A-Z0-9]{16}\b/g, '***')
   );
 }
@@ -95,7 +104,8 @@ async function listar(dir: string): Promise<string[]> {
   const entradas = await readdir(dir, { withFileTypes: true });
   const ficheiros: string[] = [];
   for (const e of entradas) {
-    if (IGNORAR.has(e.name)) continue;
+    // O leaseweb.env.example é o que o próprio migrador gera: lê-lo outra vez inflacionava a contagem.
+    if (IGNORAR.has(e.name) || e.name === 'leaseweb.env.example') continue;
     const caminho = join(dir, e.name);
     if (e.isDirectory()) ficheiros.push(...(await listar(caminho)));
     else if ((EXTENSOES.test(e.name) || e.name.endsWith('.env.example')) && e.name !== 'package-lock.json' && !/\.test\.ts$/.test(e.name)) {
@@ -116,7 +126,7 @@ function usosNaLinha(texto: string): { servico: ServicoUso; tipo: TipoUso; nome?
   if (sdk) usos.push({ servico: sdk[1], tipo: 'sdk' });
   const endpoint = comentario ? undefined : ENDPOINT.find(([re]) => re.test(texto));
   if (endpoint && !sdk) usos.push({ servico: endpoint[1], tipo: 'endpoint' });
-  const cred = texto.match(CREDENCIAL);
+  const cred = comentario ? null : texto.match(CREDENCIAL);
   if (cred) usos.push({ servico: 'credencial', tipo: 'credencial', nome: `AWS_${cred[1]}` });
   else {
     // Variáveis lidas pela app (process.env.X, o atalho v('X') da exemplo-app, os.environ) ou definidas num .env.
