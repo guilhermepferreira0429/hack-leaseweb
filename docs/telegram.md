@@ -1,13 +1,13 @@
 # Telegram: aprovar tudo pelo Telegram
 
-Ver também `agentes-telegram.md`: 4 bots (chefe, migrador, atacante, defesa) num grupo "Direção".
+Ver também `agentes-telegram.md`: 4 bots (chefe, migrador, atacante, defesa). O chefe, o migrador e a defesa falam no grupo "Direção"; o atacante fala só em privado com o dono (recebe o comando e relata o ataque por mensagem direta, sem falar com os outros bots).
 
 Long polling, sem webhook: não precisa de domínio nem HTTPS público.
 
 ## Montagem (Carlos, 09:30, cerca de 15 min)
 
 1. No Telegram, falar com `@BotFather` → `/newbot` quatro vezes (chefe, migrador, atacante, defesa) → guardar os tokens em `TELEGRAM_TOKEN_*`. Em cada um, `/setprivacy` → Disable.
-   Criar o grupo "Direção", adicionar os 4 bots e o dono.
+   Criar o grupo "Direção" e adicionar **o chefe, o migrador, a defesa e o dono**. O **atacante fica fora do grupo**: o dono abre a conversa com ele e manda `/start` (é por aí que pede o ataque e recebe o relato).
 2. O "dono" da demo envia `/start` ao bot.
 3. `curl https://api.telegram.org/bot<TOKEN>/getUpdates` → copiar o `chat.id` do grupo para `TELEGRAM_GRUPO_ID` e o `from.id` do dono para `TELEGRAM_DONO_ID`.
 4. Teste com botões:
@@ -35,7 +35,7 @@ curl -s https://api.telegram.org/bot$TELEGRAM_TOKEN_DEFESA/sendMessage \
 Montagem rápida:
 
 1. `@BotFather` → `/newbot` → nome `Defesa`, username a acabar em `bot` → copiar o token para `TELEGRAM_TOKEN_DEFESA` em `env/.env`. Repetir para chefe, migrador e atacante (`TELEGRAM_TOKEN_CHEFE`, `TELEGRAM_TOKEN_MIGRADOR`, `TELEGRAM_TOKEN_ATACANTE`). Em cada bot: `/setprivacy` → escolher o bot → `Disable`.
-2. Criar o grupo "Direção", adicionar **os 4 bots** e o dono. Escrever qualquer mensagem no grupo.
+2. Criar o grupo "Direção", adicionar **o chefe, o migrador, a defesa** e o dono (o atacante fica de fora). Escrever qualquer mensagem no grupo.
 3. `curl -s https://api.telegram.org/bot<TOKEN>/getUpdates`: o `message.chat.id` do grupo vai para `TELEGRAM_GRUPO_ID` e o `message.from.id` do dono vai para `TELEGRAM_APROVADORES`. Resposta vazia: escrever outra vez no grupo e repetir.
 4. `npm run telegram:smoke` e, quando aparecer `>>> Carrega em Aprovar plano ou em Ignorar`, carregar no telemóvel com a conta do aprovador (120 s).
 
@@ -46,7 +46,7 @@ Nos passos (c)/toque e (f), carregar com a conta de um aprovador quando aparecer
 Se falhar:
 
 - `getUpdates: Conflict`: outro processo (o orquestrador, outro portátil) está a fazer polling ao mesmo bot. Parar o outro.
-- `chat not found`: o `TELEGRAM_GRUPO_ID` está errado ou o bot (o smoke diz qual) não está no grupo. Adicionar os 4 bots ao grupo.
+- `chat not found`: o `TELEGRAM_GRUPO_ID` está errado, ou o bot (o smoke diz qual) não está no grupo. O atacante não entra no grupo: tem de ter conversa privada com o dono (abrir o bot e mandar `/start`).
 - (c) "ninguém carregou a tempo": o `from.id` de quem carregou não está em `TELEGRAM_APROVADORES` (aparece no log como `callback_query de <id>`).
 
 ## Comportamento
@@ -61,8 +61,8 @@ Se falhar:
 
 ## `/atacar [ip]`: a sequência do atacante
 
-Uma mensagem no grupo arranca a sequência e cada passo é relatado pelo agente atacante no próprio grupo
-(`shared/bus.ts`). Sem `ip`, usa o primeiro alvo de `ALVOS_PERMITIDOS`.
+Uma mensagem direta ao bot do atacante arranca a sequência; ele relata os passos na mesma conversa privada com o dono
+(o chefe, o migrador e a defesa é que conversam no grupo). Sem `ip`, usa o primeiro alvo de `ALVOS_PERMITIDOS`.
 
 1. `⚔️ Ataque iniciado contra <alvo>`
 2. `👁️ Reconhecimento: …` — ligações TCP às 13 portas sensíveis de `PORTAS_ALVO` (SSH, bases de dados,
