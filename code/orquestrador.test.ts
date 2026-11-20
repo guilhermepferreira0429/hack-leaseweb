@@ -341,6 +341,34 @@ describe('orquestrador', () => {
     assert.equal(erro.falas.at(-1)?.de, 'chefe');
   });
 
+  it('voz dos agentes: responde quem foi chamado, com o estado; no grupo sem menção cala-se', async () => {
+    const t = montar({}, { migrar: false, atacar: false });
+    const chamadas: { agente: string; pergunta: string; estado: string }[] = [];
+    t.deps.voz = { responder: async (agente, pergunta, estado) => (chamadas.push({ agente, pergunta, estado }), `resposta de ${agente}`) };
+    await t.orq.correr();
+    t.mensagemDoDono('defesa', 'o que está aberto agora?');
+    t.mensagemDoDono(null, 'bom dia a todos');
+    for (let i = 0; i < 4; i++) await esperar();
+    assert.equal(chamadas.length, 1);
+    assert.equal(chamadas[0].agente, 'defesa');
+    assert.match(chamadas[0].estado, /ESTADO/);
+    assert.match(chamadas[0].estado, /RESUMO/);
+    assert.equal(t.falas.at(-1)?.de, 'defesa');
+    assert.equal(t.falas.at(-1)?.texto, 'resposta de defesa');
+  });
+
+  it('voz: os comandos continuam a ser comandos, não vão para o LLM', async () => {
+    const t = montar({}, { migrar: false, atacar: false });
+    let chamadas = 0;
+    t.deps.voz = { responder: async () => (chamadas++, 'x') };
+    await t.orq.correr();
+    t.mensagemDoDono('defesa', '/estado');
+    t.mensagemDoDono('defesa', '/desfazer abc12345');
+    for (let i = 0; i < 4; i++) await esperar();
+    assert.equal(chamadas, 0);
+    assert.deepEqual(t.desfeitos, ['abc12345']);
+  });
+
   it('o atacante diz se ainda chega à porta depois de fechar', async () => {
     const t = montar({ portaFechada: false }, { migrar: false });
     await t.orq.correr();

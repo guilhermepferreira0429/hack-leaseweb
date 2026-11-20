@@ -48,6 +48,8 @@ export interface Dependencias {
     /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
     planoDestino?(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<string | undefined>;
   };
+  /** Voz dos agentes: resposta em texto, no papel do agente, a partir do estado. Opcional. */
+  voz?: { responder(agente: Agente, pergunta: string, estado: string): Promise<string> };
   chefe: {
     resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
     estadoAtual(pedidos: Pedido[]): string;
@@ -132,6 +134,10 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
 
   /** Respostas que chegaram antes de alguém estar à espera (o dono pode ser mais rápido do que o fluxo). */
   const antecipados = new Map<string, Resultado>();
+
+  /** A auditoria acumula todos os ensaios do dia: o chefe e a voz só falam do ciclo atual. */
+  let inicioCiclo = hora();
+  const doCiclo = () => lerAuditoria().filter((e) => e.hora >= inicioCiclo);
 
   function esperarResultado(pedidoId: string): Promise<Resultado> {
     const ja = antecipados.get(pedidoId);
@@ -235,8 +241,21 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       }
       return;
     }
-    // TODO 13:30 (voz dos agentes): responder com o LLM no papel de `agente`.
-    log(`mensagem do dono para ${agente ?? 'ninguém'} sem comando: ${t.slice(0, 80)}`);
+    // Voz dos agentes: só responde a quem foi chamado (privado ou com menção); no grupo sem menção, cala-se.
+    if (!agente || !deps.voz || !t) {
+      log(`mensagem do dono para ${agente ?? 'ninguém'} sem comando: ${t.slice(0, 80)}`);
+      return;
+    }
+    const pedidos = deps.estado.listarPedidos();
+    let estadoTexto = deps.chefe.estadoAtual(pedidos);
+    try {
+      estadoTexto += `
+
+${deps.chefe.resumir(doCiclo(), pedidos)}`;
+    } catch (erro) {
+      log('resumo para a voz falhou:', mensagem(erro));
+    }
+    falar(agente, 'dono', await deps.voz.responder(agente, t, estadoTexto));
   }
 
   // ---------- fases ----------
@@ -392,8 +411,7 @@ ${resumo}`);
 
   async function correr(): Promise<void> {
     // A auditoria acumula todos os ensaios do dia: o chefe só fala deste ciclo.
-    const inicioCiclo = hora();
-    const doCiclo = () => lerAuditoria().filter((e) => e.hora >= inicioCiclo);
+    inicioCiclo = hora();
     if (opcoes.migrar) await faseMigrar().catch((e) => falha('migração', e));
     // Daqui em diante a infraestrutura nova conta como "no ar": é o início do relógio de exposição (ideia wow 2).
     auditar({ pedidoId: '-', tipo: 'infra-no-ar', quem: 'orquestrador' });

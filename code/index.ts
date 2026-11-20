@@ -7,7 +7,7 @@
 // A lógica está em orquestrador.ts; aqui só se ligam os módulos reais.
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { auditoria, bus, estado, telegram } from '@mwbe/shared';
+import { auditoria, bus, estado, responderComoAgente, telegram } from '@mwbe/shared';
 import * as defesa from '@mwbe/defesa';
 import { carregarAllowlist, reconhecer } from '@mwbe/atacante';
 import { analisar, migrarPostgres, migrarS3, verificar } from '@mwbe/migrador';
@@ -71,6 +71,7 @@ async function main(): Promise<void> {
       },
       atacante: { reconhecer },
       migrador: { analisar, migrarS3, migrarPostgres, verificar, planoInfra, planoDestino },
+      voz: { responder: (agente, pergunta, estadoTexto) => responderComoAgente(agente, pergunta, estadoTexto) },
       chefe: { resumir, estadoAtual, certificado: (eventos, pedidos) => certificado(eventos, pedidos, process.env.LOCAL_DADOS || undefined) },
     },
     {
