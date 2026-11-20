@@ -26,7 +26,12 @@ interface Coluna {
 
 interface Tabela {
   oid: number;
+  esquema: string;
   nome: string;
+  /** "esquema"."nome", pronto a usar em SQL. */
+  qualificado: string;
+  /** Nome para mostrar: "encomendas" no public, "loja.produtos" nos outros. */
+  rotulo: string;
   colunas: Coluna[];
   chave: string[];
   restricoes: { nome: string; tipo: string; definicao: string }[];
@@ -37,6 +42,26 @@ interface Tabela {
 const LOTE = 500;
 
 const q = (nome: string): string => `"${nome.replace(/"/g, '""')}"`;
+const literal = (texto: string): string => `'${texto.replace(/'/g, "''")}'`;
+
+/** Esquemas com dados da app: todos menos os do sistema. */
+const ESQUEMAS_DO_UTILIZADOR = "n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\\_%'";
+
+interface TipoEnum {
+  esquema: string;
+  nome: string;
+  valores: string[];
+}
+
+async function lerEnums(c: pg.Client): Promise<TipoEnum[]> {
+  const { rows } = await c.query<TipoEnum>(
+    `SELECT n.nspname AS esquema, t.typname AS nome, array_agg(e.enumlabel::text ORDER BY e.enumsortorder) AS valores
+       FROM pg_type t JOIN pg_enum e ON e.enumtypid = t.oid JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE ${ESQUEMAS_DO_UTILIZADOR}
+      GROUP BY n.nspname, t.typname ORDER BY 1, 2`,
+  );
+  return rows;
+}
 
 /** Sessão com formatos fixos: o texto de cada linha tem de sair igual nos dois lados. */
 async function ligar(url: string, papel: string): Promise<pg.Client> {
@@ -54,11 +79,11 @@ async function ligar(url: string, papel: string): Promise<pg.Client> {
 }
 
 async function lerTabelas(c: pg.Client): Promise<Tabela[]> {
-  const { rows: tabelas } = await c.query<{ oid: number; nome: string }>(
-    `SELECT c.oid::int AS oid, c.relname AS nome
+  const { rows: tabelas } = await c.query<{ oid: number; esquema: string; nome: string }>(
+    `SELECT c.oid::int AS oid, n.nspname AS esquema, c.relname AS nome
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relispartition
-      ORDER BY c.relname`,
+      WHERE ${ESQUEMAS_DO_UTILIZADOR} AND c.relkind = 'r' AND NOT c.relispartition
+      ORDER BY n.nspname, c.relname`,
   );
   const resultado: Tabela[] = [];
   for (const t of tabelas) {
@@ -87,7 +112,9 @@ async function lerTabelas(c: pg.Client): Promise<Tabela[]> {
         WHERE i.indrelid = $1 AND NOT EXISTS (SELECT 1 FROM pg_constraint k WHERE k.conindid = i.indexrelid)`,
       [t.oid],
     );
-    resultado.push({ ...t, colunas, chave: chave.map((k) => k.nome), restricoes, indices: indices.map((i) => i.def) });
+    const qualificado = `${q(t.esquema)}.${q(t.nome)}`;
+    const rotulo = t.esquema === 'public' ? t.nome : `${t.esquema}.${t.nome}`;
+    resultado.push({ ...t, qualificado, rotulo, colunas, chave: chave.map((k) => k.nome), restricoes, indices: indices.map((i) => i.def) });
   }
   return resultado;
 }
@@ -113,7 +140,7 @@ function criarTabela(t: Tabela): string {
     if (col.naoNulo && !col.identidade) def += ' NOT NULL';
     return def;
   });
-  return `CREATE TABLE ${q(t.nome)} (\n  ${colunas.join(',\n  ')}\n)`;
+  return `CREATE TABLE ${t.qualificado} (\n  ${colunas.join(',\n  ')}\n)`;
 }
 
 /** sha256 e contagem das linhas (texto de cada registo) por ordem da chave primária. */
@@ -122,7 +149,7 @@ async function checksum(c: pg.Client, t: Tabela): Promise<{ linhas: number; sha2
   let linhas = 0;
   for (;;) {
     const { rows } = await c.query<{ l: string }>(
-      `SELECT t::text AS l FROM ${q(t.nome)} t ORDER BY ${ordem(t)} LIMIT ${LOTE} OFFSET ${linhas}`,
+      `SELECT t::text AS l FROM ${t.qualificado} t ORDER BY ${ordem(t)} LIMIT ${LOTE} OFFSET ${linhas}`,
     );
     for (const r of rows) hash.update(r.l).update('\n');
     linhas += rows.length;
@@ -140,13 +167,13 @@ async function copiarLinhas(origem: pg.Client, destino: pg.Client, t: Tabela): P
   const selecao = cols.map((c) => `${q(c.nome)}::text`).join(', ');
   for (let lidas = 0; ; ) {
     const { rows } = await origem.query({
-      text: `SELECT ${selecao} FROM ${q(t.nome)} ORDER BY ${ordem(t)} LIMIT ${lote} OFFSET ${lidas}`,
+      text: `SELECT ${selecao} FROM ${t.qualificado} ORDER BY ${ordem(t)} LIMIT ${lote} OFFSET ${lidas}`,
       rowMode: 'array',
     });
     if (rows.length > 0) {
       const valores = rows.map((_, i) => `(${cols.map((__, j) => `$${i * cols.length + j + 1}`).join(', ')})`);
       await destino.query(
-        `INSERT INTO ${q(t.nome)} (${lista}) OVERRIDING SYSTEM VALUE VALUES ${valores.join(', ')}`,
+        `INSERT INTO ${t.qualificado} (${lista}) OVERRIDING SYSTEM VALUE VALUES ${valores.join(', ')}`,
         (rows as unknown[][]).flat(),
       );
     }
@@ -168,33 +195,43 @@ export async function migrarPostgresDetalhado(): Promise<{ tabelas: ChecksumTabe
     const tabelas = await lerTabelas(origem);
     if (tabelas.length === 0) throw new Error('A base de dados de origem não tem tabelas: nada para migrar');
 
-    for (const t of tabelas) somaOrigem.set(t.nome, await checksum(origem, t));
+    const enums = await lerEnums(origem);
+    for (const t of tabelas) somaOrigem.set(t.rotulo, await checksum(origem, t));
 
     // O destino é nosso: recria-se de cada vez, para a migração poder repetir-se com o mesmo resultado.
     await destino.query('BEGIN');
     try {
-      for (const t of tabelas) await destino.query(`DROP TABLE IF EXISTS ${q(t.nome)} CASCADE`);
+      const esquemas = [...new Set([...tabelas.map((t) => t.esquema), ...enums.map((e) => e.esquema)])];
+      for (const e of esquemas) await destino.query(`CREATE SCHEMA IF NOT EXISTS ${q(e)}`);
+      for (const t of tabelas) await destino.query(`DROP TABLE IF EXISTS ${t.qualificado} CASCADE`);
+      for (const e of enums) {
+        const nome = `${q(e.esquema)}.${q(e.nome)}`;
+        await destino.query(`DROP TYPE IF EXISTS ${nome} CASCADE`);
+        await destino.query(`CREATE TYPE ${nome} AS ENUM (${e.valores.map(literal).join(', ')})`);
+      }
       for (const t of tabelas) {
         for (const s of sequencias(t)) await destino.query(`CREATE SEQUENCE IF NOT EXISTS ${s.sequencia}`);
         await destino.query(criarTabela(t));
-        for (const s of sequencias(t)) await destino.query(`ALTER SEQUENCE ${s.sequencia} OWNED BY ${q(t.nome)}.${q(s.coluna)}`);
+        for (const s of sequencias(t)) await destino.query(`ALTER SEQUENCE ${s.sequencia} OWNED BY ${t.qualificado}.${q(s.coluna)}`);
       }
       for (const t of tabelas) await copiarLinhas(origem, destino, t);
       // Restrições depois dos dados (mais rápido e sem problemas de ordem); chaves estrangeiras no fim.
       const todas = tabelas.flatMap((t) => t.restricoes.map((r) => ({ t, r })));
       for (const { t, r } of [...todas.filter((x) => x.r.tipo !== 'f'), ...todas.filter((x) => x.r.tipo === 'f')]) {
-        await destino.query(`ALTER TABLE ${q(t.nome)} ADD CONSTRAINT ${q(r.nome)} ${r.definicao}`);
+        await destino.query(`ALTER TABLE ${t.qualificado} ADD CONSTRAINT ${q(r.nome)} ${r.definicao}`);
       }
       for (const t of tabelas) for (const i of t.indices) await destino.query(i);
       // Sequências e identidades continuam a seguir o maior valor copiado.
       for (const t of tabelas) {
         const alvo = [
-          ...sequencias(t).map((s) => ({ seq: `'${s.sequencia.replace(/'/g, "''")}'`, coluna: s.coluna })),
-          ...t.colunas.filter((c) => c.identidade).map((c) => ({ seq: `pg_get_serial_sequence('${q(t.nome).replace(/'/g, "''")}', '${c.nome.replace(/'/g, "''")}')`, coluna: c.nome })),
+          ...sequencias(t).map((s) => ({ seq: literal(s.sequencia), coluna: s.coluna })),
+          ...t.colunas
+            .filter((c) => c.identidade)
+            .map((c) => ({ seq: `pg_get_serial_sequence(${literal(t.qualificado)}, ${literal(c.nome)})`, coluna: c.nome })),
         ];
         for (const a of alvo) {
           await destino.query(
-            `SELECT setval(${a.seq}, COALESCE((SELECT max(${q(a.coluna)}) FROM ${q(t.nome)}), 0) + 1, false)`,
+            `SELECT setval(${a.seq}, COALESCE((SELECT max(${q(a.coluna)}) FROM ${t.qualificado}), 0) + 1, false)`,
           );
         }
       }
@@ -213,7 +250,7 @@ export async function migrarPostgresDetalhado(): Promise<{ tabelas: ChecksumTabe
   // fotografia da origem de onde se copiou (a mesma transação da cópia).
   const d = await ligar(urls.destino, 'destino');
   try {
-    const tabelasDestino = new Map((await lerTabelas(d)).map((t) => [t.nome, t]));
+    const tabelasDestino = new Map((await lerTabelas(d)).map((t) => [t.rotulo, t]));
     const resultado: ChecksumTabela[] = [];
     for (const [nome, so] of somaOrigem) {
       const td = tabelasDestino.get(nome);
