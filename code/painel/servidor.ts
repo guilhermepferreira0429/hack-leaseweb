@@ -2,6 +2,7 @@
 // Abrir de fora só de propósito: PAINEL_HOST=0.0.0.0 com o security group fechado ao nosso IP.
 //   GET  /             linha do tempo: migrar -> atacar -> aprovar -> fechar, relógio de exposição, botão Desfazer
 //   GET  /isco         contador de tentativas de entrada na VM isco (abertura do pitch); ?json para números
+//   GET  /palco        o ecrã para o júri (inglês, uma tela, números grandes)
 //   GET  /certificado  certificado de migração (ecrã e impressão)
 //   GET  /estado.json  pedidos (shared/estado) + auditoria, para a página se atualizar sozinha
 //   POST /desfazer     id + token (PAINEL_TOKEN). Sem PAINEL_TOKEN no .env, o botão não existe e a rota recusa.
@@ -10,6 +11,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { carregarEnv } from '@mwbe/shared';
 import { paginaCertificado } from './certificado';
 import { paginaIsco } from './isco';
+import { paginaPalco } from './palco';
 import { paginaLinhaTempo, estadoJson } from './linha-tempo';
 
 type Rota = (req: IncomingMessage, res: ServerResponse) => Promise<void>;
@@ -25,6 +27,7 @@ const ROTAS: Record<string, Rota> = {
   '/isco': paginaIsco,
   '/estado.json': estadoJson,
   '/certificado': paginaCertificado,
+  '/palco': paginaPalco,
 };
 
 const texto = (res: ServerResponse, estado: number, msg: string) =>

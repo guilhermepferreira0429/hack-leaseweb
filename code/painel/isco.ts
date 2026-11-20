@@ -140,7 +140,7 @@ const CSS = `body{min-height:100vh;padding:96px;display:flex;gap:80px;align-item
 @media (max-width:1100px){body{padding:24px;flex-direction:column;align-items:flex-start;gap:32px}.legenda{font-size:24px}.qr{width:100%;max-width:440px}}`;
 
 /** Cartão QR do grupo "Direção" (ideia wow 1): só aparece se TELEGRAM_CONVITE_URL estiver no .env. */
-async function cartaoQr(): Promise<string> {
+export async function cartaoQr(): Promise<string> {
   const url = process.env.TELEGRAM_CONVITE_URL?.trim();
   if (!url || !/^https:\/\/t\.me\//.test(url)) return '';
   const svg = await QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' });
