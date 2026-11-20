@@ -36,7 +36,7 @@ Montagem rápida:
 3. `curl -s https://api.telegram.org/bot<TOKEN>/getUpdates`: o `message.chat.id` do grupo vai para `TELEGRAM_GRUPO_ID` e o `message.from.id` do dono vai para `TELEGRAM_APROVADORES`. Resposta vazia: escrever outra vez no grupo e repetir.
 4. `npm run telegram:smoke` e, quando aparecer `>>> Carrega Aprovar ou Ignorar`, carregar no telemóvel com a conta do aprovador (120 s).
 
-O teste imprime PASS/FAIL para: (a) long polling, (b) pedido com Aprovar/Ignorar, (c) recusa a um ID fora da lista (simulada, sem rede) e toque real do aprovador, (d) `editMessageReplyMarkup` a tirar os botões, (e) relatório de exemplo com Desfazer no grupo, (f) toque real num botão Desfazer do relatório (espera 60 s). Não mexe em `auditoria.jsonl` nem em infraestrutura. O token nunca é impresso.
+O teste imprime PASS/FAIL para: (a) long polling, (b) pedido com Aprovar/Ignorar, (c) recusa a um ID fora da lista (simulada, sem rede) e toque real do aprovador, (d) `editMessageReplyMarkup` a tirar os botões, (e) relatório de exemplo com Desfazer no grupo, (f) toques reais nos botões Desfazer do relatório (espera 60 s, todos respondem). Não mexe em `auditoria.jsonl` nem em infraestrutura. O token nunca é impresso.
 
 Nos passos (c)/toque e (f), carregar com a conta de um aprovador quando aparecer o `>>>`. Os botões (Aprovar, Ignorar, Desfazer) só respondem enquanto o teste corre: depois de sair, o polling para e um toque fica sem resposta (na demo o orquestrador está sempre a correr).
 
