@@ -2,7 +2,7 @@
 // Abrir de fora só de propósito: PAINEL_HOST=0.0.0.0 com o security group fechado ao nosso IP.
 //   GET  /             ecrã da demo v2 (inglês): cadeia dos agentes, serviços, logs ao vivo, relógio, Undo e Download
 //   GET  /v1           o ecrã anterior (linha do tempo), mantido como recurso
-//   GET  /relatorio.html  o relatório A4 do ciclo (certificado + incidentes) como ficheiro para descarregar
+//   GET  /relatorio.pdf   o relatório A4 do ciclo (certificado + incidentes) em PDF, para descarregar
 //   GET  /isco         contador de tentativas de entrada na VM isco (abertura do pitch); ?json para números
 //   GET  /palco        o ecrã para o júri (inglês, uma tela, números grandes)
 //   GET  /certificado  certificado de migração (ecrã e impressão)
@@ -28,7 +28,7 @@ export interface OpcoesPainel {
 const ROTAS: Record<string, Rota> = {
   '/': paginaV2,
   '/v1': paginaLinhaTempo,
-  '/relatorio.html': paginaRelatorio,
+  '/relatorio.pdf': paginaRelatorio,
   '/isco': paginaIsco,
   '/estado.json': estadoJson,
   '/certificado': paginaCertificado,

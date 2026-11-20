@@ -7,7 +7,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { EventoAuditoria, Pedido, Regra } from '@mwbe/shared';
 import { auditoria, carregarEnv, estado } from '@mwbe/shared';
-import { nomeRelatorioFicheiro, relatorioHtml, relogioExposicao } from '@mwbe/chefe';
+import { nomeRelatorioPdf, relatorioPdf, relogioExposicao } from '@mwbe/chefe';
 import { cabecalho, escapar } from './estilo';
 import { agenteDe, cicloAtual, portasDoCiclo, provas } from './linha-tempo';
 import { fraseIngles } from './palco';
@@ -399,7 +399,7 @@ export function renderizarV2(pedidos: Pedido[], todos: EventoAuditoria[], opcoes
   return `${cabecalho('Migrate without being exposed', CSS)}
 <div class="topo"><div class="marca"><div class="kicker">InfraHack · Leaseweb · live</div><h1>Migrate without being exposed</h1></div>${htmlRelogio(todos, agora)}</div>
 <div class="corpo">${htmlCadeia(eventos)}${htmlServicos(eventos, opcoes.local || 'Leaseweb', agora)}${htmlLogs(eventos)}</div>
-<div class="rodape"><span>Everything comes from auditoria.jsonl and estado.json</span><div class="bts"><a class="bt desc" href="/relatorio.html" download>⤓ Download report</a>${desfazer}</div></div>
+<div class="rodape"><span>Everything comes from auditoria.jsonl and estado.json</span><div class="bts"><a class="bt desc" href="/relatorio.pdf" download>⤓ Download report (PDF)</a>${desfazer}</div></div>
 <script>
 const r=document.querySelector('.relogio[data-inicio]');
 if(r){const i=Date.parse(r.dataset.inicio),f=r.dataset.fim?Date.parse(r.dataset.fim):0,seg=r.querySelector('.seg');
@@ -418,14 +418,15 @@ export async function paginaV2(req: IncomingMessage, res: ServerResponse): Promi
     .end(renderizarV2(estado.listarPedidos(), auditoria.ler(), { token: process.env.PAINEL_TOKEN ?? '', local: process.env.LOCAL_DADOS || undefined }));
 }
 
-/** GET /relatorio.html: o relatório A4 do chefe (certificado + incidentes) do ciclo atual, como ficheiro. */
+/** GET /relatorio.pdf: o relatório A4 do chefe (certificado + incidentes) do ciclo atual, em PDF, como ficheiro. */
 export async function paginaRelatorio(req: IncomingMessage, res: ServerResponse): Promise<void> {
   carregarEnv();
   const eventos = cicloAtual(auditoria.ler());
   const pedidos = estado.listarPedidos();
   const opcoes = { localDados: process.env.LOCAL_DADOS || undefined };
-  const nome = nomeRelatorioFicheiro(eventos, pedidos, opcoes).replace(/[^\w.-]/g, '');
+  const pdf = relatorioPdf(eventos, pedidos, opcoes);
+  const nome = nomeRelatorioPdf(opcoes).replace(/[^\w.-]/g, '');
   res
-    .writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Disposition': `attachment; filename="${nome}"` })
-    .end(relatorioHtml(eventos, pedidos, opcoes));
+    .writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${nome}"` })
+    .end(Buffer.from(pdf));
 }
