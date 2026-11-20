@@ -408,3 +408,6 @@ body.preto::after {
   padding: 6px 0;
   z-index: 1;
 }
+html:has(.modo-guiao) {
+  background: #fff;
+}

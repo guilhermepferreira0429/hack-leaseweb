@@ -4,7 +4,7 @@
 // Texto no ecrã: poucas palavras. Quem fala carrega o resto (js/guiao.js).
 (function () {
   const ap = (p, n) => `ap${p >= n ? ' on' : ''}`;
-  const num = (x, letra) => (x === null || x === undefined || x === '' ? `<span class="falta">${letra}</span>` : String(x));
+  const num = (x, letra) => (x === null || x === undefined || x === '' ? `<span class="falta">${letra}</span>` : /^\d{4,}$/.test(String(x)) ? Number(x).toLocaleString('en') : String(x));
   const rotulo = (t, cor = 'muted') => `<div class="rotulo ${cor}">${t}</div>`;
 
   const principais = [
