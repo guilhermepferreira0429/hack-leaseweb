@@ -23,6 +23,7 @@ export interface CredencialPorDefeito {
 export const CREDENCIAIS_POR_DEFEITO: readonly CredencialPorDefeito[] = [
   { servico: 'PostgreSQL', porta: 5432, utilizador: 'postgres', senha: 'postgres' },
   { servico: 'MinIO', porta: 9000, utilizador: 'minioadmin', senha: 'minioadmin' },
+  { servico: 'MinIO (consola)', porta: 9001, utilizador: 'minioadmin', senha: 'minioadmin' },
   { servico: 'RabbitMQ', porta: 15672, utilizador: 'guest', senha: 'guest' },
   { servico: 'Redis', porta: 6379, utilizador: '', senha: 'redis' },
 ];
@@ -92,6 +93,37 @@ async function testarMinio(alvo: string, cred: CredencialPorDefeito, timeoutMs: 
     clearTimeout(timer);
     cliente.destroy();
   }
+}
+
+function testarMinioConsola(
+  alvo: string,
+  cred: CredencialPorDefeito,
+  timeoutMs: number,
+): Promise<boolean> {
+  return new Promise((concluir) => {
+    const corpo = JSON.stringify({ accessKey: cred.utilizador, secretKey: cred.senha });
+    const pedido = httpRequest(
+      {
+        host: alvo,
+        port: cred.porta,
+        path: '/api/v1/login',
+        method: 'POST',
+        timeout: timeoutMs,
+        headers: {
+          'content-type': 'application/json',
+          'content-length': Buffer.byteLength(corpo),
+        },
+      },
+      (resposta) => {
+        resposta.resume();
+        const estado = resposta.statusCode ?? 0;
+        concluir(estado === 200 || estado === 204);
+      },
+    );
+    pedido.on('timeout', () => pedido.destroy(new Error('timeout')));
+    pedido.on('error', () => concluir(false));
+    pedido.end(corpo);
+  });
 }
 
 function testarRabbit(alvo: string, cred: CredencialPorDefeito, timeoutMs: number): Promise<boolean> {
@@ -171,6 +203,7 @@ export async function testarCredenciaisPorDefeito(
     let entrou = false;
     if (cred.servico === 'PostgreSQL') entrou = await testarPostgres(endereco, cred, timeoutMs);
     else if (cred.servico === 'MinIO') entrou = await testarMinio(endereco, cred, timeoutMs);
+    else if (cred.servico === 'MinIO (consola)') entrou = await testarMinioConsola(endereco, cred, timeoutMs);
     else if (cred.servico === 'RabbitMQ') entrou = await testarRabbit(endereco, cred, timeoutMs);
     else if (cred.servico === 'Redis') entrou = await testarRedis(endereco, cred, timeoutMs);
 

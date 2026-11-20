@@ -7,13 +7,21 @@
 //   nmap antes e depois (verificarDeFora), se o IP da vítima for conhecido e estiver em ALVOS_PERMITIDOS
 // migrar: delega no migrador (passo s3).
 import { isIP } from 'node:net';
-import type { Inverso, Pedido, Regra } from '@mwbe/shared';
+import type { EventoAuditoria, Inverso, Pedido, Regra } from '@mwbe/shared';
 import { TIPOS_ACAO, auditoria, carregarConfig, estado, leaseweb, securityGroupsGeridos, telegram } from '@mwbe/shared';
 import { PORTAS_SENSIVEIS } from './detetar';
 import { type EstadoPorta, estadoPorta } from './verificar-porta';
 
 /** Ajustável nos testes (nmap falso, esperas curtas). */
 export const verificacao = { estadoPorta, tentativasDepois: 4, intervaloMs: 3_000 };
+
+/** IPs da vítima que se podem verificar de fora (do grupo e em ALVOS_PERMITIDOS) e a porta a testar. */
+async function alvosDeFora(sg: string, regra: Regra): Promise<{ ips: string[]; porta: number }> {
+  const permitidos = new Set(carregarConfig([]).alvosPermitidos);
+  const ips = ((await leaseweb.ipsPorSecurityGroup())[sg] ?? []).filter((ip) => isIP(ip) !== 0 && permitidos.has(ip));
+  const porta = Object.keys(PORTAS_SENSIVEIS).map(Number).find((p) => p >= regra.startPort && p <= regra.endPort) ?? regra.startPort;
+  return { ips, porta };
+}
 
 /**
  * nmap vista de fora, antes e depois de fechar (docs/demo.md: "open" -> "filtered"). Só a IPs do grupo
@@ -22,9 +30,7 @@ export const verificacao = { estadoPorta, tentativasDepois: 4, intervaloMs: 3_00
  */
 export async function verificarDeFora(pedidoId: string, sg: string, regra: Regra, fase: 'antes' | 'depois'): Promise<void> {
   try {
-    const permitidos = new Set(carregarConfig([]).alvosPermitidos);
-    const ips = ((await leaseweb.ipsPorSecurityGroup())[sg] ?? []).filter((ip) => isIP(ip) !== 0 && permitidos.has(ip));
-    const porta = Object.keys(PORTAS_SENSIVEIS).map(Number).find((p) => p >= regra.startPort && p <= regra.endPort) ?? regra.startPort;
+    const { ips, porta } = await alvosDeFora(sg, regra);
     for (const ip of ips) {
       let resultado: EstadoPorta = 'desconhecido';
       const tentativas = fase === 'depois' ? verificacao.tentativasDepois : 1;
@@ -86,9 +92,16 @@ export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.
   // O inverso fica no disco ANTES de se mexer na infraestrutura: se algo cair a meio, o Desfazer sabe o que repor.
   auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'a-aplicar', quem: 'defesa', antes: acao.regra, inverso });
 
+  // Confirmação de fora: a regra em DELETING e nenhum IP da vítima responde na porta (nmap). Sem IPs, espera pela API.
+  const deFora = await alvosDeFora(acao.securityGroupId, acao.regra).catch(() => ({ ips: [] as string[], porta: 0 }));
+  const confirmadoDeFora = deFora.ips.length
+    ? async () => (await Promise.all(deFora.ips.map((ip) => verificacao.estadoPorta(ip, deFora.porta)))).every((e) => e === 'filtered' || e === 'closed')
+    : undefined;
+
   let antes;
+  let confirmacao: 'api' | 'de-fora';
   try {
-    ({ antes } = await leaseweb.removerRegra(acao.securityGroupId, acao.regra.id));
+    ({ antes, confirmacao } = await leaseweb.removerRegra(acao.securityGroupId, acao.regra.id, { confirmadoDeFora }));
   } catch (erro) {
     const msg = erro instanceof Error ? erro.message : String(erro);
     auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'falhou', quem: 'defesa', depois: msg });
@@ -97,7 +110,8 @@ export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.
   }
 
   const depois = await leaseweb.listarRegras(acao.securityGroupId);
-  auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'feito', quem: 'defesa', antes, depois, inverso });
+  // `confirmacao`: 'de-fora' = o nmap já não chega à porta (a API ainda lista a regra em DELETING); 'api' = a regra saiu da API.
+  auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'feito', quem: 'defesa', antes, depois, inverso, confirmacao } as EventoAuditoria);
   if (estado.obterPedido(pedido.id)) estado.mudarEstado(pedido.id, 'feito');
   await avisarSemFalhar(avisar, `Fechado e confirmado às ${horaCurta()}: ${pedido.titulo}. Para voltar atrás: /desfazer ${pedido.id}`);
   await verificarDeFora(pedido.id, acao.securityGroupId, acao.regra, 'depois');
