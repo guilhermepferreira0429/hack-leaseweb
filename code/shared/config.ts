@@ -12,7 +12,7 @@ export interface Config {
     /** Security groups que a defesa pode tocar. Qualquer outro é recusado. */
     securityGroupsGeridos: string[];
   };
-  ollama: { baseUrl: string; modelo: string };
+  // O LLM não está aqui: lê-se com fornecedoresDoEnv() em llm.ts (LLM_* e LLM_*_2).
   whatsapp: {
     token: string;
     phoneNumberId: string;

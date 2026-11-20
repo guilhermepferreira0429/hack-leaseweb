@@ -36,8 +36,18 @@ export type Severidade = 'baixa' | 'media' | 'alta' | 'critica';
 /** De onde veio o achado. */
 export type FonteAchado = 'atacante' | 'security-group' | 'isco';
 
+/** Natureza do achado. Define também o texto fixo usado quando o LLM falha. */
+export const TIPOS_ACHADO = [
+  'porta-exposta',
+  'servico-exposto',
+  'credenciais-por-defeito',
+  'isco-tocado',
+] as const;
+export type TipoAchado = (typeof TIPOS_ACHADO)[number];
+
 export interface Achado {
   id: string;
+  tipo: TipoAchado;
   fonte: FonteAchado;
   severidade: Severidade;
   /** Título curto e técnico, ex.: "Postgres 5432 aberto a 0.0.0.0/0". */
@@ -58,7 +68,11 @@ export interface Achado {
 export interface Explicacao {
   achadoId: string;
   frases: [string, string, string];
-  modelo: string;
+  /** 'llm' se veio de um fornecedor; 'fixo' se o LLM falhou e se usou o texto por tipo de achado. */
+  origem: 'llm' | 'fixo';
+  /** Fornecedor e modelo usados (só quando origem = 'llm'). */
+  fornecedor?: string;
+  modelo?: string;
   geradaEm: string;
 }
 

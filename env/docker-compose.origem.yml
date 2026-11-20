@@ -1,0 +1,19 @@
+# Origem "AWS" simulada, a correr no portátil: LocalStack (S3, SQS) + Postgres a fazer de RDS.
+# npm run origem:up
+services:
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      SERVICES: s3,sqs
+      AWS_DEFAULT_REGION: ${AWS_REGION:-eu-west-1}
+
+  rds-postgres:
+    image: postgres:16
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${ORIGEM_POSTGRES_PASSWORD:?definir em env/.env}
+      POSTGRES_DB: encomendas

@@ -1,7 +1,7 @@
 // Biblioteca da defesa. O painel importa daqui; o ponto de entrada é cli.ts.
 // Ciclo: detetar -> explicar -> proporAcao -> pedirAprovacao.
 // A resposta do humano chega ao painel (/webhook), que chama tratarResposta().
-import type { Auditoria, ClienteLeaseweb, ClienteOllama, Config, RespostaHumana } from '@mwbe/shared';
+import type { Auditoria, ClienteLeaseweb, ClienteLLM, Config, RespostaHumana } from '@mwbe/shared';
 import { naoImplementado } from '@mwbe/shared';
 import type { CanalMensagens } from './aprovar';
 
@@ -14,7 +14,7 @@ export * from './desfazer';
 export interface DependenciasDefesa {
   config: Config;
   leaseweb: ClienteLeaseweb;
-  ollama: ClienteOllama;
+  llm: ClienteLLM;
   auditoria: Auditoria;
   canal: CanalMensagens;
 }

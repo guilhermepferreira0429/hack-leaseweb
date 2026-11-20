@@ -4,7 +4,7 @@ import type { Achado } from '@mwbe/shared';
 import { naoImplementado } from '@mwbe/shared';
 
 /** Portas verificadas por defeito. */
-export const PORTAS_ALVO = [22, 80, 443, 5432, 5672, 15672, 4222, 8222, 9000, 9001, 6379, 11434] as const;
+export const PORTAS_ALVO = [22, 80, 443, 5432, 5672, 15672, 4222, 8222, 9000, 9001, 6379] as const;
 
 export interface PortaAberta {
   ip: string;
@@ -14,7 +14,7 @@ export interface PortaAberta {
 }
 
 export interface ServicoIdentificado extends PortaAberta {
-  servico: 'ssh' | 'http' | 'postgres' | 'rabbitmq' | 'rabbitmq-gestao' | 'nats' | 'minio' | 'redis' | 'ollama' | 'desconhecido';
+  servico: 'ssh' | 'http' | 'postgres' | 'rabbitmq' | 'rabbitmq-gestao' | 'nats' | 'minio' | 'redis' | 'desconhecido';
 }
 
 /** Par de credenciais por defeito a testar, uma única vez, só em leitura. */

@@ -13,7 +13,6 @@ export const PORTAS_SENSIVEIS: Record<number, string> = {
   4222: 'NATS',
   8222: 'NATS monitorização',
   6379: 'Redis',
-  11434: 'Ollama',
 };
 
 /** Regra aberta ao mundo que cobre uma porta sensível? Função pura, fácil de testar. */
