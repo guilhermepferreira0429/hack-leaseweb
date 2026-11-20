@@ -170,9 +170,10 @@ export async function listarRegras(sg: string): Promise<Regra[]> {
 
 /**
  * Lê, remove só esta regra (revoke, 202) e espera pela confirmação. Devolve a regra como estava.
- * Confirmado = a regra desapareceu da API, OU está em DELETING e `confirmadoDeFora()` diz que a porta já não
- * responde de fora. Medido a 20/11: a firewall fecha ~3 s depois do revoke, mas a API lista a regra em
- * DELETING durante ~39 s. Sem `confirmadoDeFora`, espera pela API (mais lento, mas nunca diz "fechado" cedo demais).
+ * Confirmado = a regra desapareceu da API, OU (depois do 202) `confirmadoDeFora()` diz duas vezes seguidas que a
+ * porta já não responde de fora. Medido a 20/11 no cérebro: a firewall fecha ~2–3 s depois do revoke, mas a API
+ * continua a listar a regra (como ACTIVE ou DELETING) entre ~9 e ~40 s. Duas leituras seguidas, para um soluço
+ * de rede não passar por "fechado". Sem `confirmadoDeFora`, espera pela API (nunca diz "fechado" cedo demais).
  */
 export async function removerRegra(
   sg: string,
@@ -182,11 +183,13 @@ export async function removerRegra(
   const atual = (await listarRegras(sg)).find((r) => r.id === regraId);
   if (!atual) throw new ErroLeaseweb(`Regra ${regraId} não existe no security group ${sg}`);
   await pedido('POST', `/securityGroups/${encodeURIComponent(sg)}/revokeFirewallRules`, { rules: [regraId] });
+  let seguidas = 0;
   const confirmacao = await esperarAte(`regra ${regraId} removida`, async () => {
     const r = (await listarRegrasComEstado(sg)).find((x) => x.id === regraId);
     if (!r) return 'api' as const;
-    if (r.estado === 'DELETING' && opcoes.confirmadoDeFora && (await opcoes.confirmadoDeFora().catch(() => false))) return 'de-fora' as const;
-    return undefined;
+    if (!opcoes.confirmadoDeFora) return undefined;
+    seguidas = (await opcoes.confirmadoDeFora().catch(() => false)) ? seguidas + 1 : 0;
+    return seguidas >= 2 ? ('de-fora' as const) : undefined;
   });
   return { antes: atual, confirmacao };
 }

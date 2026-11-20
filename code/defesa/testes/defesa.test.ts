@@ -326,6 +326,18 @@ describe('modo noite', () => {
 });
 
 describe('fecho confirmado de fora (medido a 20/11: firewall ~3 s, API ~39 s)', () => {
+  it('a API continua a dizer ACTIVE depois do revoke (visto no cérebro): confirma de fora na mesma', async () => {
+    leaseweb.opcoes.fetch = async (url) =>
+      String(url).endsWith('revokeFirewallRules')
+        ? new Response('', { status: 202 })
+        : new Response(JSON.stringify({ firewallRules: [{ ...regraPg, state: 'ACTIVE' }] }));
+    leaseweb.opcoes.limiteMs = 500;
+    assert.equal((await leaseweb.removerRegra(SG, 'r-pg', { confirmadoDeFora: async () => true })).confirmacao, 'de-fora');
+    // Um soluço (aberta, fechada, aberta...) nunca chega a duas seguidas: não confirma.
+    let n = 0;
+    await assert.rejects(leaseweb.removerRegra(SG, 'r-pg', { confirmadoDeFora: async () => n++ % 2 === 1 }), /Tempo esgotado/);
+  });
+
   it('regra presa em DELETING: confirma pelo nmap em vez de esperar pela API', async () => {
     let revogada = false;
     leaseweb.opcoes.fetch = async (url, init) => {
@@ -340,6 +352,7 @@ describe('fecho confirmado de fora (medido a 20/11: firewall ~3 s, API ~39 s)', 
     let chamadas = 0;
     const r = await leaseweb.removerRegra(SG, 'r-pg', { confirmadoDeFora: async () => ++chamadas >= 2 });
     assert.equal(r.confirmacao, 'de-fora');
+    assert.equal(chamadas, 3); // 1.ª ainda aberta, depois duas seguidas fechadas
     // Sem confirmação de fora e a API presa: não diz "fechado", esgota o tempo.
     revogada = false;
     await assert.rejects(leaseweb.removerRegra(SG, 'r-pg'), /Tempo esgotado/);
