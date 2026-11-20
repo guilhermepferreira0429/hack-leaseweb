@@ -324,3 +324,24 @@ describe('modo noite', () => {
     assert.equal(await modoNoite(web, async () => {}), false);
   });
 });
+
+describe('fecho confirmado de fora (medido a 20/11: firewall ~3 s, API ~39 s)', () => {
+  it('regra presa em DELETING: confirma pelo nmap em vez de esperar pela API', async () => {
+    let revogada = false;
+    leaseweb.opcoes.fetch = async (url, init) => {
+      if (String(url).endsWith('revokeFirewallRules')) {
+        revogada = true;
+        return new Response('', { status: 202 });
+      }
+      const estado = revogada ? 'DELETING' : 'ACTIVE';
+      return new Response(JSON.stringify({ firewallRules: [{ ...regraPg, state: estado }] }));
+    };
+    leaseweb.opcoes.limiteMs = 500;
+    let chamadas = 0;
+    const r = await leaseweb.removerRegra(SG, 'r-pg', { confirmadoDeFora: async () => ++chamadas >= 2 });
+    assert.equal(r.confirmacao, 'de-fora');
+    // Sem confirmação de fora e a API presa: não diz "fechado", esgota o tempo.
+    revogada = false;
+    await assert.rejects(leaseweb.removerRegra(SG, 'r-pg'), /Tempo esgotado/);
+  });
+});

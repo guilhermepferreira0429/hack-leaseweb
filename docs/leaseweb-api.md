@@ -33,12 +33,26 @@ Documentação:
 
 Para o snapshot antes de mexer (`ideias-wow` e `ferramentas`, nível B): como só há 1 por instância, apagar o anterior antes de criar outro.
 
-## Notas do teste com curl (preencher às 09:30)
+## Notas do teste com a chave real (20/11, 11:00–11:30, Enio)
 
-- Remover regra: método, caminho, corpo: …
-- Criar regra: método, caminho, corpo: …
-- Instâncias e RAM disponíveis: …
-- VM da organização (analisada às 09:47): IP público por NAT (IP e instance-id no `.env`, `VM_ORG_*`, não no repo).
-  Ubuntu 26.04.1, 32 vCPU, 125 GB RAM, 93 GB disco. Saída para Telegram e api.leaseweb.com OK. Só a 22 a escutar; `ufw` inativo; `sudo` sem password.
-  Instalado: Docker 29.1 + Compose 2.40, Node 22.21, nmap 7.98, jq. SSH aceita password (ver riscos: desligar ou mudar a password).
-  Aparece na API: **por confirmar** (falta `LSW_API_KEY`). Papel decidido: **cérebro** (aguenta tudo); se aparecer na API, também pode ser a vítima.
+- **Chave:** funciona com `X-LSW-Auth`. **As regras trazem `id`** (o risco da documentação não se confirmou).
+- **Remover regra:** `POST /securityGroups/{id}/revokeFirewallRules` com `{"rules":["<uuid>"]}` → 202. A regra fica em `DELETING`.
+- **Criar regra:** `POST /securityGroups/{id}/authorizeFirewallRules` com `{"rules":[{protocol,startPort,endPort,source}]}` → 202; `CREATING` → `ACTIVE` em ~7 s.
+- **Tempos medidos** (nmap do cérebro de 1,5 em 1,5 s):
+  - revoke → porta `filtered` em **~3 s**; mas a API lista a regra em `DELETING` durante **~39 s**.
+  - authorize → porta `open` em ~4 s; `ACTIVE` na API em ~7 s.
+  - Por isso a defesa confirma o fecho **de fora** (regra em `DELETING` + nmap já não chega à porta) e só espera pela API se não houver nmap.
+- **Regra "todas as portas":** vem como protocolo `ALL` (ou número, ex.: 47 GRE, 50/51 IPsec) e portas 1–65535.
+- **Conta do evento:** começou **sem instâncias** (a VM da organização não é desta conta: fica só como cérebro).
+  Tinha um só security group, **"Default", aberto a tudo** (ALL, 0.0.0.0/0 e ::/0). Bom exemplo para o pitch; a defesa não lhe mexe.
+- **Lançar instância** (`POST /instances`):
+  - a conta **só aceita a região `eu-central-1` (Frankfurt)**;
+  - `contractType: "HOURLY"`, `billingFrequency: 1`, `rootDiskStorageType: "CENTRAL"`, `securityGroupIds` aceite no lançamento;
+  - **não aceita `sshKey` e `userData` juntos**; com `userData` (cloud-init em base64) a chave não ficou instalada;
+  - com `sshKey`, **a chave vai para o `root`** (não para `ubuntu`).
+  - Mais barata: `lsw.c3.large` (2 vCPU, 3 GB) a €0,0348/hora.
+- **Vítima:** `npm run lsw:vitima -- criar | estado | destruir | destruir-vm` (`code/defesa/vitima.ts`). IP e ids no `.env`, não aqui.
+- **VM da organização** (analisada às 09:47): IP público por NAT (IP e instance-id no `.env`, `VM_ORG_*`, não no repo).
+  Ubuntu 26.04.1, 32 vCPU, 125 GB RAM, 93 GB disco. Saída para Telegram e api.leaseweb.com OK. `ufw` inativo; `sudo` sem password.
+  Instalado: Docker 29.1 + Compose 2.40, Node 22.21, nmap 7.98, jq. SSH aceita password (ver riscos).
+  **Não aparece na API** com a chave do evento. Papel: **cérebro** (e fonte do contador do isco). Localização por confirmar com a organização.

@@ -42,7 +42,8 @@ export class ErroLeaseweb extends Error {
   }
 }
 
-async function pedido<T>(metodo: 'GET' | 'POST', caminho: string, corpo?: unknown): Promise<T> {
+/** Pedido cru à API (scripts de infraestrutura, ex.: defesa/vitima.ts). A defesa usa as funções acima. */
+export async function pedido<T>(metodo: 'GET' | 'POST' | 'DELETE' | 'PUT', caminho: string, corpo?: unknown): Promise<T> {
   const res = await opcoes.fetch(`${base()}${caminho}`, {
     method: metodo,
     headers: {
@@ -154,15 +155,27 @@ export async function listarRegras(sg: string): Promise<Regra[]> {
   return (await listarRegrasComEstado(sg)).map(({ estado: _e, ...regra }) => regra);
 }
 
-/** Lê, remove só esta regra (revoke, 202) e volta a ler até ela desaparecer. Devolve a regra como estava. */
-export async function removerRegra(sg: string, regraId: string): Promise<{ antes: Regra }> {
+/**
+ * Lê, remove só esta regra (revoke, 202) e espera pela confirmação. Devolve a regra como estava.
+ * Confirmado = a regra desapareceu da API, OU está em DELETING e `confirmadoDeFora()` diz que a porta já não
+ * responde de fora. Medido a 20/11: a firewall fecha ~3 s depois do revoke, mas a API lista a regra em
+ * DELETING durante ~39 s. Sem `confirmadoDeFora`, espera pela API (mais lento, mas nunca diz "fechado" cedo demais).
+ */
+export async function removerRegra(
+  sg: string,
+  regraId: string,
+  opcoes: { confirmadoDeFora?: () => Promise<boolean> } = {},
+): Promise<{ antes: Regra; confirmacao: 'api' | 'de-fora' }> {
   const atual = (await listarRegras(sg)).find((r) => r.id === regraId);
   if (!atual) throw new ErroLeaseweb(`Regra ${regraId} não existe no security group ${sg}`);
   await pedido('POST', `/securityGroups/${encodeURIComponent(sg)}/revokeFirewallRules`, { rules: [regraId] });
-  await esperarAte(`regra ${regraId} removida`, async () =>
-    (await listarRegras(sg)).some((r) => r.id === regraId) ? undefined : true,
-  );
-  return { antes: atual };
+  const confirmacao = await esperarAte(`regra ${regraId} removida`, async () => {
+    const r = (await listarRegrasComEstado(sg)).find((x) => x.id === regraId);
+    if (!r) return 'api' as const;
+    if (r.estado === 'DELETING' && opcoes.confirmadoDeFora && (await opcoes.confirmadoDeFora().catch(() => false))) return 'de-fora' as const;
+    return undefined;
+  });
+  return { antes: atual, confirmacao };
 }
 
 const mesmaRegra = (a: Omit<Regra, 'id'>, b: Omit<Regra, 'id'>) =>
