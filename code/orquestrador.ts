@@ -91,7 +91,11 @@ export interface Dependencias {
     /** Merge do PR no repo da app (botão "Aprovar PR"). Devolve o commit do merge, para o inverso. */
     aprovarPR?(repo: string, numero: number): Promise<{ commit?: string }>;
     /** Inverso do merge: abre um PR que reverte o commit (o merge desse volta a ser de uma pessoa). */
-    reverterPR?(repo: string, numero: number, commit?: string): Promise<{ url?: string }>;
+    reverterPR?(
+      repo: string,
+      numero: number,
+      commit?: string,
+    ): Promise<{ url?: string }>;
     /** Resumo do tradutor AWS (Terraform) -> Leaseweb, só plano. undefined = não há configuração AWS para traduzir. */
     planoInfra?(): Promise<string | undefined>;
     /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
@@ -106,7 +110,9 @@ export interface Dependencias {
     ): Promise<string>;
   };
   /** Relatório do incidente no grupo "Direção" (shared/relatorio.ts), um por achado tratado no ciclo. Opcional. */
-  relatorio?: { publicar(achadoId: string, eventos: EventoAuditoria[]): Promise<unknown> };
+  relatorio?: {
+    publicar(achadoId: string, eventos: EventoAuditoria[]): Promise<unknown>;
+  };
   chefe: {
     resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
     estadoAtual(pedidos: Pedido[]): string;
@@ -231,14 +237,23 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
   /** A auditoria acumula todos os ensaios do dia: o chefe e a voz só falam do ciclo atual. */
   let inicioCiclo = hora();
   /** O que se mediu neste ciclo, para a validação final do chefe. undefined = não medido. */
-  let medido: { testes?: boolean; dadosIguais?: boolean; nadaExposto?: boolean } = {};
+  let medido: {
+    testes?: boolean;
+    dadosIguais?: boolean;
+    nadaExposto?: boolean;
+  } = {};
   /** Migração aprovada e feita neste ciclo: o PR do código abre depois da defesa (docs/agentes/mensagens-demo.md, passo 6). */
   let codigoPorFazer: { planoId: string; testesOk: boolean } | undefined;
 
   /** Linha "a pensar" do painel (docs/agentes/mensagens-demo.md): texto fixo por passo, nunca do modelo. */
   function pensar(passo: PassoDemo): void {
     const { agente, texto } = PENSAR[passo];
-    auditar({ pedidoId: "-", tipo: "pensar", quem: agente, depois: { passo, texto } });
+    auditar({
+      pedidoId: "-",
+      tipo: "pensar",
+      quem: agente,
+      depois: { passo, texto },
+    });
   }
   const doCiclo = () => lerAuditoria().filter((e) => e.hora >= inicioCiclo);
 
@@ -280,7 +295,11 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
     decisao: Decisao,
     quem: string,
   ): Promise<void> {
-    if (opcoes.donoId && quem !== opcoes.donoId && !(opcoes.aprovadores ?? []).includes(quem)) {
+    if (
+      opcoes.donoId &&
+      quem !== opcoes.donoId &&
+      !(opcoes.aprovadores ?? []).includes(quem)
+    ) {
       log(`decisão de ${quem} ignorada (não é o dono nem um aprovador)`);
       return;
     }
@@ -298,9 +317,28 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
 
     if (!aprovado) return concluir(pedidoId, "ignorado");
     // A migração continua no próprio fluxo (faseMigrar está à espera).
-    if (pedido.acao.tipo === "migrar") return concluir(pedidoId, "aprovado");
+    if (pedido.acao.tipo === "migrar") {
+      concluir(pedidoId, "aprovado");
+      // Plano aprovado: o atacante começa já, enquanto o migrador copia (o fluxo vê-se seguido no grupo).
+      if (opcoes.atacar && deps.atacante.iniciarAtaque) {
+        void deps.atacante
+          .iniciarAtaque({
+            alvo: opcoes.alvos[0],
+            log: (texto) => log("atacante:", texto),
+          })
+          .catch((erro) =>
+            log(
+              `atacante: ${erro instanceof Error ? erro.message : String(erro)}`,
+            ),
+          );
+      }
+      return;
+    }
     if (pedido.acao.tipo === "aprovar_pr")
-      return concluir(pedidoId, await fazerMergePR(pedido as Pedido & { acao: { tipo: "aprovar_pr" } }));
+      return concluir(
+        pedidoId,
+        await fazerMergePR(pedido as Pedido & { acao: { tipo: "aprovar_pr" } }),
+      );
 
     try {
       await deps.defesa.corrigir({ ...pedido, estado: "aprovado" });
@@ -339,7 +377,12 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       // Várias portas fechadas no ciclo: basta uma ainda aberta para não estar tudo fechado.
       medido.nadaExposto = (medido.nadaExposto ?? true) && ainda.length === 0;
       // Para o certificado (secção 3, "Confirmação do atacante").
-      auditar({ pedidoId: pedido.id, tipo: "confirmacao-atacante", quem: "atacante", depois: { chega: ainda.length > 0 } });
+      auditar({
+        pedidoId: pedido.id,
+        tipo: "confirmacao-atacante",
+        quem: "atacante",
+        depois: { chega: ainda.length > 0 },
+      });
       falar(
         "atacante",
         "todos",
@@ -367,7 +410,9 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
       try {
         const alvo = deps.estado.obterPedido(id);
         if (alvo?.acao.tipo === "aprovar_pr") {
-          await reverterMergePR(alvo as Pedido & { acao: { tipo: "aprovar_pr" } });
+          await reverterMergePR(
+            alvo as Pedido & { acao: { tipo: "aprovar_pr" } },
+          );
           return;
         }
         // O aviso "Desfeito às HH:MM: a regra voltou (...)" já vem do desfazer() da defesa.
@@ -495,7 +540,10 @@ ${resumo}`,
       "chefe",
       "dono",
       msgPlanoAprovado({
-        quem: aprovacao?.quem === opcoes.donoId ? "o dono" : "uma pessoa autorizada",
+        quem:
+          aprovacao?.quem === opcoes.donoId
+            ? "o dono"
+            : "uma pessoa autorizada",
         hora: horaCurta(),
       }),
     );
@@ -535,7 +583,8 @@ ${resumo}`,
     }
     const testesOk = testes.antes && testes.depois;
     medido.testes = testesOk;
-    medido.dadosIguais = feitos.length === passos.length && feitos.every((f) => f.copia.ok);
+    medido.dadosIguais =
+      feitos.length === passos.length && feitos.every((f) => f.copia.ok);
     for (const { passo, pedido, copia } of feitos) {
       const ok = copia.ok && testesOk;
       deps.estado.mudarEstado(pedido.id, ok ? "feito" : "aprovado");
@@ -550,7 +599,8 @@ ${resumo}`,
       ? "Testes da app a passar dos dois lados"
       : `Testes antes ${testes.antes ? "ok" : "falharam"}, depois ${testes.depois ? "ok" : "falharam"}`;
     const provas = `${feitos.map((f) => f.copia.frase).join(". ")}. ${testesTexto}.`;
-    if (deps.migrador.migrarCodigo) codigoPorFazer = { planoId: pedidoPlano.id, testesOk };
+    if (deps.migrador.migrarCodigo)
+      codigoPorFazer = { planoId: pedidoPlano.id, testesOk };
     falar(
       "migrador",
       "atacante",
@@ -622,7 +672,9 @@ ${resumo}`,
       titulo: `Aprovar o PR #${pr.numero} no repo da app`,
       texto: [
         `PR #${pr.numero}: ${r.ficheiros.length} ${r.ficheiros.length === 1 ? "ficheiro" : "ficheiros"} (${r.ficheiros.join(", ")}), testes a passar, sem segredos.`,
-        r.causas ? "Inclui a correção da regra que deixava a base de dados aberta." : "",
+        r.causas
+          ? "Inclui a correção da regra que deixava a base de dados aberta."
+          : "",
         `Ao aprovar, faço o merge no ramo principal do repo da app. Para voltar atrás, /desfazer abre um PR que o reverte.`,
         r.pr?.url ?? "",
       ]
@@ -632,16 +684,27 @@ ${resumo}`,
       estado: "pendente",
     };
     deps.estado.guardarPedido(pedido);
-    auditar({ pedidoId: pedido.id, tipo: "pedido", quem: "migrador", depois: { repo: pr.repo, numero: pr.numero, url: r.pr?.url } });
+    auditar({
+      pedidoId: pedido.id,
+      tipo: "pedido",
+      quem: "migrador",
+      depois: { repo: pr.repo, numero: pr.numero, url: r.pr?.url },
+    });
     const decisao = esperarResultado(pedido.id);
     await deps.telegram.pedirAprovacao("migrador", pedido);
     if ((await comLimite(decisao)) === "sem-resposta") {
-      falar("migrador", "dono", `O PR #${pr.numero} fica aberto à espera de decisão. Nada mudou no ramo principal.`);
+      falar(
+        "migrador",
+        "dono",
+        `O PR #${pr.numero} fica aberto à espera de decisão. Nada mudou no ramo principal.`,
+      );
     }
   }
 
   /** Merge do PR aprovado; guarda o inverso (um PR que reverte). */
-  async function fazerMergePR(pedido: Pedido & { acao: { tipo: "aprovar_pr" } }): Promise<Resultado> {
+  async function fazerMergePR(
+    pedido: Pedido & { acao: { tipo: "aprovar_pr" } },
+  ): Promise<Resultado> {
     const { repo, numero } = pedido.acao;
     try {
       const { commit } = await deps.migrador.aprovarPR!(repo, numero);
@@ -661,23 +724,44 @@ ${resumo}`,
       return "feito";
     } catch (erro) {
       await falha(`merge do PR #${numero}`, erro);
-      falar("migrador", "dono", `Não consegui fazer o merge do PR #${numero}. O ramo principal ficou como estava.`);
+      falar(
+        "migrador",
+        "dono",
+        `Não consegui fazer o merge do PR #${numero}. O ramo principal ficou como estava.`,
+      );
       return "falhou";
     }
   }
 
   /** /desfazer de um merge: abre um PR que o reverte. Não mexe no ramo principal sozinho. */
-  async function reverterMergePR(pedido: Pedido & { acao: { tipo: "aprovar_pr" } }): Promise<void> {
-    const feito = lerAuditoria().findLast((e) => e.pedidoId === pedido.id && e.tipo === "feito");
+  async function reverterMergePR(
+    pedido: Pedido & { acao: { tipo: "aprovar_pr" } },
+  ): Promise<void> {
+    const feito = lerAuditoria().findLast(
+      (e) => e.pedidoId === pedido.id && e.tipo === "feito",
+    );
     const inv = feito?.inverso;
     if (!inv || inv.tipo !== "reverter_pr" || !deps.migrador.reverterPR) {
       await notificar(`O pedido ${pedido.id} não tem um merge para reverter.`);
       return;
     }
-    const { url } = await deps.migrador.reverterPR(inv.repo, inv.numero, inv.commit);
+    const { url } = await deps.migrador.reverterPR(
+      inv.repo,
+      inv.numero,
+      inv.commit,
+    );
     deps.estado.mudarEstado(pedido.id, "desfeito");
-    auditar({ pedidoId: pedido.id, tipo: "desfeito", quem: "migrador", depois: { repo: inv.repo, numero: inv.numero, url } });
-    falar("migrador", "dono", `Abri um PR que reverte o PR #${inv.numero}${url ? `: ${url}` : ""}. O ramo principal só muda com o vosso merge.`);
+    auditar({
+      pedidoId: pedido.id,
+      tipo: "desfeito",
+      quem: "migrador",
+      depois: { repo: inv.repo, numero: inv.numero, url },
+    });
+    falar(
+      "migrador",
+      "dono",
+      `Abri um PR que reverte o PR #${inv.numero}${url ? `: ${url}` : ""}. O ramo principal só muda com o vosso merge.`,
+    );
   }
 
   type Copia = { ok: boolean; prova: object; frase: string };
@@ -901,7 +985,13 @@ ${resumo}`,
     codigoPorFazer = undefined;
     pensar("abertura");
     if (opcoes.migrar) {
-      falar("chefe", "dono", msgAbertura({ app: opcoes.dirApp.split(/[\\/]/).filter(Boolean).at(-1) }));
+      falar(
+        "chefe",
+        "dono",
+        msgAbertura({
+          app: opcoes.dirApp.split(/[\\/]/).filter(Boolean).at(-1),
+        }),
+      );
       await faseMigrar().catch((e) => falha("migração", e));
     }
     // Daqui em diante a infraestrutura nova conta como "no ar": é o início do relógio de exposição (ideia wow 2).
@@ -923,7 +1013,8 @@ ${resumo}`,
     await publicarRelatorios();
     pensar("validar");
     // Só se diz o que foi medido; um valor que falte sai como "não medido".
-    if (Object.values(medido).some((v) => v !== undefined)) falar("chefe", "dono", msgValidacao(medido));
+    if (Object.values(medido).some((v) => v !== undefined))
+      falar("chefe", "dono", msgValidacao(medido));
     falar(
       "chefe",
       "dono",
@@ -1019,7 +1110,9 @@ export function textoAtacante(achados: Achado[]): string {
 }
 
 /** Repo e número a partir do URL do PR (https://github.com/dono/repo/pull/12). */
-export function lerPR(url: string | undefined): { repo: string; numero: number } | undefined {
+export function lerPR(
+  url: string | undefined,
+): { repo: string; numero: number } | undefined {
   const m = url?.match(/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/);
   return m ? { repo: m[1]!, numero: Number(m[2]) } : undefined;
 }

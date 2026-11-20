@@ -248,30 +248,67 @@ describe("orquestrador", () => {
   it('mensagens fixas: linha "a pensar" por passo, plano aprovado e validação só com o que foi medido', async () => {
     const t = montar();
     await t.orq.correr();
-    const passos = t.eventos.filter((e) => e.tipo === 'pensar').map((e) => (e.depois as { passo: string }).passo);
-    assert.deepEqual(passos, ['abertura', 'plano', 'confirmacao', 'migrar', 'atacar', 'defender', 'validar', 'relatorio']);
-    const pensarDefesa = t.eventos.find((e) => e.tipo === 'pensar' && (e.depois as { passo: string }).passo === 'defender')!;
-    assert.equal(pensarDefesa.quem, 'defesa');
-    assert.match((pensarDefesa.depois as { texto: string }).texto, /A explicar o risco/);
-    const chefe = textos(t.falas, 'chefe');
+    const passos = t.eventos
+      .filter((e) => e.tipo === "pensar")
+      .map((e) => (e.depois as { passo: string }).passo);
+    assert.deepEqual(passos, [
+      "abertura",
+      "plano",
+      "confirmacao",
+      "migrar",
+      "atacar",
+      "defender",
+      "validar",
+      "relatorio",
+    ]);
+    const pensarDefesa = t.eventos.find(
+      (e) =>
+        e.tipo === "pensar" &&
+        (e.depois as { passo: string }).passo === "defender",
+    )!;
+    assert.equal(pensarDefesa.quem, "defesa");
+    assert.match(
+      (pensarDefesa.depois as { texto: string }).texto,
+      /A explicar o risco/,
+    );
+    const chefe = textos(t.falas, "chefe");
     assert.match(chefe[0]!, /^Bom dia\. Vamos tirar a app exemplo-app da AWS/);
-    assert.ok(chefe.some((f) => /^Plano aprovado por o dono às \d\d:\d\d\. @migrador, avança\.$/.test(f)));
-    assert.ok(chefe.includes('Validação final: testes ✓, nada exposto ✓, dados iguais ✓.'));
+    assert.ok(
+      chefe.some((f) =>
+        /^Plano aprovado por o dono às \d\d:\d\d\. @migrador, avança\.$/.test(
+          f,
+        ),
+      ),
+    );
+    assert.ok(
+      chefe.includes(
+        "Validação final: testes ✓, nada exposto ✓, dados iguais ✓.",
+      ),
+    );
 
     // Sem migração nem atacante, nada foi medido: não há validação inventada.
     const so = montar({}, { migrar: false, atacar: false });
     await so.orq.correr();
-    assert.ok(!textos(so.falas, 'chefe').some((f) => /Validação final/.test(f)));
+    assert.ok(
+      !textos(so.falas, "chefe").some((f) => /Validação final/.test(f)),
+    );
   });
 
-  it('ideia wow 1: um aprovador (o jurado) pode decidir; quem não está na lista continua ignorado', async () => {
-    const JURI = '777';
+  it("ideia wow 1: um aprovador (o jurado) pode decidir; quem não está na lista continua ignorado", async () => {
+    const JURI = "777";
     const t = montar({ quem: JURI }, { aprovadores: [JURI] });
     await t.orq.correr();
-    assert.equal(t.corrigidos.length, 1, 'o jurado fechou a porta');
-    assert.ok(textos(t.falas, 'chefe').some((f) => /^Plano aprovado por uma pessoa autorizada às/.test(f)));
+    assert.equal(t.corrigidos.length, 1, "o jurado fechou a porta");
+    assert.ok(
+      textos(t.falas, "chefe").some((f) =>
+        /^Plano aprovado por uma pessoa autorizada às/.test(f),
+      ),
+    );
 
-    const estranho = montar({ quem: '999' }, { aprovadores: [JURI], migrar: false, esperaDecisaoMs: 50 });
+    const estranho = montar(
+      { quem: "999" },
+      { aprovadores: [JURI], migrar: false, esperaDecisaoMs: 50 },
+    );
     await estranho.orq.correr();
     assert.equal(estranho.corrigidos.length, 0);
   });
@@ -460,6 +497,14 @@ describe("orquestrador", () => {
     assert.ok(falha.falas.some((f) => /ficheiros copiados/.test(f.texto)));
   });
 
+  it("ao aprovar o plano, o atacante começa a atacar em paralelo com a migração", async () => {
+    const t = montar({}, { atacar: true });
+    await t.orq.correr();
+    assert.ok(t.pedidosEnviados.some((p) => p.pedido.acao.tipo === "migrar"));
+    assert.equal(t.ataques.length, 1);
+    assert.equal(t.ataques[0]?.alvo, "203.0.113.10");
+  });
+
   it('um só "Aprovar plano": todos os passos por ordem, prova e auditoria por passo, testes uma vez no fim', async () => {
     const t = montar({}, { atacar: false });
     const ordem: string[] = [];
@@ -626,43 +671,101 @@ describe("orquestrador", () => {
     const merges: string[] = [];
     const reverts: string[] = [];
     t.deps.migrador.migrarCodigo = async () => ({
-      ficheiros: ['leaseweb.env.example', 'infra/main.tf.json'],
+      ficheiros: ["leaseweb.env.example", "infra/main.tf.json"],
       fora: [],
       problemas: [],
       causas: 1,
-      pr: { ramo: 'migracao/leaseweb-1', simulado: false, url: 'https://github.com/dono/app/pull/7' },
+      pr: {
+        ramo: "migracao/leaseweb-1",
+        simulado: false,
+        url: "https://github.com/dono/app/pull/7",
+      },
     });
-    t.deps.migrador.aprovarPR = async (repo, numero) => (merges.push(`${repo}#${numero}`), { commit: 'abc1234' });
-    t.deps.migrador.reverterPR = async (repo, numero, commit) => (reverts.push(`${repo}#${numero}@${commit}`), { url: 'https://github.com/dono/app/pull/8' });
+    t.deps.migrador.aprovarPR = async (repo, numero) => (
+      merges.push(`${repo}#${numero}`),
+      { commit: "abc1234" }
+    );
+    t.deps.migrador.reverterPR = async (repo, numero, commit) => (
+      reverts.push(`${repo}#${numero}@${commit}`),
+      { url: "https://github.com/dono/app/pull/8" }
+    );
     await t.orq.correr();
 
-    const pedidoPR = t.pedidosEnviados.find((p) => p.pedido.acao.tipo === 'aprovar_pr')?.pedido;
+    const pedidoPR = t.pedidosEnviados.find(
+      (p) => p.pedido.acao.tipo === "aprovar_pr",
+    )?.pedido;
     assert.ok(pedidoPR, 'pede "Aprovar PR" no Telegram');
-    assert.equal(t.pedidosEnviados.find((p) => p.pedido.acao.tipo === 'aprovar_pr')!.agente, 'migrador');
-    assert.match(pedidoPR!.texto, /Inclui a correção da regra que deixava a base de dados aberta/);
-    assert.deepEqual(merges, ['dono/app#7']);
-    assert.equal(t.pedidos.get(pedidoPR!.id)?.estado, 'feito');
-    const feito = t.eventos.findLast((e) => e.pedidoId === pedidoPR!.id && e.tipo === 'feito')!;
-    assert.deepEqual(feito.inverso, { tipo: 'reverter_pr', repo: 'dono/app', numero: 7, commit: 'abc1234' });
-    assert.ok(t.falas.some((f) => /PR #7 aprovado e juntado ao ramo principal do repo da app às \d\d:\d\d\. Para voltar atrás: \/desfazer/.test(f.texto)));
-    assert.equal(t.corrigidos.length, 1, 'a defesa continua a fechar só regras');
+    assert.equal(
+      t.pedidosEnviados.find((p) => p.pedido.acao.tipo === "aprovar_pr")!
+        .agente,
+      "migrador",
+    );
+    assert.match(
+      pedidoPR!.texto,
+      /Inclui a correção da regra que deixava a base de dados aberta/,
+    );
+    assert.deepEqual(merges, ["dono/app#7"]);
+    assert.equal(t.pedidos.get(pedidoPR!.id)?.estado, "feito");
+    const feito = t.eventos.findLast(
+      (e) => e.pedidoId === pedidoPR!.id && e.tipo === "feito",
+    )!;
+    assert.deepEqual(feito.inverso, {
+      tipo: "reverter_pr",
+      repo: "dono/app",
+      numero: 7,
+      commit: "abc1234",
+    });
+    assert.ok(
+      t.falas.some((f) =>
+        /PR #7 aprovado e juntado ao ramo principal do repo da app às \d\d:\d\d\. Para voltar atrás: \/desfazer/.test(
+          f.texto,
+        ),
+      ),
+    );
+    assert.equal(
+      t.corrigidos.length,
+      1,
+      "a defesa continua a fechar só regras",
+    );
 
     t.mensagemDoDono(null, `/desfazer ${pedidoPR!.id}`);
     for (let i = 0; i < 5; i++) await esperar();
-    assert.deepEqual(reverts, ['dono/app#7@abc1234']);
-    assert.equal(t.desfeitos.length, 0, 'o /desfazer de um PR não vai para a defesa');
-    assert.equal(t.pedidos.get(pedidoPR!.id)?.estado, 'desfeito');
-    assert.ok(t.falas.some((f) => /Abri um PR que reverte o PR #7: https:\/\/github\.com\/dono\/app\/pull\/8/.test(f.texto)));
+    assert.deepEqual(reverts, ["dono/app#7@abc1234"]);
+    assert.equal(
+      t.desfeitos.length,
+      0,
+      "o /desfazer de um PR não vai para a defesa",
+    );
+    assert.equal(t.pedidos.get(pedidoPR!.id)?.estado, "desfeito");
+    assert.ok(
+      t.falas.some((f) =>
+        /Abri um PR que reverte o PR #7: https:\/\/github\.com\/dono\/app\/pull\/8/.test(
+          f.texto,
+        ),
+      ),
+    );
 
     // Um PR simulado (ensaio sem GitHub) não pede "Aprovar PR".
     const sim = montar({}, { atacar: false });
-    sim.deps.migrador.migrarCodigo = async () => ({ ficheiros: ['x'], fora: [], problemas: [], pr: { ramo: 'r', simulado: true } });
+    sim.deps.migrador.migrarCodigo = async () => ({
+      ficheiros: ["x"],
+      fora: [],
+      problemas: [],
+      pr: { ramo: "r", simulado: true },
+    });
     sim.deps.migrador.aprovarPR = async () => ({});
     await sim.orq.correr();
-    assert.ok(!sim.pedidosEnviados.some((p) => p.pedido.acao.tipo === 'aprovar_pr'));
+    assert.ok(
+      !sim.pedidosEnviados.some((p) => p.pedido.acao.tipo === "aprovar_pr"),
+    );
 
     // Ignorar: não há merge.
-    const nao = montar({ decisao: (p) => (p.acao.tipo === 'aprovar_pr' ? 'ignorar' : 'aprovar') }, { atacar: false });
+    const nao = montar(
+      {
+        decisao: (p) => (p.acao.tipo === "aprovar_pr" ? "ignorar" : "aprovar"),
+      },
+      { atacar: false },
+    );
     let tocou = false;
     nao.deps.migrador.migrarCodigo = t.deps.migrador.migrarCodigo;
     nao.deps.migrador.aprovarPR = async () => ((tocou = true), {});
@@ -670,14 +773,24 @@ describe("orquestrador", () => {
     assert.equal(tocou, false);
   });
 
-  it('relatório do incidente só com os eventos deste ciclo (a auditoria tem os ensaios do dia)', async () => {
-    const antigo: EventoAuditoria = { hora: '2000-01-01T00:00:00.000Z', pedidoId: 'velho', tipo: 'feito', quem: 'defesa' };
+  it("relatório do incidente só com os eventos deste ciclo (a auditoria tem os ensaios do dia)", async () => {
+    const antigo: EventoAuditoria = {
+      hora: "2000-01-01T00:00:00.000Z",
+      pedidoId: "velho",
+      tipo: "feito",
+      quem: "defesa",
+    };
     const t = montar({ historico: [antigo] });
     let recebidos: EventoAuditoria[] = [];
-    t.deps.relatorio = { publicar: async (_id, eventos) => void (recebidos = eventos) };
+    t.deps.relatorio = {
+      publicar: async (_id, eventos) => void (recebidos = eventos),
+    };
     await t.orq.correr();
     assert.ok(recebidos.length > 0);
-    assert.ok(!recebidos.some((e) => e.pedidoId === 'velho'), 'o fecho de um ensaio anterior não entra no relatório');
+    assert.ok(
+      !recebidos.some((e) => e.pedidoId === "velho"),
+      "o fecho de um ensaio anterior não entra no relatório",
+    );
   });
 
   it("migrador de código: no mesmo plano, depois dos testes; sem PR diz porquê; um erro não trava", async () => {
@@ -715,10 +828,19 @@ describe("orquestrador", () => {
     );
     assert.ok(iPR > 0, "o PR é anunciado");
     // Guião (mensagens-demo.md): migrar → atacar → defender → só depois o PR do código.
-    const iPassagem = t.falas.findIndex((f) => /@atacante, a infraestrutura nova está no ar\./.test(f.texto));
-    const iFecho = t.falas.findIndex((f) => f.de === "defesa" && /fechei/.test(f.texto));
-    const iPRGlobal = t.falas.findIndex((f) => /Código: abri um pull request/.test(f.texto));
-    assert.ok(iPassagem >= 0 && iFecho > iPassagem && iPRGlobal > iFecho, "o PR do código vem depois da defesa");
+    const iPassagem = t.falas.findIndex((f) =>
+      /@atacante, a infraestrutura nova está no ar\./.test(f.texto),
+    );
+    const iFecho = t.falas.findIndex(
+      (f) => f.de === "defesa" && /fechei/.test(f.texto),
+    );
+    const iPRGlobal = t.falas.findIndex((f) =>
+      /Código: abri um pull request/.test(f.texto),
+    );
+    assert.ok(
+      iPassagem >= 0 && iFecho > iPassagem && iPRGlobal > iFecho,
+      "o PR do código vem depois da defesa",
+    );
     assert.ok(
       t.eventos.some(
         (e) =>
@@ -833,7 +955,10 @@ describe("orquestrador", () => {
     const falasNoMomento: number[] = [];
     t.deps.relatorio = {
       publicar: async (id, eventos) => {
-        assert.ok(eventos.every((e) => !(e as { antigo?: boolean }).antigo), 'só eventos deste ciclo');
+        assert.ok(
+          eventos.every((e) => !(e as { antigo?: boolean }).antigo),
+          "só eventos deste ciclo",
+        );
         publicados.push(id);
         falasNoMomento.push(t.falas.length);
       },
