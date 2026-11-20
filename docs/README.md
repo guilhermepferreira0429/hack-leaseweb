@@ -12,3 +12,6 @@ Ordem de leitura:
 8. `leaseweb-api.md` e `telegram.md`: integrações.
 9. `demo.md` e `pitch.md`: o que se mostra.
 10. `riscos.md`.
+11. `decisor-destino.md`: regras e preços para o migrador decidir self-hosted ou gerido europeu.
+12. `perguntas-juri.md`: perguntas difíceis e respostas de 20 segundos, para treinar.
+13. `painel-web.md`: o ecrã da demo. Desenhos em `material/design/` (`pitching.pen`, `web.pen`).

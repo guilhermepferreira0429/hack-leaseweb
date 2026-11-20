@@ -1,0 +1,250 @@
+{
+  "version": "2.22",
+  "children": [
+    {
+      "type": "frame",
+      "id": "S01xx",
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 720,
+      "name": "Slide 1 · Abertura",
+      "fill": "#0C1715",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 96,
+      "children": [
+        {
+          "type": "text",
+          "id": "t0a",
+          "name": "T",
+          "fill": "#FFFFFF",
+          "content": "Abertura",
+          "fontFamily": "Inter",
+          "fontSize": 64,
+          "fontWeight": "bold"
+        },
+        {
+          "type": "text",
+          "id": "t0b",
+          "name": "T",
+          "fill": "#7DD3A8",
+          "content": "N tentativas desde as 8h",
+          "fontFamily": "Inter",
+          "fontSize": 32,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "S02xx",
+      "x": 1400,
+      "y": 0,
+      "width": 1280,
+      "height": 720,
+      "name": "Slide 2 · A tese",
+      "fill": "#0C1715",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 96,
+      "children": [
+        {
+          "type": "text",
+          "id": "t1a",
+          "name": "T",
+          "fill": "#FFFFFF",
+          "content": "A tese",
+          "fontFamily": "Inter",
+          "fontSize": 64,
+          "fontWeight": "bold"
+        },
+        {
+          "type": "text",
+          "id": "t1b",
+          "name": "T",
+          "fill": "#7DD3A8",
+          "content": "Migrar é o momento mais perigoso",
+          "fontFamily": "Inter",
+          "fontSize": 32,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "S03xx",
+      "x": 2800,
+      "y": 0,
+      "width": 1280,
+      "height": 720,
+      "name": "Slide 3 · Demo ao vivo",
+      "fill": "#0C1715",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 96,
+      "children": [
+        {
+          "type": "text",
+          "id": "t2a",
+          "name": "T",
+          "fill": "#FFFFFF",
+          "content": "Demo ao vivo",
+          "fontFamily": "Inter",
+          "fontSize": 64,
+          "fontWeight": "bold"
+        },
+        {
+          "type": "text",
+          "id": "t2b",
+          "name": "T",
+          "fill": "#7DD3A8",
+          "content": "Migrar, atacar, aprovar, fechar",
+          "fontFamily": "Inter",
+          "fontSize": 32,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "S04xx",
+      "x": 4200,
+      "y": 0,
+      "width": 1280,
+      "height": 720,
+      "name": "Slide 4 · Como funciona",
+      "fill": "#0C1715",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 96,
+      "children": [
+        {
+          "type": "text",
+          "id": "t3a",
+          "name": "T",
+          "fill": "#FFFFFF",
+          "content": "Como funciona",
+          "fontFamily": "Inter",
+          "fontSize": 64,
+          "fontWeight": "bold"
+        },
+        {
+          "type": "text",
+          "id": "t3b",
+          "name": "T",
+          "fill": "#7DD3A8",
+          "content": "Três agentes, um fluxo",
+          "fontFamily": "Inter",
+          "fontSize": 32,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "S05xx",
+      "x": 5600,
+      "y": 0,
+      "width": 1280,
+      "height": 720,
+      "name": "Slide 5 · Salvaguardas",
+      "fill": "#0C1715",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 96,
+      "children": [
+        {
+          "type": "text",
+          "id": "t4a",
+          "name": "T",
+          "fill": "#FFFFFF",
+          "content": "Salvaguardas",
+          "fontFamily": "Inter",
+          "fontSize": 64,
+          "fontWeight": "bold"
+        },
+        {
+          "type": "text",
+          "id": "t4b",
+          "name": "T",
+          "fill": "#7DD3A8",
+          "content": "A IA só escreve. O humano aprova. Tudo se desfaz.",
+          "fontFamily": "Inter",
+          "fontSize": 32,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "S06xx",
+      "x": 7000,
+      "y": 0,
+      "width": 1280,
+      "height": 720,
+      "name": "Slide 6 · Encaixe com a Leaseweb",
+      "fill": "#0C1715",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 96,
+      "children": [
+        {
+          "type": "text",
+          "id": "t5a",
+          "name": "T",
+          "fill": "#FFFFFF",
+          "content": "Encaixe com a Leaseweb",
+          "fontFamily": "Inter",
+          "fontSize": 64,
+          "fontWeight": "bold"
+        },
+        {
+          "type": "text",
+          "id": "t5b",
+          "name": "T",
+          "fill": "#7DD3A8",
+          "content": "Trazemos clientes para a vossa cloud, já seguros",
+          "fontFamily": "Inter",
+          "fontSize": 32,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "S07xx",
+      "x": 8400,
+      "y": 0,
+      "width": 1280,
+      "height": 720,
+      "name": "Slide 7 · Equipa",
+      "fill": "#0C1715",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 96,
+      "children": [
+        {
+          "type": "text",
+          "id": "t6a",
+          "name": "T",
+          "fill": "#FFFFFF",
+          "content": "Equipa",
+          "fontFamily": "Inter",
+          "fontSize": 64,
+          "fontWeight": "bold"
+        },
+        {
+          "type": "text",
+          "id": "t6b",
+          "name": "T",
+          "fill": "#7DD3A8",
+          "content": "Guilherme · David · Enio Carlos",
+          "fontFamily": "Inter",
+          "fontSize": 32,
+          "fontWeight": "normal"
+        }
+      ]
+    }
+  ]
+}
