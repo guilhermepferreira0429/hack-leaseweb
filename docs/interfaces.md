@@ -1,29 +1,31 @@
-# Interfaces (fixas; mudar só com aviso no grupo)
+# Interfaces (fixed; change only after telling the team)
+
+Identifiers are in Portuguese, as in the code.
 
 ```ts
 // shared/tipos.ts
 export type Regra = { id: string; protocol: string; source: string; startPort: number; endPort: number };
 
-// NOVO (avisar o grupo): `tipo` escolhe o texto fixo quando o LLM falha.
+// NEW (tell the team): `tipo` picks the fixed text when the LLM fails.
 export type TipoAchado = 'porta-exposta' | 'servico-exposto' | 'credenciais-por-defeito' | 'isco-tocado';
 
 export type Achado = {
   id: string;
   tipo: TipoAchado;
   origem: 'api' | 'atacante';
-  alvo: string;                 // IP ou instanceId
+  alvo: string;                 // IP or instanceId
   securityGroupId?: string;
   regra?: Regra;
   porta: number;
   servico: string | null;
   severidade: 'alta' | 'media';
-  detalhe: string;              // texto técnico curto (para o painel, não para o dono)
+  detalhe: string;              // short technical text (for the dashboard, not for the owner)
 };
 
 export type Acao =
   | { tipo: 'remover_regra'; securityGroupId: string; regra: Regra }
   | { tipo: 'migrar'; passo: 's3' | 'postgres' | 'fila' | 'segredos' | 'cache' }  // 20/11 ~11:20: + segredos, cache
-  | { tipo: 'aprovar_pr'; repo: string; numero: number };  // 20/11 ~12:40: merge do PR do migrador de código (repo da app). Inverso: { tipo: 'reverter_pr', repo, numero, commit } = um PR que reverte
+  | { tipo: 'aprovar_pr'; repo: string; numero: number };  // 20/11 ~12:40: merge of the code migrator's PR (app repo). Inverse: { tipo: 'reverter_pr', repo, numero, commit } = a PR that reverts it
 
 export type Pedido = { id: string; titulo: string; texto: string; acao: Acao; estado: 'pendente' | 'aprovado' | 'ignorado' | 'feito' | 'desfeito' };
 
@@ -37,77 +39,77 @@ export type EventoAuditoria = {
 // shared/leaseweb.ts
 listarSecurityGroups(): Promise<{ id: string; nome: string }[]>
 listarRegras(sg: string): Promise<Regra[]>
-removerRegra(sg: string, regraId: string): Promise<{ antes: Regra }>   // lê, remove, volta a ler
-criarRegra(sg: string, regra: Omit<Regra, 'id'>): Promise<Regra>      // o inverso
+removerRegra(sg: string, regraId: string): Promise<{ antes: Regra }>   // reads, removes, reads again
+criarRegra(sg: string, regra: Omit<Regra, 'id'>): Promise<Regra>      // the inverse
 ```
 
 ```ts
 // shared/llm.ts
-explicar(achado: Achado): Promise<string>   // 3 frases, timeout 20 s, recurso texto fixo por achado.tipo
-// fornecedores: LLM_* e, se existir, LLM_*_2 como reserva (usa o primeiro que responder)
+explicar(achado: Achado): Promise<string>   // 3 sentences, 20 s timeout, fixed fallback text per achado.tipo
+// providers: LLM_* and, if set, LLM_*_2 as a backup (uses the first one that answers)
 ```
 
 ```ts
-// shared/bus.ts  (conversa entre agentes; não passa pelo Telegram)
+// shared/bus.ts  (conversation between agents; does not go through Telegram)
 type Agente = 'chefe' | 'migrador' | 'atacante' | 'defesa';
 type Mensagem = { de: Agente; para: Agente | 'dono' | 'todos'; texto: string; pedido?: Pedido };
-enviar(m: Mensagem): void            // entrega internamente e publica no grupo pelo bot de 'de'
+enviar(m: Mensagem): void            // delivers internally and posts in the group with the bot of 'de'
 aoReceber(a: Agente, cb: (m: Mensagem) => void): void
 ```
 
 ```ts
-// shared/telegram.ts  (long polling, sem webhook)
-falar(agente: Agente, texto: string): Promise<void>  // publica no grupo com o bot desse agente
-pedirAprovacao(agente: Agente, pedido: Pedido): Promise<void>  // botões "Aprovar" / "Ignorar"
+// shared/telegram.ts  (long polling, no webhook)
+falar(agente: Agente, texto: string): Promise<void>  // posts in the group with that agent's bot
+pedirAprovacao(agente: Agente, pedido: Pedido): Promise<void>  // buttons per action (shared/mensagens.ts): "Approve plan" / "Close" / "Approve PR", and "Ignore"
 aoResponder(cb: (pedidoId: string, decisao: 'aprovar' | 'ignorar', quem: string) => void): void
-aoMensagemDoDono(cb: (agente: Agente | null, texto: string) => void): void  // privado ou com menção
+aoMensagemDoDono(cb: (agente: Agente | null, texto: string) => void): void  // private chat or with a mention
 notificar(texto: string): Promise<void>
-// comandos (EN; antigos PT como alias): /status, /undo <pedidoId>, /attack
+// commands (English; the old Portuguese ones kept as aliases): /status, /undo <pedidoId>, /attack
 ```
 
 ```ts
 // atacante/reconhecimento.ts
-reconhecer(alvos: string[]): Promise<Achado[]>   // recusa IPs fora de ALVOS_PERMITIDOS
+reconhecer(alvos: string[]): Promise<Achado[]>   // refuses IPs outside ALVOS_PERMITIDOS
 ```
 
 ```ts
-// defesa/   (parâmetros opcionais acrescentados a 20/11; as chamadas antigas continuam válidas)
-detetar(): Promise<Achado[]>                 // regras com source 0.0.0.0/0 ou ::/0; lança se LSW_SG_GERIDOS estiver vazio
+// defesa/   (optional parameters added on 20/11; the old calls are still valid)
+detetar(): Promise<Achado[]>                 // rules with source 0.0.0.0/0 or ::/0; throws if LSW_SG_GERIDOS is empty
 correlacionar(daApi: Achado[], doAtacante: Achado[], mapa?: Record<string, string[]>): Achado[]  // mapa: sg -> IPs
-tratar(achado: Achado, pedirAprovacao?: (agente, pedido) => Promise<void>): Promise<Pedido>  // explica e pede aprovação
-corrigir(pedido: Pedido, avisar?: (texto: string) => Promise<void>): Promise<void>  // executa a Acao, verifica, audita
-desfazer(pedidoId: string, avisar?: (texto: string) => Promise<void>): Promise<void>  // aplica o inverso guardado
-// pedirAprovacao/avisar: por omissão o Telegram; o orquestrador passa o canal (Telegram ou --consola)
+tratar(achado: Achado, pedirAprovacao?: (agente, pedido) => Promise<void>): Promise<Pedido>  // explains and asks for approval
+corrigir(pedido: Pedido, avisar?: (texto: string) => Promise<void>): Promise<void>  // runs the Acao, verifies, audits
+desfazer(pedidoId: string, avisar?: (texto: string) => Promise<void>): Promise<void>  // applies the stored inverse
+// pedirAprovacao/avisar: Telegram by default; the orchestrator passes the channel (Telegram or --consola)
 ```
 
 ```ts
 // migrador/
-analisar(dirApp: string): Promise<{ servicos: ('s3' | 'postgres' | 'fila' | 'segredos' | 'cache')[]; plano: string }>  // por esta ordem
+analisar(dirApp: string): Promise<{ servicos: ('s3' | 'postgres' | 'fila' | 'segredos' | 'cache')[]; plano: string }>  // in this order
 migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }>
-migrarPostgres(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolean }>  // nível B, prova por tabela
-migrarFila(): Promise<{ mensagens: number; iguais: boolean }>  // nível B, SQS -> RabbitMQ: confirma e só depois apaga no SQS
-migrarSegredos(): Promise<{ segredos: number; iguais: boolean }>  // nível B, Secrets Manager + SSM -> OpenBao; nunca um valor em log (hack-leaseweb-1e)
-migrarCache(): Promise<{ chaves: number; iguais: boolean }>  // nível B, ElastiCache Redis -> Valkey; prova por chave, tipo e valor (agente 4)
-aprovarPR(repo, numero, { token? }): Promise<{ commit? }>  // merge (squash) do PR do migrador de código, só depois do botão "Aprovar PR"
-reverterPR(repo, numero, commit, { token? }): Promise<{ url?, ramo }>  // inverso: abre um PR com o revert; nunca push para main
-verificar(): Promise<{ antes: boolean; depois: boolean }>   // mesmos testes nos dois lados
+migrarPostgres(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolean }>  // level B, proof per table
+migrarFila(): Promise<{ mensagens: number; iguais: boolean }>  // level B, SQS -> RabbitMQ: confirms first, only then deletes from SQS
+migrarSegredos(): Promise<{ segredos: number; iguais: boolean }>  // level B, Secrets Manager + SSM -> OpenBao; never a value in a log (hack-leaseweb-1e)
+migrarCache(): Promise<{ chaves: number; iguais: boolean }>  // level B, ElastiCache Redis -> Valkey; proof per key, type and value (agent 4)
+aprovarPR(repo, numero, { token? }): Promise<{ commit? }>  // merge (squash) of the code migrator's PR, only after the "Approve PR" button
+reverterPR(repo, numero, commit, { token? }): Promise<{ url?, ramo }>  // inverse: opens a PR with the revert; never pushes to main
+verificar(): Promise<{ antes: boolean; depois: boolean }>   // same tests on both sides
 
-// migrador/codigo.ts  (migrador de código; entrega sempre um PR)
+// migrador/codigo.ts  (code migrator; always delivers a PR)
 encontrarUsosAws(dirApp: string): Promise<{ ficheiro: string; linha: number; servico: 's3' | 'postgres' | 'fila' | 'outro'; trecho: string }[]>
-proporAlteracao(usos: ReturnType<typeof encontrarUsosAws>): Promise<{ ficheiros: string[]; diff: string }>   // regras validam que só mudam as linhas esperadas
-abrirPR(alteracao: { ficheiros: string[]; diff: string }, motivo: string): Promise<{ url: string; numero: number }>  // nunca push direto para main
+proporAlteracao(usos: ReturnType<typeof encontrarUsosAws>): Promise<{ ficheiros: string[]; diff: string }>   // rules check that only the expected lines change
+abrirPR(alteracao: { ficheiros: string[]; diff: string }, motivo: string): Promise<{ url: string; numero: number }>  // never a direct push to main
 ```
 
 ```ts
-// migrador/tradutor/   (só plano, não chama APIs)
-traduzir(tf: string | TerraformJson, opcoes?: { adminIp?: string }): PlanoTraducao  // criar, substituir, sinalizar, recusar
-resumoPlano(plano: PlanoTraducao): string                      // texto curto para o Telegram
-decidirDestino(entrada: EntradaDecisor): Decisao[]             // self-hosted ou gerido europeu (docs/decisor-destino.md)
+// migrador/tradutor/   (plan only, no API calls)
+traduzir(tf: string | TerraformJson, opcoes?: { adminIp?: string }): PlanoTraducao  // create, replace, flag, refuse
+resumoPlano(plano: PlanoTraducao): string                      // short text for Telegram
+decidirDestino(entrada: EntradaDecisor): Decisao[]             // self-hosted or managed European (docs/decisor-destino.md)
 mensagemDestino(decisoes: Decisao[], vm: CapacidadeVm): string
 ```
 
 ```ts
-// shared/estado.ts   (pedidos em memória do processo; a auditoria é o registo permanente)
+// shared/estado.ts   (requests in the process's memory; the audit log is the permanent record)
 guardarPedido(p: Pedido): void
 obterPedido(id: string): Pedido | undefined
 mudarEstado(id: string, e: EstadoPedido): Pedido
@@ -115,27 +117,27 @@ listarPedidos(): Pedido[]
 ```
 
 ```ts
-// chefe/   (só números medidos, sem IA)
+// chefe/   (measured numbers only, no AI)
 resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string
-estadoAtual(pedidos: Pedido[]): string                          // resposta ao /estado
-relogioExposicao(eventos, agora?): { inicio; fim?; segundos; aindaExposta } | undefined  // do último 'infra-no-ar' ao primeiro fecho
-certificado(eventos, pedidos, localDados?, agora?): string      // certificado de migração (LOCAL_DADOS)
+estadoAtual(pedidos: Pedido[]): string                          // reply to /status
+relogioExposicao(eventos, agora?): { inicio; fim?; segundos; aindaExposta } | undefined  // from the last 'infra-no-ar' to the first close
+certificado(eventos, pedidos, localDados?, agora?): string      // migration certificate (LOCAL_DADOS)
 ```
 
 ```ts
-// orquestrador.ts   (criarOrquestrador(deps, opcoes); index.ts liga os módulos reais)
-// Migração: UM só "Aprovar plano" (o pedido do 1.º passo); os outros passos nascem aprovados por ele
-// ('pedido' + 'aprovado' com depois.pelo = id do plano). Cada passo tem o seu 'feito'/'erro' com a prova;
-// verificar() corre uma só vez, no fim, e os testes entram na prova de cada passo.
-// Dependências opcionais (sem elas o passo não acontece): migrador.migrarPostgres, migrarFila, migrarSegredos,
+// orquestrador.ts   (criarOrquestrador(deps, opcoes); index.ts wires the real modules)
+// Migration: ONE "Approve plan" (the request of step 1); the other steps are born approved by it
+// ('pedido' + 'aprovado' with depois.pelo = the plan's id). Each step has its own 'feito'/'erro' with the proof;
+// verificar() runs only once, at the end, and the tests go into each step's proof.
+// Optional dependencies (without them the step does not happen): migrador.migrarPostgres, migrarFila, migrarSegredos,
 // migrarCache, migrador.planoInfra, migrador.planoDestino, chefe.certificado, relatorio.publicar.
-// Eventos que o orquestrador escreve na auditoria: 'pedido', 'aprovado', 'ignorado', 'sem-resposta', 'feito',
+// Events the orchestrator writes to the audit log: 'pedido', 'aprovado', 'ignorado', 'sem-resposta', 'feito',
 // 'erro' (depois.fase), 'reconhecimento' (depois.portas), 'infra-no-ar', 'migracao-plano-infra', 'migracao-plano-destino'.
-// Opções: --sem-migrador, --sem-atacante, --sem-fila, --consola, --uma-vez; ESPERA_DECISAO_MS (10 min).
+// Options: --sem-migrador, --sem-atacante, --sem-fila, --consola, --uma-vez; ESPERA_DECISAO_MS (10 min).
 ```
 
 ```ts
 // shared/auditoria.ts
-registar(e: EventoAuditoria): void   // uma linha por evento em auditoria.jsonl
+registar(e: EventoAuditoria): void   // one line per event in auditoria.jsonl
 ler(): EventoAuditoria[]
 ```

@@ -1,142 +1,142 @@
-# Arquitetura
+# Architecture (lab layout)
 
-Public, English overview: [`ARCHITECTURE.md`](ARCHITECTURE.md). This file is the team's lab layout.
+Public overview: [`ARCHITECTURE.md`](ARCHITECTURE.md). This file is the team's lab layout.
 
-## Máquinas (Leaseweb, região UE)
+## Machines (Leaseweb, EU region)
 
-| VM          | Para quê                                                           | Configuração                                                                                                                                    |
-| ----------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **cérebro** | Corre o serviço (agentes + painel), o LocalStack e o MinIO da demo | SSH só por chave e só do nosso IP; porta do painel aberta ao nosso IP                                                                           |
-| **vítima**  | A falha da demo                                                    | Security group com `5432/tcp` aberto a `0.0.0.0/0` e um escutador inofensivo (`nc -lk 5432`) para o `nmap` dar `open` antes e `filtered` depois |
-| **isco**    | O número da abertura do pitch                                      | Ligado de manhã. SSH só por chave, porta 22 aberta a todos, nenhum serviço real                                                                 |
+| VM          | Purpose                                                                     | Setup                                                                                                                                                        |
+| ----------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **cérebro** ("brain") | Runs the service (agents + dashboard), LocalStack and the demo MinIO | SSH by key only and only from our IP; dashboard port open to our IP only                                                                                     |
+| **vítima** ("victim") | The demo's flaw                                                      | Security group with `5432/tcp` open to `0.0.0.0/0` and a harmless listener (`nc -lk 5432`) so that `nmap` shows `open` before and `filtered` after |
+| **isco** ("honeypot") | The number that opens the pitch                                      | Turned on in the morning. SSH by key only, port 22 open to everyone, no real service                                                                         |
 
-## Divisão: o servidor do dono e o fornecedor de cloud
+## Split: the owner's server and the cloud provider
 
-São duas camadas diferentes. Não se misturam.
+These are two different layers. They do not mix.
 
-1. **A VM é o servidor do dono da PME (self-hosted).** É lá que correm a app e os serviços abertos que substituem
-   a AWS: MinIO (S3), PostgreSQL (RDS), RabbitMQ (SQS), OpenBao (Secrets Manager) e Valkey (ElastiCache). Na demo
-   correm em contentores. O migrador copia os dados para lá, o atacante testa essa máquina e a defesa protege-a.
-   É a mesma VM que um dono teria na Leaseweb, na Hostinger, na OVHcloud ou noutro sítio.
-2. **A API da Leaseweb é o fornecedor (provider).** Só trata do que está à volta da máquina: as instâncias e a
-   firewall (security groups e regras). A defesa fecha portas por ela e o tradutor traduz a configuração da AWS
-   para ela. É um fornecedor entre vários: Hostinger, OVHcloud, Hetzner ou Scaleway teriam o seu próprio
-   adaptador, com as mesmas operações.
+1. **The VM is the SME owner's server (self-hosted).** It runs the app and the open services that replace AWS:
+   MinIO (S3), PostgreSQL (RDS), RabbitMQ (SQS), OpenBao (Secrets Manager) and Valkey (ElastiCache). In the demo
+   they run in containers. The migrator copies the data there, the attacker tests that machine and the defence
+   protects it. It is the same VM an owner would have at Leaseweb, Hostinger, OVHcloud or anywhere else.
+2. **The Leaseweb API is the provider.** It only handles what surrounds the machine: instances and the firewall
+   (security groups and rules). The defence closes ports through it and the translator turns the AWS
+   configuration into it. It is one provider among several: Hostinger, OVHcloud, Hetzner or Scaleway would each
+   have their own adapter, with the same operations.
 
-| Camada           | Na demo                                                                      | Num cliente real                 |
-| ---------------- | ---------------------------------------------------------------------------- | -------------------------------- |
-| Servidor do dono | VM com os contentores (MinIO, PostgreSQL, RabbitMQ, OpenBao, Valkey) e a app | O VPS ou servidor da PME         |
-| Fornecedor       | API da Leaseweb: instâncias e firewall                                       | Leaseweb, Hostinger, OVHcloud, … |
-| "AWS" de origem  | LocalStack (e um Redis a fazer de ElastiCache)                               | A conta AWS do cliente           |
+| Layer           | In the demo                                                                     | At a real customer               |
+| --------------- | ------------------------------------------------------------------------------- | -------------------------------- |
+| Owner's server  | VM with the containers (MinIO, PostgreSQL, RabbitMQ, OpenBao, Valkey) and the app | The SME's VPS or server          |
+| Provider        | Leaseweb API: instances and firewall                                            | Leaseweb, Hostinger, OVHcloud, … |
+| Source "AWS"    | LocalStack (plus a Redis standing in for ElastiCache)                           | The customer's AWS account       |
 
-Regras para o código:
+Rules for the code:
 
-- Tudo o que fala com a API do fornecedor fica em `code/shared/leaseweb.ts` (`listarSecurityGroups`,
-  `listarRegras`, `removerRegra`, `criarRegra`, …). A defesa, o orquestrador e o chefe usam estas funções e não
-  chamam a API diretamente. Outro fornecedor seria outro ficheiro com as mesmas funções.
-- O que corre dentro da VM (serviços, dados, a app e os testes dela) não depende do fornecedor: o migrador e o
-  `verificar()` são iguais em qualquer um.
-- Hoje só existe o adaptador da Leaseweb. Hostinger e OVHcloud ficam para o slide "o que vem a seguir". No pitch
-  não se diz que já funcionam.
+- Everything that talks to the provider API lives in `code/shared/leaseweb.ts` (`listarSecurityGroups`,
+  `listarRegras`, `removerRegra`, `criarRegra`, …). The defence, the orchestrator and the chief use these functions
+  and never call the API directly. Another provider would be another file with the same functions.
+- What runs inside the VM (services, data, the app and its tests) does not depend on the provider: the migrator and
+  `verificar()` are the same on any of them.
+- Today only the Leaseweb adapter exists. Hostinger and OVHcloud are for the "what comes next" slide. The pitch does
+  not claim they already work.
 
-## VM da organização (analisar às 09:30, Enio Carlos, 10 min)
+## The organisers' VM (check at 09:30, Enio Carlos, 10 min)
 
-A organização dá uma VM Linux por equipa, desligada no fim do evento. Antes de criar outras máquinas, ver:
+The organisers give each team one Linux VM, switched off at the end of the event. Before creating other machines, check:
 
-1. **Recursos:** `nproc`, `free -h`, `df -h`, `cat /etc/os-release`. Aguenta Node, Docker, LocalStack e MinIO juntos?
-2. **Rede:** IP público, saída para a Internet (`curl -I https://api.telegram.org`), portas abertas.
-3. **Docker:** instalado ou instalável.
-4. **A mais importante:** aparece na API da Leaseweb com a nossa chave (`GET /instances`) e dá para mexer no security group dela?
+1. **Resources:** `nproc`, `free -h`, `df -h`, `cat /etc/os-release`. Can it run Node, Docker, LocalStack and MinIO together?
+2. **Network:** public IP, Internet egress (`curl -I https://api.telegram.org`), open ports.
+3. **Docker:** installed or installable.
+4. **The most important one:** does it show up in the Leaseweb API with our key (`GET /instances`), and can we change its security group?
 
-Decisão:
+Decision:
 
-| Resultado                     | Papel da VM                                                                                                                 |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Aparece na API e tem recursos | **Vítima** (poupa uma máquina), ou cérebro e vítima ao mesmo tempo                                                          |
-| Não aparece na API            | **Cérebro** (agentes, LocalStack, MinIO). A vítima cria-se na nossa conta, porque a demo depende de fechar a porta pela API |
-| É fraca                       | Só **isco**                                                                                                                 |
+| Result                          | Role of the VM                                                                                                        |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Shows up in the API, has resources | **Victim** (saves a machine), or brain and victim at the same time                                                 |
+| Does not show up in the API     | **Brain** (agents, LocalStack, MinIO). The victim is created in our account, because the demo depends on closing the port through the API |
+| Underpowered                    | **Honeypot** only                                                                                                     |
 
-Registar o resultado em `leaseweb-api.md`, nas notas.
+Record the result in [`leaseweb-api.md`](leaseweb-api.md), in the notes.
 
-## Contentores (Enio Carlos monta, todos usam)
+## Containers (Enio Carlos sets them up, everyone uses them)
 
-Tudo no **cérebro**, em contentores separados, definidos em `env/docker-compose.yml`:
+All on the **brain**, in separate containers, defined in `env/docker-compose.yml`:
 
-| Contentor          | Faz de                                                    | Porta (só 127.0.0.1) |
-| ------------------ | --------------------------------------------------------- | -------------------- |
-| `localstack`       | "AWS" simulada: S3, SQS, Secrets Manager e SSM (a origem) | 4566                 |
-| `postgres`         | Base de dados da `exemplo-app` (faz de RDS, a origem)     | 5433                 |
-| `postgres-destino` | Destino do RDS na Leaseweb                                | 5434                 |
-| `minio`            | Destino do S3 na Leaseweb                                 | 9000 e consola 9001  |
-| `rabbitmq`         | Destino da fila SQS na Leaseweb                           | 5672 e consola 15672 |
-| `redis-origem`     | Faz de ElastiCache Redis (a origem)                       | 6380                 |
-| `valkey`           | Destino do ElastiCache na Leaseweb                        | 6381                 |
-| `openbao`          | Destino dos segredos (Secrets Manager e SSM) na Leaseweb  | 8200                 |
+| Container          | Stands in for                                               | Port (127.0.0.1 only) |
+| ------------------ | ----------------------------------------------------------- | --------------------- |
+| `localstack`       | Simulated "AWS": S3, SQS, Secrets Manager and SSM (the source) | 4566               |
+| `postgres`         | Database of `exemplo-app` (stands in for RDS, the source)   | 5433                  |
+| `postgres-destino` | RDS destination at Leaseweb                                 | 5434                  |
+| `minio`            | S3 destination at Leaseweb                                  | 9000 and console 9001 |
+| `rabbitmq`         | SQS queue destination at Leaseweb                           | 5672 and console 15672 |
+| `redis-origem`     | Stands in for ElastiCache Redis (the source)                | 6380                  |
+| `valkey`           | ElastiCache destination at Leaseweb                         | 6381                  |
+| `openbao`          | Secrets destination (Secrets Manager and SSM) at Leaseweb   | 8200                  |
 
 ```bash
-# no cérebro, na raiz do repo, com o .env preenchido
-npm run infra:up      # sobe os 8 contentores
+# on the brain, at the repo root, with .env filled in
+npm run infra:up      # starts the 8 containers
 docker compose -f env/docker-compose.yml ps
-npm run infra:down    # desliga
+npm run infra:down    # stops them
 ```
 
-- Tudo ligado só a `127.0.0.1`: o cérebro não expõe nada por engano.
-- A **vítima é sempre outra VM**, com o seu próprio security group: é a porta dela que o atacante encontra e a defesa fecha pela API. Não pode ser o cérebro, porque uma ligação da própria máquina a si mesma não passa pelo security group.
-- Se a VM da organização sobrar, pode ficar com o `localstack` (a "AWS"), para se ver a passagem de uma máquina para outra.
-- No pitch: "simulámos a AWS com o LocalStack".
+- Everything is bound to `127.0.0.1` only: the brain exposes nothing by mistake.
+- The **victim is always another VM**, with its own security group: its port is the one the attacker finds and the defence closes through the API. It cannot be the brain, because a connection from a machine to itself does not go through the security group.
+- If the organisers' VM is spare, it can host `localstack` (the "AWS"), to show the move from one machine to another.
+- In the pitch: "we simulated AWS with LocalStack".
 
-## Fluxo
+## Flow
 
 ```
-            ┌─────────────── cérebro ───────────────┐
- "AWS"      │                                       │
- LocalStack │  migrador ──► MinIO / Postgres /       │
- + Redis    │     │   RabbitMQ / OpenBao / Valkey      │
-            │     │ plano + "Approve plan" ──────────────► Telegram (dono)
-            │     ▼ concluído                        │        │ Approve / Close
-            │  atacante ──► ligação TCP só aos ALVOS ────► vítima
-            │     │ achados                          │        │
+            ┌──────────────── brain ─────────────────┐
+ "AWS"      │                                        │
+ LocalStack │  migrator ──► MinIO / Postgres /       │
+ + Redis    │     │   RabbitMQ / OpenBao / Valkey    │
+            │     │ plan + "Approve plan" ───────────────► Telegram (owner)
+            │     ▼ done                             │        │ Approve / Close
+            │  attacker ──► TCP connect to ALVOS only ────► victim
+            │     │ findings                         │        │
             │     ▼                                  │        │
-            │  defesa ──► LLM (TensorX/sference)     │        │
-            │     │ explicação + "Close?" ────────────────────┘
-            │     ▼ aprovado                         │
-            │  API Leaseweb: remove regra, volta a ler │
+            │  defence ──► LLM (TensorX/sference)    │        │
+            │     │ explanation + "Close?" ───────────────────┘
+            │     ▼ approved                         │
+            │  Leaseweb API: remove rule, re-read    │
             │  nmap: filtered · auditoria.jsonl      │
-            │  migrador ──► PR que corrige a causa   │
-            │  painel: linha do tempo + Desfazer     │
-            └───────────────────────────────────────┘
+            │  migrator ──► PR that fixes the cause  │
+            │  dashboard: timeline + Undo            │
+            └────────────────────────────────────────┘
 ```
 
-Um só processo Node no cérebro: um orquestrador chama os módulos e o painel lê o estado e a auditoria. Simples de pôr a correr e de mostrar.
+A single Node process on the brain: an orchestrator calls the modules and the dashboard reads the state and the audit log. Simple to run and to show.
 
-Os agentes falam entre si por um bus interno (`shared/bus.ts`). O Telegram é só o palco: cada agente tem o seu bot e publica a sua fala no grupo "Direção". Ver `agentes-telegram.md`.
+The agents talk to each other over an internal bus (`shared/bus.ts`). Telegram is only the stage: each agent has its own bot and posts its line in the "Direção" group. See [`agentes-telegram.md`](agentes-telegram.md).
 
-## Pastas
+## Folders
 
 ```
 code/
   shared/      tipos.ts, bus.ts, leaseweb.ts, llm.ts, telegram.ts, auditoria.ts, estado.ts,
-               voz.ts (voz dos agentes), mensagens.ts (textos fixos da demo), relatorio.ts
-  chefe/       resumo.ts, certificado.ts (coordena, resume e escreve o certificado)
+               voz.ts (agent voices), mensagens.ts (fixed demo texts), relatorio.ts
+  chefe/       resumo.ts, certificado.ts (coordinates, summarises and writes the certificate)
   migrador/    analisar.ts, migrar-dados.ts (S3), migrar-postgres.ts, migrar-fila.ts,
                migrar-segredos.ts, migrar-cache.ts, verificar.ts
-    tradutor/  Terraform -> plano Leaseweb, decisor de destino, correção do Terraform
-    codigo/    encontra os usos da AWS na app e abre o PR que corrige a causa
-  atacante/    alvos.ts, reconhecimento.ts (ligação TCP), index.ts (passo de senhas SSH),
+    tradutor/  Terraform -> Leaseweb plan, destination decider, Terraform fix
+    codigo/    finds the AWS usages in the app and opens the PR that fixes the cause
+  atacante/    alvos.ts, reconhecimento.ts (TCP connect), index.ts (SSH password step),
                credenciais.ts, segredos.ts, extras.ts
   defesa/      detetar.ts, explicar.ts, aprovar.ts, corrigir.ts, desfazer.ts, modo-noite.ts,
                verificar-porta.ts (nmap)
   painel/      servidor.ts (/, /isco, /estado.json), linha-tempo.ts, certificado.ts
-  exemplo-app/ app pequena que usa serviços da AWS, com dados de exemplo e testes
-  index.ts     orquestrador (liga os módulos); orquestrador.ts (a lógica)
+  exemplo-app/ small app that uses AWS services, with sample data and tests
+  index.ts     orchestrator entry point (wires the modules); orquestrador.ts (the logic)
 ```
 
-## Portas sensíveis
+## Sensitive ports
 
-Severidade alta: 22 SSH, 23 Telnet, 445 SMB, 1433 SQL Server, 3306 MySQL, 3389 RDP, 5432 PostgreSQL, 5984 CouchDB, 6379 Redis, 9200 Elasticsearch, 27017 MongoDB. Qualquer outra porta aberta a toda a Internet: média.
+High severity: 22 SSH, 23 Telnet, 445 SMB, 1433 SQL Server, 3306 MySQL, 3389 RDP, 5432 PostgreSQL, 5984 CouchDB, 6379 Redis, 9200 Elasticsearch, 27017 MongoDB. Any other port open to the whole Internet: medium.
 
-## IA
+## AI
 
-- Cliente compatível com a API da OpenAI, configurável por `.env` (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`), para TensorX ou sference, ambos na UE.
-- Máximo 3 frases e 600 caracteres, inglês simples: o que está aberto, o que um atacante podia fazer, o que acontece se o dono aprovar.
-- Timeout de 20 s. Se falhar, texto fixo por serviço. A demo nunca espera pela IA.
+- OpenAI-compatible API client, configured through `.env` (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`), for TensorX or sference, both in the EU.
+- At most 3 sentences and 600 characters, plain English: what is open, what an attacker could do, what happens if the owner approves.
+- 20 s timeout. If it fails, a fixed text per service. The demo never waits for the AI.
