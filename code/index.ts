@@ -9,11 +9,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { auditoria, bus, estado, telegram } from '@mwbe/shared';
 import * as defesa from '@mwbe/defesa';
-import { reconhecer } from '@mwbe/atacante';
-import { analisar, migrarS3, verificar } from '@mwbe/migrador';
+import { carregarAllowlist, reconhecer } from '@mwbe/atacante';
+import { analisar, migrarPostgres, migrarS3, verificar } from '@mwbe/migrador';
 import { certificado, estadoAtual, resumir } from '@mwbe/chefe';
 import { iniciarPainel } from '@mwbe/painel';
-import { resumoPlano, traduzir } from './migrador/tradutor/index';
+import { decidirDestino, mensagemDestino, resumoPlano, traduzir } from './migrador/tradutor/index';
 import { criarConsola, DONO_CONSOLA } from './consola';
 import { criarOrquestrador } from './orquestrador';
 
@@ -34,11 +34,18 @@ async function planoInfra(): Promise<string | undefined> {
   return resumoPlano(traduzir(readFileSync(ficheiro, 'utf8')));
 }
 
-function lista(valor: string | undefined): string[] {
-  return (valor ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+const NOME_SERVICO = { s3: 'S3', postgres: 'PostgreSQL', fila: 'SQS' } as const;
+
+/** Decisor de destino: só fala se a capacidade da VM destino estiver no .env (VM_DESTINO_*); nada se adivinha. */
+async function planoDestino(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<string | undefined> {
+  const n = (v: string | undefined) => (v && Number(v) > 0 ? Number(v) : undefined);
+  const ram = n(process.env.VM_DESTINO_RAM_GB);
+  const vcpu = n(process.env.VM_DESTINO_VCPU);
+  const disco = n(process.env.VM_DESTINO_DISCO_GB);
+  if (!ram || !vcpu || !disco || servicos.length === 0) return undefined;
+  const vm = { ramLivreGb: ram, vcpuLivres: vcpu, discoLivreGb: disco };
+  const decisoes = decidirDestino({ servicos: servicos.map((servico) => ({ servico, nome: NOME_SERVICO[servico] })), vm, temBackups: process.env.DONO_TEM_BACKUPS === 'sim' });
+  return mensagemDestino(decisoes, vm);
 }
 
 async function main(): Promise<void> {
@@ -47,7 +54,7 @@ async function main(): Promise<void> {
   const consola = args.has('--consola') ? criarConsola() : undefined;
   const canal = consola ?? { telegram, bus };
 
-  const painel = iniciarPainel(Number(process.env.PORT ?? 3000));
+  const painel = iniciarPainel(Number(process.env.PORT ?? 3000), { desfazer: (id) => defesa.desfazer(id, canal.telegram.notificar) });
 
   const orquestrador = criarOrquestrador(
     {
@@ -55,16 +62,23 @@ async function main(): Promise<void> {
       bus: canal.bus,
       estado,
       auditoria,
-      defesa: { ...defesa, tratar: (achado) => defesa.tratar(achado, canal.telegram.pedirAprovacao) },
+      // Os avisos da defesa ("Fechado e confirmado…", "Desfeito…") vão pelo mesmo canal (Telegram ou --consola).
+      defesa: {
+        ...defesa,
+        tratar: (achado) => defesa.tratar(achado, canal.telegram.pedirAprovacao),
+        corrigir: (pedido) => defesa.corrigir(pedido, canal.telegram.notificar),
+        desfazer: (id) => defesa.desfazer(id, canal.telegram.notificar),
+      },
       atacante: { reconhecer },
-      migrador: { analisar, migrarS3, verificar, planoInfra },
+      migrador: { analisar, migrarS3, migrarPostgres, verificar, planoInfra, planoDestino },
       chefe: { resumir, estadoAtual, certificado: (eventos, pedidos) => certificado(eventos, pedidos, process.env.LOCAL_DADOS || undefined) },
     },
     {
       migrar: !args.has('--sem-migrador'),
       atacar: !args.has('--sem-atacante'),
       dirApp: `${RAIZ}code/exemplo-app`,
-      alvos: lista(process.env.ALVOS_PERMITIDOS),
+      // Falha fechado: uma entrada que não seja IP literal faz o arranque parar, nunca alarga a vedação.
+      alvos: [...carregarAllowlist(process.env.ALVOS_PERMITIDOS)],
       donoId: consola ? DONO_CONSOLA : process.env.TELEGRAM_DONO_ID || undefined,
       esperaDecisaoMs: Number(process.env.ESPERA_DECISAO_MS) > 0 ? Number(process.env.ESPERA_DECISAO_MS) : undefined,
     },

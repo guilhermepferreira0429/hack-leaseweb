@@ -51,20 +51,20 @@ export async function corrigir(pedido: Pedido, avisar: Avisar = (t) => telegram.
 
   const inverso = inversoDe(pedido);
   // O inverso fica no disco ANTES de se mexer na infraestrutura: se algo cair a meio, o Desfazer sabe o que repor.
-  auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'a-aplicar', antes: acao.regra, inverso });
+  auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'a-aplicar', quem: 'defesa', antes: acao.regra, inverso });
 
   let antes;
   try {
     ({ antes } = await leaseweb.removerRegra(acao.securityGroupId, acao.regra.id));
   } catch (erro) {
     const msg = erro instanceof Error ? erro.message : String(erro);
-    auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'falhou', depois: msg });
+    auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'falhou', quem: 'defesa', depois: msg });
     await avisarSemFalhar(avisar, `Não consegui fechar "${pedido.titulo}": ${msg}`);
     throw erro;
   }
 
   const depois = await leaseweb.listarRegras(acao.securityGroupId);
-  auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'feito', antes, depois, inverso });
+  auditoria.registar({ hora: new Date().toISOString(), pedidoId: pedido.id, tipo: 'feito', quem: 'defesa', antes, depois, inverso });
   if (estado.obterPedido(pedido.id)) estado.mudarEstado(pedido.id, 'feito');
   await avisarSemFalhar(avisar, `Fechado e confirmado às ${horaCurta()}: ${pedido.titulo}. Para voltar atrás: /desfazer ${pedido.id}`);
 }

@@ -41,8 +41,12 @@ export interface Dependencias {
     analisar(dirApp: string): Promise<{ servicos: ('s3' | 'postgres' | 'fila')[]; plano: string }>;
     migrarS3(): Promise<{ objetos: number; checksumsOk: boolean }>;
     verificar(): Promise<{ antes: boolean; depois: boolean }>;
+    /** Nível B: RDS PostgreSQL -> PostgreSQL na Leaseweb, com prova por tabela. */
+    migrarPostgres?(): Promise<{ tabelas: number; linhas: number; checksumsOk: boolean }>;
     /** Resumo do tradutor AWS (Terraform) -> Leaseweb, só plano. undefined = não há configuração AWS para traduzir. */
     planoInfra?(): Promise<string | undefined>;
+    /** Decisor de destino (self-hosted ou gerido europeu), só informativo. undefined = não há dados da VM. */
+    planoDestino?(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<string | undefined>;
   };
   chefe: {
     resumir(eventos: EventoAuditoria[], pedidos: Pedido[]): string;
@@ -251,36 +255,29 @@ ${resumo}`);
     }
   }
 
+  /** Onde fica cada serviço (regras do decisor, preços com data). Só informa; um erro não trava a migração. */
+  async function mostrarPlanoDestino(servicos: ('s3' | 'postgres' | 'fila')[]): Promise<void> {
+    if (!deps.migrador.planoDestino) return;
+    try {
+      const texto = await deps.migrador.planoDestino(servicos);
+      if (!texto) return;
+      auditar({ pedidoId: '-', tipo: 'migracao-plano-destino', quem: 'migrador', depois: { texto } });
+      falar('migrador', 'dono', texto);
+    } catch (erro) {
+      await falha('decisor de destino', erro);
+    }
+  }
+
   async function faseMigrar(): Promise<void> {
     const { servicos, plano } = await deps.migrador.analisar(opcoes.dirApp);
     const nomes = servicos.map((s) => NOME_SERVICO[s]).join(', ');
     falar('migrador', 'dono', `Encontrei ${servicos.length} serviços AWS na app: ${nomes}. Começo pelo S3 para MinIO na Leaseweb.`);
     await mostrarPlanoInfra();
+    await mostrarPlanoDestino(servicos);
     if (!servicos.includes('s3')) return;
 
-    const pedido: Pedido = {
-      id: deps.defesa.novoIdPedido(),
-      titulo: 'Migrar ficheiros do S3 para MinIO na Leaseweb',
-      texto: plano,
-      acao: { tipo: 'migrar', passo: 's3' },
-      estado: 'pendente',
-    };
-    deps.estado.guardarPedido(pedido);
-    auditar({ pedidoId: pedido.id, tipo: 'pedido', quem: 'migrador', depois: { servicos, plano } });
-    const decisao = esperarResultado(pedido.id);
-    await deps.telegram.pedirAprovacao('migrador', pedido);
-    const r = await comLimite(decisao);
-    if (r === 'sem-resposta') {
-      // Fecha o pedido: um clique tardio já não arranca uma migração a meio da demo.
-      deps.estado.mudarEstado(pedido.id, 'ignorado');
-      auditar({ pedidoId: pedido.id, tipo: 'sem-resposta', quem: 'migrador' });
-      falar('migrador', 'dono', 'Sem resposta ao pedido de migração: não migro. Fica tudo como estava.');
-      return;
-    }
-    if (r !== 'aprovado') {
-      falar('migrador', 'dono', 'Migração não aprovada. Fica tudo como estava.');
-      return;
-    }
+    const pedido = await pedirMigracao('s3', 'Migrar ficheiros do S3 para MinIO na Leaseweb', plano, { servicos, plano });
+    if (!pedido) return;
 
     const copia = await deps.migrador.migrarS3();
     const testes = await deps.migrador.verificar();
@@ -294,6 +291,58 @@ ${resumo}`);
         `testes ${testes.antes && testes.depois ? 'a passar dos dois lados' : `antes ${testes.antes ? 'ok' : 'falharam'}, depois ${testes.depois ? 'ok' : 'falharam'}`}. ` +
         '@atacante, a infraestrutura nova está no ar.',
     );
+
+    if (servicos.includes('postgres') && deps.migrador.migrarPostgres) await migrarBaseDados();
+  }
+
+  /** Nível B: segunda aprovação, cópia da base de dados com prova por tabela e os mesmos testes outra vez. */
+  async function migrarBaseDados(): Promise<void> {
+    const texto = [
+      'Copio a base de dados (RDS PostgreSQL) para um PostgreSQL na Leaseweb, tabela a tabela.',
+      'Para cada tabela comparo o número de linhas e a impressão digital (sha256) dos dois lados.',
+      'No fim volto a correr os testes da app, agora contra a base de dados nova. Nada é apagado na AWS.',
+    ].join('\n');
+    const pedido = await pedirMigracao('postgres', 'Copiar a base de dados para PostgreSQL na Leaseweb', texto, {});
+    if (!pedido) return;
+    try {
+      const copia = await deps.migrador.migrarPostgres!();
+      const testes = await deps.migrador.verificar();
+      const ok = copia.checksumsOk && testes.antes && testes.depois;
+      deps.estado.mudarEstado(pedido.id, ok ? 'feito' : 'aprovado');
+      auditar({ pedidoId: pedido.id, tipo: ok ? 'feito' : 'erro', quem: 'migrador', depois: { ...copia, testes } });
+      falar(
+        'migrador',
+        'dono',
+        `Base de dados: ${copia.tabelas} ${copia.tabelas === 1 ? 'tabela' : 'tabelas'} e ${copia.linhas} linhas copiadas, checksums ${copia.checksumsOk ? 'iguais' : 'DIFERENTES'}, ` +
+          `testes ${testes.antes && testes.depois ? 'a passar com a base de dados nova' : 'a falhar: vejam o painel'}.`,
+      );
+    } catch (erro) {
+      await falha('migração da base de dados', erro);
+    }
+  }
+
+  /**
+   * Pede aprovação para um passo de migração e espera (com limite). Devolve o pedido aprovado, ou undefined.
+   * Sem resposta: fecha o pedido, para um clique tardio não arrancar uma migração a meio da demo.
+   */
+  async function pedirMigracao(passo: 's3' | 'postgres' | 'fila', titulo: string, texto: string, prova: object): Promise<Pedido | undefined> {
+    const pedido: Pedido = { id: deps.defesa.novoIdPedido(), titulo, texto, acao: { tipo: 'migrar', passo }, estado: 'pendente' };
+    deps.estado.guardarPedido(pedido);
+    auditar({ pedidoId: pedido.id, tipo: 'pedido', quem: 'migrador', depois: prova });
+    const decisao = esperarResultado(pedido.id);
+    await deps.telegram.pedirAprovacao('migrador', pedido);
+    const r = await comLimite(decisao);
+    if (r === 'sem-resposta') {
+      deps.estado.mudarEstado(pedido.id, 'ignorado');
+      auditar({ pedidoId: pedido.id, tipo: 'sem-resposta', quem: 'migrador' });
+      falar('migrador', 'dono', `Sem resposta ao pedido de migração: não migro (${titulo.toLowerCase()}). Fica tudo como estava.`);
+      return undefined;
+    }
+    if (r !== 'aprovado') {
+      falar('migrador', 'dono', `Migração não aprovada (${titulo.toLowerCase()}). Fica tudo como estava.`);
+      return undefined;
+    }
+    return pedido;
   }
 
   async function faseAtacar(): Promise<Achado[]> {

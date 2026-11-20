@@ -5,10 +5,12 @@
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
-    ".": "./index.ts"
+    ".": "./index.ts",
+    "./seed": "./seed/index.ts"
   },
   "scripts": {
-    "test": "tsx --test testes/*.test.ts"
+    "test": "tsx --test testes/*.test.ts",
+    "seed": "tsx seed/semear.ts"
   },
   "dependencies": {
     "@mwbe/shared": "*",

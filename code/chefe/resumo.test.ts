@@ -42,6 +42,19 @@ describe('chefe/resumir', () => {
     assert.match(texto, /Houve 1 problema pelo caminho/);
   });
 
+  it('migração com base de dados', () => {
+    const pg: Pedido = { id: 'p1', titulo: 'bd', texto: '', acao: { tipo: 'migrar', passo: 'postgres' }, estado: 'feito' };
+    const texto = resumir([ev('m1', 'feito', 5, { objetos: 3 }), ev('p1', 'feito', 9, { tabelas: 2 })], [migrar('feito'), pg]);
+    assert.match(texto, /3 ficheiros, checksums iguais.*Base de dados copiada \(2 tabelas\), também com checksums iguais\./);
+  });
+
+  it('deteção falhada: não diz que não há portas abertas', () => {
+    const erro = ev('-', 'erro', 1, { fase: 'deteção pela API', erro: 'LSW_SG_GERIDOS vazio' });
+    const texto = resumir([erro], []);
+    assert.match(texto, /não conseguiu verificar os security groups/);
+    assert.doesNotMatch(texto, /não encontrou portas abertas/);
+  });
+
   it('sem falhas e migração não aprovada', () => {
     const texto = resumir([], [migrar('ignorado')]);
     assert.match(texto, /Migração não aprovada/);

@@ -1,7 +1,10 @@
-// GET / (HTML simples, tabela se faltar tempo) e GET /estado.json.
+// GET / (o ecrã da demo, docs/painel-web.md) e GET /estado.json.
+// 4 zonas: relógio de exposição (topo), linha do tempo dos agentes (esquerda), infraestrutura (centro), provas (direita).
+// Só dados de estado.json e auditoria.jsonl; o que não se mediu mostra "—". HTML sem frameworks, texto escapado.
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { EventoAuditoria, Pedido } from '@mwbe/shared';
+import type { EventoAuditoria, Pedido, Regra } from '@mwbe/shared';
 import { auditoria, estado } from '@mwbe/shared';
+import { relogioExposicao } from '@mwbe/chefe';
 
 export const FASES = ['migrar', 'atacar', 'aprovar', 'fechar'] as const;
 export type Fase = (typeof FASES)[number];
@@ -17,28 +20,92 @@ export function faseDe(evento: EventoAuditoria): Fase {
   return 'aprovar'; // pedido, aprovado, ignorado e afins
 }
 
-export interface Exposicao {
-  inicio: string;
-  fim?: string;
-  segundos?: number;
+export type Agente = 'migrador' | 'atacante' | 'defesa' | 'chefe' | 'dono';
+
+/** De quem é o evento, para a cor da linha. Aprovações de um humano são do dono; o modo noite é da defesa. */
+export function agenteDe(e: EventoAuditoria): Agente {
+  if (e.quem === 'migrador' || e.quem === 'atacante' || e.quem === 'defesa' || e.quem === 'chefe') return e.quem;
+  if (e.quem === 'modo-noite') return 'defesa';
+  if ((e.tipo === 'aprovado' || e.tipo === 'ignorado') && e.quem) return 'dono';
+  if (e.inverso || /(a-aplicar|desfeito|falhou)/.test(e.tipo)) return 'defesa';
+  return 'chefe'; // orquestrador, erros e o resto
 }
 
-/**
- * Relógio de exposição (docs/ideias-wow.md n.º 2): da infraestrutura nova no ar até a defesa confirmar o fecho.
- * Início: migração feita; sem migrador (corte), o primeiro reconhecimento; senão o primeiro pedido da defesa.
- * Fim: o primeiro "feito" da defesa (tem inverso criar_regra) depois do início. Só horas da auditoria, nada estimado.
- */
-export function exposicao(eventos: EventoAuditoria[]): Exposicao | undefined {
-  const ordenados = [...eventos].sort((a, b) => Date.parse(a.hora) - Date.parse(b.hora));
-  const inicio =
-    ordenados.find((e) => e.quem === 'migrador' && e.tipo === 'feito') ??
-    ordenados.find((e) => e.tipo === 'reconhecimento') ??
-    ordenados.find((e) => e.tipo === 'pedido' && e.quem !== 'migrador');
-  if (!inicio) return undefined;
-  const t0 = Date.parse(inicio.hora);
-  const fim = ordenados.find((e) => e.tipo === 'feito' && e.inverso?.tipo === 'criar_regra' && Date.parse(e.hora) >= t0);
-  if (!fim) return { inicio: inicio.hora };
-  return { inicio: inicio.hora, fim: fim.hora, segundos: Math.round((Date.parse(fim.hora) - t0) / 1000) };
+type Obj = Record<string, unknown>;
+const obj = (v: unknown): Obj => (v && typeof v === 'object' ? (v as Obj) : {});
+const regraTxt = (r: Partial<Regra> | undefined) =>
+  r ? `${r.protocol ?? ''} ${r.startPort === r.endPort ? r.startPort : `${r.startPort}-${r.endPort}`} de ${r.source ?? '?'}` : '';
+
+/** Frase curta para a linha do tempo (o que se passou, em português simples). */
+export function fraseDe(e: EventoAuditoria): string {
+  const d = obj(e.depois);
+  switch (e.tipo) {
+    case 'infra-no-ar':
+      return 'Infraestrutura nova no ar. O relógio de exposição começa a contar.';
+    case 'migracao-plano-infra':
+      return 'Traduziu a configuração da AWS para a Leaseweb (só plano).';
+    case 'pedido':
+      if (e.quem === 'migrador') return `Propõe migrar: ${((d.servicos as string[]) ?? []).join(', ') || 'serviços da app'}.`;
+      return `Pede para fechar: ${String(d.titulo ?? e.pedidoId)}.`;
+    case 'aprovado':
+      return e.quem === 'modo-noite' ? 'Sem resposta do dono: modo noite.' : 'Aprovado.';
+    case 'ignorado':
+      return 'Ignorado.';
+    case 'sem-resposta':
+      return 'Sem resposta do dono.';
+    case 'reconhecimento': {
+      const portas = (d.portas as { alvo: string; porta: number; servico: string | null }[]) ?? [];
+      if (!portas.length) return 'Reconhecimento: nada aberto.';
+      return `Encontrou: ${portas.slice(0, 3).map((p) => `${p.servico ?? 'porta'} ${p.porta}`).join(', ')}${portas.length > 3 ? '…' : ''}.`;
+    }
+    case 'a-aplicar':
+      return `A fechar ${regraTxt(e.antes as Regra)}.`;
+    case 'modo-noite-permitir':
+      return `Modo noite: porta só para ${String(obj(e.depois).source ?? '?')}.`;
+    case 'feito':
+      if (e.quem === 'migrador') return `${d.objetos ?? '?'} ficheiros copiados, checksums ${d.checksumsOk ? 'iguais' : 'DIFERENTES'}.`;
+      return 'Fechado e confirmado pela API da Leaseweb.';
+    case 'desfeito':
+      return 'Desfeito: a regra voltou.';
+    case 'falhou':
+      return `Falhou: ${String(e.depois ?? '')}`.slice(0, 140);
+    case 'erro':
+      return `Erro em ${String(d.fase ?? '?')}.`;
+    default:
+      return e.tipo;
+  }
+}
+
+/** Só o ciclo atual: desde o último 'infra-no-ar' (o ficheiro acumula os ensaios do dia). Sem ele, os últimos 40. */
+export function cicloAtual(eventos: EventoAuditoria[]): EventoAuditoria[] {
+  const i = eventos.findLastIndex((e) => e.tipo === 'infra-no-ar');
+  return i >= 0 ? eventos.slice(i) : eventos.slice(-40);
+}
+
+export interface Porta {
+  alvo: string;
+  porta: number;
+  servico: string | null;
+  estado: 'aberta' | 'a fechar' | 'fechada' | 'reaberta';
+  pedidoId: string;
+}
+
+/** Portas que a defesa pediu para fechar no ciclo, com o estado mais recente de cada uma. */
+export function portasDoCiclo(eventos: EventoAuditoria[]): Porta[] {
+  const portas = new Map<string, Porta>();
+  for (const e of eventos) {
+    if (e.tipo === 'pedido' && e.quem === 'defesa') {
+      const a = obj(obj(e.depois).achado);
+      portas.set(e.pedidoId, { alvo: String(a.alvo ?? '?'), porta: Number(a.porta), servico: (a.servico as string) ?? null, estado: 'aberta', pedidoId: e.pedidoId });
+    }
+    const p = portas.get(e.pedidoId);
+    if (!p) continue;
+    if (e.tipo === 'a-aplicar') p.estado = 'a fechar';
+    if (e.tipo === 'feito') p.estado = 'fechada';
+    if (e.tipo === 'falhou') p.estado = 'aberta';
+    if (e.tipo === 'desfeito') p.estado = 'reaberta';
+  }
+  return [...portas.values()];
 }
 
 const escapar = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -46,54 +113,97 @@ const hora = (iso: string) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? escapar(iso) : d.toLocaleTimeString('pt-PT', { timeZone: 'Europe/Lisbon' });
 };
+const NOME: Record<Agente, string> = { migrador: 'Migrador', atacante: 'Atacante', defesa: 'Defesa', chefe: 'Chefe', dono: 'Dono' };
 
-/** HTML sem frameworks, texto escapado, a ler /estado.json de 2 em 2 s. */
-export function renderizar(pedidos: Pedido[], eventos: EventoAuditoria[], token = ''): string {
-  const exp = exposicao(eventos);
+/** HTML sem frameworks, texto escapado; recarrega quando /estado.json muda (de 2 em 2 s). */
+export function renderizar(pedidos: Pedido[], todos: EventoAuditoria[], token = ''): string {
+  const eventos = cicloAtual(todos);
+
+  // 1. Relógio de exposição (ideia wow 2): a conta é do chefe (último 'infra-no-ar' -> primeiro fecho confirmado).
+  const exp = relogioExposicao(todos);
   const relogio = exp
-    ? `<div class="relogio" data-inicio="${escapar(exp.inicio)}" data-fim="${escapar(exp.fim ?? '')}">
-<div class="seg">${exp.segundos !== undefined ? `exposto ${exp.segundos} s` : 'exposto…'}</div>
-<div class="isco">&nbsp;</div></div>`
-    : '';
-  const colunas = FASES.map((f) => {
-    const doFase = eventos.filter((e) => faseDe(e) === f).slice(-8).reverse();
-    const itens = doFase
-      .map((e) => `<li><b>${hora(e.hora)}</b> ${escapar(e.tipo)} <small>${escapar(e.pedidoId)}${e.quem ? ` · ${escapar(e.quem)}` : ''}</small></li>`)
-      .join('');
-    return `<section class="${doFase.length ? 'ativa' : ''}"><h2>${f}</h2><ul>${itens || '<li class="vazio">—</li>'}</ul></section>`;
-  }).join('<div class="seta">→</div>');
-  const linhas = pedidos
-    .map((p) => {
-      const botao =
-        token && p.estado === 'feito' && p.acao.tipo === 'remover_regra'
-          ? `<form method="post" action="/desfazer"><input type="hidden" name="id" value="${escapar(p.id)}"><input type="hidden" name="token" value="${escapar(token)}"><button>Desfazer</button></form>`
-          : '';
-      return `<tr><td>${escapar(p.id)}</td><td>${escapar(p.titulo)}</td><td class="e-${escapar(p.estado)}">${escapar(p.estado)}</td><td>${botao}</td></tr>`;
+    ? `<header class="relogio ${exp.aindaExposta ? 'exposta' : 'fechada'}" data-inicio="${escapar(exp.inicio)}" data-fim="${escapar(exp.fim ?? '')}">
+<div class="seg">exposto ${exp.segundos} s</div><div class="isco">&nbsp;</div></header>`
+    : `<header class="relogio"><div class="seg neutro">à espera da infraestrutura nova</div><div class="isco">&nbsp;</div></header>`;
+
+  // 2. Linha do tempo dos agentes.
+  const linhas = eventos
+    .slice(-14)
+    .reverse()
+    .map((e) => {
+      const ag = agenteDe(e);
+      return `<li class="ag-${ag}"><span class="h">${hora(e.hora)}</span><span class="quem">${NOME[ag]}</span><span>${escapar(fraseDe(e))}</span></li>`;
     })
     .join('');
+
+  // 3. Infraestrutura.
+  const migracao = eventos.findLast((e) => e.quem === 'migrador' && e.tipo === 'feito');
+  const portas = portasDoCiclo(eventos);
+  const caixasPortas = portas.length
+    ? portas
+        .map((p) => `<div class="porta p-${p.estado.replace(' ', '-')}">${escapar(p.servico ?? 'porta')} ${p.porta}<small>${escapar(p.alvo)} · ${p.estado}</small></div>`)
+        .join('')
+    : '<div class="porta vazio">—</div>';
+  const infra = `<div class="infra">
+<div class="caixa">AWS<small>(simulada)</small></div><div class="seta ${migracao ? 'acesa' : ''}">→</div>
+<div class="caixa">Leaseweb<small>${migracao ? 'dados migrados' : '—'}</small></div><div class="seta ${portas.length ? 'acesa' : ''}">→</div>
+<div class="caixa vitima">vítima${caixasPortas}</div></div>`;
+
+  // 4. Provas.
+  const d = obj(migracao?.depois);
+  const testes = obj(d.testes);
+  const ok = (v: unknown) => (v === true ? '<b class="ok">✓</b>' : v === false ? '<b class="mau">✗</b>' : '—');
+  const recon = eventos.findLast((e) => e.tipo === 'reconhecimento');
+  const vistas = (obj(recon?.depois).portas as { porta: number }[] | undefined) ?? [];
+  const provasDefesa = pedidos
+    .filter((p) => p.acao.tipo === 'remover_regra' && portas.some((x) => x.pedidoId === p.id))
+    .map((p) => {
+      const regra = p.acao.tipo === 'remover_regra' ? p.acao.regra : undefined;
+      const viu = regra && vistas.some((v) => v.porta >= regra.startPort && v.porta <= regra.endPort);
+      const botao =
+        token && p.estado === 'feito'
+          ? `<form method="post" action="/desfazer"><input type="hidden" name="id" value="${escapar(p.id)}"><input type="hidden" name="token" value="${escapar(token)}"><button>Desfazer</button></form>`
+          : '';
+      return `<div class="prova"><b>${escapar(p.titulo)}</b>
+<div>antes: ${viu ? '<b class="mau">open</b> (visto pelo atacante)' : '—'} · depois: ${p.estado === 'feito' ? '<b class="ok">regra removida e confirmada</b>' : escapar(p.estado)}</div>
+<div class="mut">inverso guardado: criar ${escapar(regraTxt(regra))} · pedido ${escapar(p.id)}</div>${botao}</div>`;
+    })
+    .join('');
+  const provas = `<div class="prova"><b>Migração</b><div>ficheiros ${escapar(d.objetos ?? '—')} · checksums ${ok(d.checksumsOk)} · testes antes ${ok(testes.antes)} depois ${ok(testes.depois)}</div></div>
+${provasDefesa || '<div class="prova mut">Defesa: ainda sem pedidos neste ciclo.</div>'}`;
+
   return `<!doctype html><html lang="pt"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Linha do tempo</title>
-<style>:root{--bg:#0b0f14;--fg:#e8eef5;--mut:#8a97a6;--card:#141b23;--ok:#3ecf8e;--mau:#ff5a4f;--esp:#f5b942}
-body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
-h1{font-size:1.3rem}.fases{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
-section{flex:1;min-width:180px;background:var(--card);border-radius:10px;padding:10px;opacity:.55}section.ativa{opacity:1;outline:2px solid var(--ok)}
-h2{margin:0 0 6px;text-transform:uppercase;font-size:.9rem;letter-spacing:.08em}ul{list-style:none;margin:0;padding:0;font-size:.85rem}
-li{padding:3px 0;border-bottom:1px solid #222c37}small,.vazio{color:var(--mut)}.seta{align-self:center;color:var(--mut);font-size:1.4rem}
-table{width:100%;border-collapse:collapse;margin-top:16px;font-size:.9rem}td,th{padding:6px;border-bottom:1px solid #222c37;text-align:left}
-.relogio{background:var(--card);border-radius:10px;padding:12px 16px;margin:0 0 12px;display:flex;gap:24px;align-items:baseline;flex-wrap:wrap}
-.relogio .seg{font-size:2.4rem;font-weight:800;color:var(--mau)}.relogio .isco{color:var(--mut)}
-button{background:var(--mau);color:#fff;border:0;border-radius:6px;padding:4px 10px;cursor:pointer}form{margin:0}
-.e-feito{color:var(--ok)}.e-pendente,.e-aprovado{color:var(--esp)}.e-desfeito,.e-ignorado{color:var(--mut)}</style>
-<h1>Migrar → atacar → aprovar → fechar</h1>${relogio}<div class="fases">${colunas}</div>
-<table><thead><tr><th>Pedido</th><th>O quê</th><th>Estado</th><th></th></tr></thead><tbody>${linhas || '<tr><td colspan="4" class="vazio">Sem pedidos</td></tr>'}</tbody></table>
+<title>Migrar sem ficar exposto</title>
+<style>:root{--bg:#0C1715;--card:#15171C;--fg:#FFFFFF;--mut:#8B929C;--ok:#3ECF8E;--mau:#FF5A4F;--mig:#4C9AFF;--ata:#FF5A4F;--def:#3ECF8E;--che:#8B929C;--dono:#F5B942}
+*{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg);color:var(--fg);font:20px/1.35 Inter,system-ui,sans-serif}
+.relogio{background:var(--card);border-radius:14px;padding:20px 28px;display:flex;gap:32px;align-items:baseline;flex-wrap:wrap;margin-bottom:20px}
+.seg{font-size:clamp(2.4rem,7vw,5rem);font-weight:800;line-height:1}.exposta .seg{color:var(--mau)}.fechada .seg{color:var(--ok)}.neutro{font-size:1.6rem!important;color:var(--mut)}
+.isco{color:var(--mut);font-size:1.3rem}
+main{display:grid;grid-template-columns:1.2fr 1fr 1.1fr;gap:20px}@media (max-width:1100px){main{grid-template-columns:1fr}}
+section{background:var(--card);border-radius:14px;padding:20px}h2{margin:0 0 12px;font-size:1rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+ul{list-style:none;margin:0;padding:0}li{display:grid;grid-template-columns:5.5em 6.5em 1fr;gap:8px;padding:7px 0 7px 10px;border-left:4px solid var(--che);margin-bottom:6px}
+li .h{color:var(--mut);font-variant-numeric:tabular-nums}li .quem{font-weight:700}
+.ag-migrador{border-color:var(--mig)}.ag-migrador .quem{color:var(--mig)}.ag-atacante{border-color:var(--ata)}.ag-atacante .quem{color:var(--ata)}
+.ag-defesa{border-color:var(--def)}.ag-defesa .quem{color:var(--def)}.ag-dono{border-color:var(--dono)}.ag-dono .quem{color:var(--dono)}.ag-chefe .quem{color:var(--che)}
+.infra{display:flex;flex-direction:column;align-items:stretch;gap:6px}.caixa{border:2px solid #2a313b;border-radius:12px;padding:14px;text-align:center;font-weight:700;font-size:1.3rem}
+.caixa small{display:block;font-weight:400;color:var(--mut);font-size:.9rem}.seta{text-align:center;color:#2a313b;font-size:1.8rem;line-height:1}.seta.acesa{color:var(--mig)}
+.porta{margin-top:10px;border-radius:10px;padding:10px;font-size:1.4rem}.porta small{display:block;font-size:.85rem;opacity:.85}
+.p-aberta,.p-reaberta{background:#3a1715;color:var(--mau)}.p-a-fechar{background:#3a2e12;color:var(--dono)}.p-fechada{background:#0f3324;color:var(--ok)}
+.prova{border-bottom:1px solid #222831;padding:10px 0}.prova:last-child{border:0}.mut,.vazio{color:var(--mut)}.ok{color:var(--ok)}.mau{color:var(--mau)}
+button{margin-top:8px;background:var(--mau);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-size:1rem;cursor:pointer}form{margin:0}
+@media (max-width:600px){body{padding:16px;font-size:16px}li{grid-template-columns:4.5em 5.5em 1fr}}</style>
+${relogio}
+<main><section><h2>Linha do tempo</h2><ul>${linhas || '<li class="vazio">Ainda sem eventos.</li>'}</ul></section>
+<section><h2>Infraestrutura</h2>${infra}</section>
+<section><h2>Provas</h2>${provas}</section></main>
 <script>
-const r=document.querySelector('.relogio');
+const r=document.querySelector('.relogio[data-inicio]');
 if(r){const i=Date.parse(r.dataset.inicio),f=r.dataset.fim?Date.parse(r.dataset.fim):0,seg=r.querySelector('.seg');
  if(!f)setInterval(()=>{seg.textContent='exposto '+Math.round((Date.now()-i)/1000)+' s'},500);
  const q='/isco?json&desde='+encodeURIComponent(r.dataset.inicio)+(f?'&ate='+encodeURIComponent(r.dataset.fim):'');
  fetch(q).then(x=>x.ok?x.json():null).then(c=>{if(c)r.querySelector('.isco').textContent='neste tempo, o isco recebeu '+c.tentativas+' tentativas de entrada'}).catch(()=>{});}
 let ultimo='';
-setInterval(async()=>{try{const r=await fetch('/estado.json',{cache:'no-store'});const t=await r.text();if(ultimo&&t!==ultimo)location.reload();ultimo=t}catch{}},2000);
+setInterval(async()=>{try{const x=await fetch('/estado.json',{cache:'no-store'});const t=await x.text();if(ultimo&&t!==ultimo)location.reload();ultimo=t}catch{}},2000);
 </script></html>`;
 }
 

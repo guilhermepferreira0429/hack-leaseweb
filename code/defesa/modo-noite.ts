@@ -42,6 +42,10 @@ export async function modoNoite(pedido: Pedido, avisar: Avisar = (t) => telegram
   if (!securityGroupsGeridos().includes(sg) || !eCritica(regra)) return false;
 
   const hora = () => new Date().toISOString();
+  // Tira o pedido de 'pendente' ANTES de mexer: um Aprovar que chegue durante o modo noite é ignorado
+  // pelo orquestrador (só decide pedidos pendentes), em vez de correr um segundo fecho em paralelo.
+  estado.mudarEstado(atual.id, 'aprovado');
+  auditoria.registar({ hora: hora(), pedidoId: atual.id, tipo: 'aprovado', quem: 'modo-noite' });
   const inverso = inversoDe(atual);
   auditoria.registar({ hora: hora(), pedidoId: atual.id, tipo: 'a-aplicar', quem: 'modo-noite', antes: regra, inverso });
 
@@ -60,6 +64,8 @@ export async function modoNoite(pedido: Pedido, avisar: Avisar = (t) => telegram
   } catch (erro) {
     const msg = erro instanceof Error ? erro.message : String(erro);
     auditoria.registar({ hora: hora(), pedidoId: atual.id, tipo: 'falhou', quem: 'modo-noite', depois: msg });
+    // Volta a ficar nas mãos do dono. As regras temporárias já criadas ficam na auditoria (modo-noite-permitir).
+    estado.mudarEstado(atual.id, 'pendente');
     await avisarSemFalhar(avisar, `Modo noite: não consegui aplicar a medida temporária em "${atual.titulo}": ${msg}`);
     return false;
   }
