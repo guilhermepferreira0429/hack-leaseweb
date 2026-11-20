@@ -170,7 +170,7 @@
               "id": "L2eEK",
               "name": "Page",
               "fill": "$muted",
-              "content": "01 / 11",
+              "content": "01 / 12",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
@@ -331,7 +331,7 @@
               "id": "sOKm4",
               "name": "Page",
               "fill": "$muted",
-              "content": "04 / 11",
+              "content": "04 / 12",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
@@ -567,7 +567,7 @@
               "id": "k9HMtT",
               "name": "Page",
               "fill": "$muted",
-              "content": "06 / 11",
+              "content": "06 / 12",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
@@ -609,7 +609,7 @@
               "id": "DC4Kr",
               "name": "Title",
               "fill": "$text",
-              "content": "Three agents. One flow.",
+              "content": "Four agents. One flow.",
               "fontFamily": "$font-sans",
               "fontSize": 88,
               "fontWeight": "800",
@@ -873,86 +873,72 @@
             },
             {
               "type": "frame",
-              "id": "WvymZ",
-              "name": "API calls",
+              "id": "Erv6U",
+              "name": "Layers",
+              "width": "fill_container",
               "layout": "vertical",
-              "gap": 16,
+              "gap": 18,
               "children": [
                 {
                   "type": "frame",
-                  "id": "UrR31",
-                  "name": "Call closes the rule",
-                  "gap": 24,
+                  "id": "gLnS7",
+                  "name": "YOUR SERVER · SELF-HOSTED",
+                  "gap": 32,
                   "alignItems": "center",
                   "children": [
                     {
                       "type": "text",
-                      "id": "l33AKZ",
-                      "name": "Method",
-                      "fill": "$green",
-                      "content": "POST",
-                      "fontFamily": "$font-mono",
-                      "fontSize": 28,
-                      "fontWeight": "700"
-                    },
-                    {
-                      "type": "text",
-                      "id": "RiaXf",
-                      "name": "Path",
-                      "fill": "$text",
-                      "content": "/securityGroups/{id}/revokeFirewallRules",
-                      "fontFamily": "$font-mono",
-                      "fontSize": 28,
-                      "fontWeight": "normal"
-                    },
-                    {
-                      "type": "text",
-                      "id": "DThmu",
-                      "name": "Meaning",
+                      "id": "I4wEZV",
+                      "name": "Label",
                       "fill": "$muted",
-                      "content": "· closes the rule",
+                      "textGrowth": "fixed-width",
+                      "width": 420,
+                      "content": "YOUR SERVER · SELF-HOSTED",
                       "fontFamily": "$font-mono",
+                      "fontSize": 22,
+                      "fontWeight": "normal",
+                      "letterSpacing": 2
+                    },
+                    {
+                      "type": "text",
+                      "id": "n11hN9",
+                      "name": "Text",
+                      "fill": "$text",
+                      "content": "MinIO · PostgreSQL · RabbitMQ · OpenBao · Valkey",
+                      "fontFamily": "$font-sans",
                       "fontSize": 28,
-                      "fontWeight": "normal"
+                      "fontWeight": "600"
                     }
                   ]
                 },
                 {
                   "type": "frame",
-                  "id": "CaeRV",
-                  "name": "Call puts it back",
-                  "gap": 24,
+                  "id": "qhD2e",
+                  "name": "PROVIDER · LEASEWEB API",
+                  "gap": 32,
                   "alignItems": "center",
                   "children": [
                     {
                       "type": "text",
-                      "id": "V3DOJ",
-                      "name": "Method",
-                      "fill": "$purple",
-                      "content": "POST",
+                      "id": "t64mgZ",
+                      "name": "Label",
+                      "fill": "$green",
+                      "textGrowth": "fixed-width",
+                      "width": 420,
+                      "content": "PROVIDER · LEASEWEB API",
                       "fontFamily": "$font-mono",
-                      "fontSize": 28,
-                      "fontWeight": "700"
+                      "fontSize": 22,
+                      "fontWeight": "normal",
+                      "letterSpacing": 2
                     },
                     {
                       "type": "text",
-                      "id": "jwQyJ",
-                      "name": "Path",
+                      "id": "nzgfP",
+                      "name": "Text",
                       "fill": "$text",
-                      "content": "/securityGroups/{id}/authorizeFirewallRules",
+                      "content": "revokeFirewallRules closes in ~3 s · authorizeFirewallRules puts it back",
                       "fontFamily": "$font-mono",
-                      "fontSize": 28,
-                      "fontWeight": "normal"
-                    },
-                    {
-                      "type": "text",
-                      "id": "SquXk",
-                      "name": "Meaning",
-                      "fill": "$muted",
-                      "content": "· puts it back",
-                      "fontFamily": "$font-mono",
-                      "fontSize": 28,
-                      "fontWeight": "normal"
+                      "fontSize": 28
                     }
                   ]
                 }
@@ -983,7 +969,7 @@
               "id": "p5QDQ",
               "name": "Page",
               "fill": "$muted",
-              "content": "08 / 11",
+              "content": "08 / 12",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
@@ -1233,7 +1219,7 @@
               "id": "uGBh7",
               "name": "Page",
               "fill": "$muted",
-              "content": "09 / 11",
+              "content": "09 / 12",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
@@ -1465,9 +1451,9 @@
     {
       "type": "frame",
       "id": "S07xx",
-      "x": 20400,
+      "x": 22440,
       "y": 0,
-      "name": "Slide 11 · Fecho e pedido",
+      "name": "Slide 12 · Fecho e pedido",
       "clip": true,
       "width": 1920,
       "height": 1080,
@@ -1616,7 +1602,7 @@
               "id": "P5sOjc",
               "name": "Page",
               "fill": "$muted",
-              "content": "11 / 11",
+              "content": "12 / 12",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
@@ -3205,7 +3191,7 @@
               "id": "U4LyE",
               "name": "Page",
               "fill": "$muted",
-              "content": "02 / 11",
+              "content": "02 / 12",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
@@ -3448,7 +3434,7 @@
               "id": "r9EybX",
               "name": "Page",
               "fill": "$muted",
-              "content": "03 / 11",
+              "content": "03 / 12",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
@@ -3673,7 +3659,7 @@
               "id": "P1IcUb",
               "name": "Page",
               "fill": "$muted",
-              "content": "05 / 11",
+              "content": "05 / 12",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
@@ -3945,7 +3931,7 @@
               "id": "O8Gtb",
               "name": "Page",
               "fill": "$muted",
-              "content": "07 / 11",
+              "content": "07 / 12",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
@@ -3957,9 +3943,9 @@
     {
       "type": "frame",
       "id": "v5FN9x",
-      "x": 18360,
+      "x": 20400,
       "y": 0,
-      "name": "Slide 10 · O mercado (73%)",
+      "name": "Slide 11 · O mercado (73%)",
       "clip": true,
       "width": 1920,
       "height": 1080,
@@ -4106,7 +4092,232 @@
               "id": "a6vOw",
               "name": "Page",
               "fill": "$muted",
-              "content": "10 / 11",
+              "content": "11 / 12",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "L89yL",
+      "x": 18360,
+      "y": 0,
+      "name": "Slide 10 · O que vem a seguir",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": "$bg",
+      "layout": "vertical",
+      "padding": [
+        100,
+        120,
+        64,
+        120
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "eQwvB",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 40,
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "azfk7",
+              "name": "Label",
+              "fill": "$purple",
+              "content": "NEXT · NOT BUILT YET",
+              "fontFamily": "$font-mono",
+              "fontSize": 24,
+              "fontWeight": "normal",
+              "letterSpacing": 3
+            },
+            {
+              "type": "text",
+              "id": "L0BeLl",
+              "name": "Title",
+              "fill": "$text",
+              "content": "Same flow. Any provider.",
+              "fontFamily": "$font-sans",
+              "fontSize": 88,
+              "fontWeight": "800",
+              "letterSpacing": -2
+            },
+            {
+              "type": "frame",
+              "id": "Rvw1n",
+              "name": "Items",
+              "width": "fill_container",
+              "gap": 40,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "pfIjQ",
+                  "name": "More providers",
+                  "width": "fill_container",
+                  "stroke": "$purple",
+                  "strokeWidth": {
+                    "top": 4
+                  },
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": [
+                    28,
+                    0,
+                    0,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "rZ9Dq",
+                      "name": "Title",
+                      "fill": "$text",
+                      "content": "More providers",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 48,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "fV2N7",
+                      "name": "Desc",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Hostinger, OVHcloud: one adapter each, same operations",
+                      "lineHeight": 1.3,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ToQzq",
+                  "name": "Your own machine",
+                  "width": "fill_container",
+                  "stroke": "$purple",
+                  "strokeWidth": {
+                    "top": 4
+                  },
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": [
+                    28,
+                    0,
+                    0,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Eiugo",
+                      "name": "Title",
+                      "fill": "$text",
+                      "content": "Your own machine",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 48,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ul1Jq",
+                      "name": "Desc",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "over SSH, everything self-hosted, host firewall",
+                      "lineHeight": 1.3,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "jJpMt",
+                  "name": "Regulated reports",
+                  "width": "fill_container",
+                  "stroke": "$purple",
+                  "strokeWidth": {
+                    "top": 4
+                  },
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 14,
+                  "padding": [
+                    28,
+                    0,
+                    0,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "RwnO0",
+                      "name": "Title",
+                      "fill": "$text",
+                      "content": "Regulated reports",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 48,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "wlxWD",
+                      "name": "Desc",
+                      "fill": "$muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "the record shaped for NIS2 and DORA notifications",
+                      "lineHeight": 1.3,
+                      "fontFamily": "$font-sans",
+                      "fontSize": 30,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "A8hB6",
+          "name": "Footer",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "yFtAY",
+              "name": "Project",
+              "fill": "$muted",
+              "content": "hack-leaseweb",
+              "fontFamily": "$font-mono",
+              "fontSize": 20,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "XJE3e",
+              "name": "Page",
+              "fill": "$muted",
+              "content": "10 / 12",
               "fontFamily": "$font-mono",
               "fontSize": 20,
               "fontWeight": "normal"
