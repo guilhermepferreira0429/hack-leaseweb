@@ -50,14 +50,14 @@ async function sondar(s3: S3Client, lado: Lado): Promise<void> {
     await s3.send(new ListBucketsCommand({}), { abortSignal: AbortSignal.timeout(8000) });
   } catch (erro) {
     const estado = estadoHttp(erro);
-    const porque = estado === 403 ? 'recusou as credenciais (403)' : 'não responde';
-    throw new Error(`${lado.nome} ${porque} em ${lado.endpoint}`);
+    const porque = estado === 403 ? 'rejected the credentials (403)' : 'is not responding';
+    throw new Error(`${lado.nome} ${porque} at ${lado.endpoint}`);
   }
 }
 
 async function lerObjeto(s3: S3Client, bucket: string, chave: string): Promise<{ corpo: Uint8Array; tipo?: string }> {
   const r = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: chave }));
-  if (!r.Body) throw new Error(`Objeto sem corpo: ${chave}`);
+  if (!r.Body) throw new Error(`Object without a body: ${chave}`);
   return { corpo: await r.Body.transformToByteArray(), tipo: r.ContentType };
 }
 
@@ -130,7 +130,7 @@ export async function migrarS3Detalhado(): Promise<{ buckets: string[]; objetos:
     }
     if (trabalho.length === 0) {
       throw new Error(
-        `Não há ficheiros no S3 do ${amb.origem.nome} (${buckets.length} buckets): nada para migrar (npm run dev:exemplo -- --semear 20)`,
+        `No files in ${amb.origem.nome} S3 (${buckets.length} buckets): nothing to migrate (npm run seed)`,
       );
     }
 

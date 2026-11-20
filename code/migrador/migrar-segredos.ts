@@ -40,7 +40,7 @@ function lerConfig(): { localstack: string; regiao: string; bao: string; token: 
   carregarEnv();
   const v = (nome: string): string | undefined => process.env[nome]?.trim() || undefined;
   const token = v('OPENBAO_TOKEN');
-  if (!token) throw new Error('OPENBAO_TOKEN não está definido no .env');
+  if (!token) throw new Error('OPENBAO_TOKEN is not set in .env');
   return {
     localstack: v('LOCALSTACK_ENDPOINT') ?? 'http://127.0.0.1:4566',
     regiao: v('AWS_REGION') ?? 'us-east-1',
@@ -83,9 +83,9 @@ async function lerOrigem(sm: SecretsManagerClient, ssm: SSMClient, localstack: s
     // Só o tipo de erro: o corpo de uma resposta da AWS pode trazer valores.
     const nome = (erro as { name?: string }).name ?? 'erro';
     if (/TimeoutError|AbortError|ECONNREFUSED/.test(`${nome} ${(erro as { code?: string }).code ?? ''}`)) {
-      throw new Error(`Secrets Manager/SSM (LocalStack) não responde em ${localstack}`);
+      throw new Error(`Secrets Manager/SSM (LocalStack) is not responding at ${localstack}`);
     }
-    throw new Error(`Não consegui ler os segredos da AWS (${nome})`);
+    throw new Error(`Could not read the AWS secrets (${nome})`);
   }
   return segredos.sort((a, b) => `${a.origem}${a.nome}`.localeCompare(`${b.origem}${b.nome}`));
 }
@@ -101,11 +101,11 @@ async function bao(cfg: ReturnType<typeof lerConfig>, metodo: 'GET' | 'POST', ro
       signal: AbortSignal.timeout(8000),
     });
   } catch {
-    throw new Error(`OpenBao não responde em ${cfg.bao}`);
+    throw new Error(`OpenBao is not responding at ${cfg.bao}`);
   }
-  if (r.status === 403) throw new Error('OpenBao recusou o token (OPENBAO_TOKEN)');
+  if (r.status === 403) throw new Error('OpenBao rejected the token (OPENBAO_TOKEN)');
   if (r.status === 404 && metodo === 'GET') return undefined;
-  if (!r.ok) throw new Error(`OpenBao respondeu ${r.status} em ${metodo} ${rota.split('/').slice(0, 3).join('/')}/…`);
+  if (!r.ok) throw new Error(`OpenBao returned ${r.status} on ${metodo} ${rota.split('/').slice(0, 3).join('/')}/…`);
   return r.status === 204 ? undefined : r.json();
 }
 
@@ -122,7 +122,7 @@ export async function migrarSegredosDetalhado(opcoes: { contem?: string } = {}):
     // OpenBao primeiro: se não estiver no ar, nem se lê nada da origem.
     await bao(cfg, 'GET', 'sys/health');
     const origem = (await lerOrigem(sm, ssm, cfg.localstack)).filter((s) => !opcoes.contem || s.nome.includes(opcoes.contem));
-    if (origem.length === 0) throw new Error('Não há segredos no Secrets Manager nem no SSM: nada para migrar (npm run seed)');
+    if (origem.length === 0) throw new Error('No secrets in Secrets Manager or SSM: nothing to migrate (npm run seed)');
 
     const resultado: ChecksumSegredo[] = [];
     for (const s of origem) {
@@ -135,7 +135,7 @@ export async function migrarSegredosDetalhado(opcoes: { contem?: string } = {}):
         nome: s.nome,
         tipo: s.tipo,
         shaOrigem: sha(s.valor),
-        shaDestino: typeof valor === 'string' ? sha(valor) : '(em falta no OpenBao)',
+        shaDestino: typeof valor === 'string' ? sha(valor) : '(missing in OpenBao)',
       });
     }
     return { segredos: resultado, iguais: resultado.every((r) => r.shaOrigem === r.shaDestino) };

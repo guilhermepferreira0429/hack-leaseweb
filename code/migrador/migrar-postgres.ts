@@ -70,7 +70,7 @@ async function ligar(url: string, papel: string): Promise<pg.Client> {
   try {
     await c.connect();
   } catch {
-    throw new Error(`Postgres de ${papel} não responde em ${semCredenciais(url)}`);
+    throw new Error(`${papel === 'origem' ? 'Source' : 'Target'} Postgres is not responding at ${semCredenciais(url)}`);
   }
   await c.query(
     "SET TIME ZONE 'UTC'; SET DateStyle = 'ISO, YMD'; SET IntervalStyle = 'postgres'; SET extra_float_digits = 3; SET bytea_output = 'hex'",
@@ -193,7 +193,7 @@ export async function migrarPostgresDetalhado(): Promise<{ tabelas: ChecksumTabe
     // Fotografia consistente da origem durante toda a cópia; nunca se escreve nela.
     await origem.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const tabelas = await lerTabelas(origem);
-    if (tabelas.length === 0) throw new Error('A base de dados de origem não tem tabelas: nada para migrar');
+    if (tabelas.length === 0) throw new Error('The source database has no tables: nothing to migrate');
 
     const enums = await lerEnums(origem);
     for (const t of tabelas) somaOrigem.set(t.rotulo, await checksum(origem, t));
@@ -254,7 +254,7 @@ export async function migrarPostgresDetalhado(): Promise<{ tabelas: ChecksumTabe
     const resultado: ChecksumTabela[] = [];
     for (const [nome, so] of somaOrigem) {
       const td = tabelasDestino.get(nome);
-      const sd = td ? await checksum(d, td) : { linhas: 0, sha256: '(tabela em falta no destino)' };
+      const sd = td ? await checksum(d, td) : { linhas: 0, sha256: '(table missing in target)' };
       resultado.push({ tabela: nome, linhasOrigem: so.linhas, linhasDestino: sd.linhas, origem: so.sha256, destino: sd.sha256 });
     }
     return {

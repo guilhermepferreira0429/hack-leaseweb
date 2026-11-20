@@ -37,7 +37,7 @@ export function lerAmbienteMigrador(env: NodeJS.ProcessEnv = process.env): Ambie
   const regiao = v('AWS_REGION') ?? 'us-east-1';
   const minioAccess = v('MINIO_ACCESS_KEY');
   const minioSecret = v('MINIO_SECRET_KEY');
-  if (!minioAccess || !minioSecret) throw new Error('MINIO_ACCESS_KEY e MINIO_SECRET_KEY não estão definidas no .env');
+  if (!minioAccess || !minioSecret) throw new Error('MINIO_ACCESS_KEY and MINIO_SECRET_KEY are not set in .env');
   return {
     bucket: v('ARMAZENAMENTO_BUCKET') ?? 'faturas',
     origem: {
@@ -67,8 +67,8 @@ export function lerPostgres(env: NodeJS.ProcessEnv = process.env): { origem: str
   };
   const origem = v('DATABASE_URL');
   const destino = v('DATABASE_URL_DESTINO');
-  if (!origem) throw new Error('DATABASE_URL não está definida no .env');
-  if (!destino) throw new Error('DATABASE_URL_DESTINO não está definida no .env (Postgres de destino na Leaseweb)');
+  if (!origem) throw new Error('DATABASE_URL is not set in .env');
+  if (!destino) throw new Error('DATABASE_URL_DESTINO is not set in .env (target Postgres at Leaseweb)');
   return { origem, destino };
 }
 

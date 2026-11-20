@@ -29,7 +29,7 @@ function lerFilas(): { sqsEndpoint: string; regiao: string; rabbitmqUrl: string 
   carregarEnv();
   const v = (nome: string): string | undefined => process.env[nome]?.trim() || undefined;
   const rabbitmqUrl = v('RABBITMQ_URL');
-  if (!rabbitmqUrl || rabbitmqUrl.includes('<senha>')) throw new Error('RABBITMQ_URL não está definida no .env');
+  if (!rabbitmqUrl || rabbitmqUrl.includes('<senha>')) throw new Error('RABBITMQ_URL is not set in .env');
   return { sqsEndpoint: v('LOCALSTACK_ENDPOINT') ?? 'http://127.0.0.1:4566', regiao: v('AWS_REGION') ?? 'us-east-1', rabbitmqUrl };
 }
 
@@ -119,13 +119,13 @@ export async function migrarFilaDetalhado(opcoes: { filas?: string[] } = {}): Pr
     try {
       urls = (await sqs.send(new ListQueuesCommand({}), { abortSignal: AbortSignal.timeout(8000) })).QueueUrls ?? [];
     } catch {
-      throw new Error(`SQS (LocalStack) não responde em ${cfg.sqsEndpoint}`);
+      throw new Error(`SQS (LocalStack) is not responding at ${cfg.sqsEndpoint}`);
     }
     try {
       modelo = await amqp.connect(cfg.rabbitmqUrl);
     } catch (erro) {
-      const porque = /ACCESS_REFUSED|403/.test(String(erro)) ? 'recusou as credenciais' : 'não responde';
-      throw new Error(`RabbitMQ ${porque} em ${hostDe(cfg.rabbitmqUrl)}`);
+      const porque = /ACCESS_REFUSED|403/.test(String(erro)) ? 'rejected the credentials' : 'is not responding';
+      throw new Error(`RabbitMQ ${porque} at ${hostDe(cfg.rabbitmqUrl)}`);
     }
     modelo.on('error', () => {});
     const canal = await modelo.createConfirmChannel();

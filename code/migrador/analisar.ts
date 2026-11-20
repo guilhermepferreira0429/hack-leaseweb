@@ -14,12 +14,12 @@ export const ALTERNATIVA: Record<ServicoAws, string> = {
   cache: 'Valkey',
 };
 
-/** Nome do serviço AWS como o dono o conhece. */
+/** Nome do serviço AWS como o dono o conhece (em inglês: a demo e o Telegram são em inglês). */
 export const NOME_AWS: Record<ServicoAws, string> = {
-  s3: 'S3 (ficheiros)',
-  postgres: 'RDS PostgreSQL (base de dados)',
-  fila: 'SQS (fila de mensagens)',
-  segredos: 'Secrets Manager e SSM (senhas e configuração)',
+  s3: 'S3 (files)',
+  postgres: 'RDS PostgreSQL (database)',
+  fila: 'SQS (message queue)',
+  segredos: 'Secrets Manager and SSM (passwords and settings)',
   cache: 'ElastiCache Redis (cache)',
 };
 
@@ -56,31 +56,32 @@ async function* ficheiros(dir: string): AsyncGenerator<string> {
 }
 
 function escreverPlano(servicos: ServicoAws[]): string {
-  if (servicos.length === 0) return 'Não encontrei serviços da AWS nesta app. Não há nada para migrar.';
+  if (servicos.length === 0) return 'I found no AWS services in this app. There is nothing to migrate.';
   const lista = servicos.map((s) => NOME_AWS[s]);
-  const encontrados = lista.length === 1 ? lista[0] : `${lista.slice(0, -1).join(', ')} e ${lista.at(-1)}`;
+  const encontrados = lista.length === 1 ? lista[0] : `${lista.slice(0, -1).join(', ')} and ${lista.at(-1)}`;
   const passos = servicos.map((s) => `${CURTO[s]} → ${ALTERNATIVA[s]}`);
-  const comoAprovar = passos.length > 1 ? 'um passo de cada vez e com o teu OK em cada um' : 'com o teu OK';
   const fica = [
     servicos.includes('fila')
-      ? 'Na AWS os ficheiros e os dados ficam como estão; as mensagens da fila passam para o RabbitMQ.'
-      : 'Nada é apagado na AWS.',
-    servicos.includes('segredos') ? 'As senhas nunca aparecem em texto: só se comparam as impressões digitais.' : '',
+      ? 'Files and data stay untouched on AWS; the queue messages move to RabbitMQ.'
+      : 'Nothing is deleted on AWS.',
+    servicos.includes('segredos') ? 'Passwords never appear in plain text: only their fingerprints are compared.' : '',
   ]
     .filter(Boolean)
     .join(' ');
   return [
-    `Encontrei ${servicos.length === 1 ? 'um serviço' : `${servicos.length} serviços`} da AWS na app: ${encontrados}.`,
-    `Proponho passar para a Leaseweb, na UE, ${comoAprovar}: ${passos.join(', ')}.`,
-    `Cada cópia tem prova: contagem e impressão digital (sha256) iguais dos dois lados. ${fica}`,
-    'No fim corro os mesmos testes da app contra a AWS e contra a Leaseweb.',
+    `I found ${servicos.length === 1 ? 'one AWS service' : `${servicos.length} AWS services`} in the app: ${encontrados}.`,
+    passos.length > 1
+      ? `I propose moving them to Leaseweb, in the EU, one step at a time, with a single approval from you: ${passos.join(', ')}.`
+      : `I propose moving it to Leaseweb, in the EU, with your approval: ${passos.join(', ')}.`,
+    `Every copy comes with proof: same count and same fingerprint (sha256) on both sides. ${fica}`,
+    'At the end I run the same app tests against AWS and against Leaseweb.',
   ].join('\n');
 }
 
 /** Procura imports do SDK AWS (@aws-sdk/client-s3, client-sqs) e do pg na pasta da app. */
 export async function analisar(dirApp: string): Promise<{ servicos: ServicoAws[]; plano: string }> {
   const info = await stat(dirApp).catch(() => undefined);
-  if (!info?.isDirectory()) throw new Error(`A pasta da app não existe: ${dirApp}`);
+  if (!info?.isDirectory()) throw new Error(`App folder not found: ${dirApp}`);
 
   const vistos = new Set<ServicoAws>();
   for await (const caminho of ficheiros(dirApp)) {

@@ -42,7 +42,7 @@ describe('migrador: analisar', () => {
     assert.deepEqual(servicos, ['s3']);
     assert.match(plano, /S3 → MinIO/);
     assert.doesNotMatch(plano, /RabbitMQ|PostgreSQL/);
-    assert.match(plano, /Nada é apagado na AWS/);
+    assert.match(plano, /Nothing is deleted on AWS/);
   });
 
   it('sem S3: não propõe migração e ignora node_modules', async () => {
@@ -66,13 +66,13 @@ describe('migrador: analisar', () => {
     assert.deepEqual(servicos, ['s3', 'segredos', 'cache']);
     assert.match(plano, /Secrets Manager\/SSM → OpenBao/);
     assert.match(plano, /ElastiCache → Valkey/);
-    assert.match(plano, /senhas nunca aparecem em texto/);
+    assert.match(plano, /Passwords never appear in plain text/);
     assert.ok(plano.split('\n').length <= 4);
   });
 
   it('pasta vazia e pasta inexistente', async () => {
     assert.deepEqual((await analisar(await pasta({}))).servicos, []);
-    await assert.rejects(analisar(join(tmpdir(), 'nao-existe-migrador-xyz')), /não existe/);
+    await assert.rejects(analisar(join(tmpdir(), 'nao-existe-migrador-xyz')), /not found/);
   });
 });
 
