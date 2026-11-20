@@ -7,6 +7,7 @@
 // Aponta sempre para a origem: LOCALSTACK_ENDPOINT (por defeito http://127.0.0.1:4566) e DATABASE_URL.
 // Idempotente: recria o esquema "loja", reescreve os objetos e esvazia a fila antes de a encher.
 // Não mexe na tabela public.encomendas nem nos objetos faturas/ da app.
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -328,6 +329,15 @@ async function main(): Promise<void> {
   console.log(`  redis ${'redis-origem'.padEnd(17)} ${String(cache.chaves).padStart(6)} chaves (${cache.comTtl} c/ TTL)  ${cache.checksum}`);
   console.log(`  total nos buckets: ${mb(totalBytes)}; ${((Date.now() - inicio) / 1000).toFixed(1)} s`);
   console.log(`[seed] gravado em ${CAMINHO_ESPERADO}`);
+
+  // Deixa a app coerente: recriar o LocalStack apaga as faturas/<uuid>.txt da app mas não as linhas da
+  // public.encomendas. O --repor da exemplo-app apaga as encomendas semeadas e volta a semear 20.
+  if (!process.argv.includes('--sem-app')) {
+    console.log('[seed] a repor as 20 encomendas da exemplo-app (npm run dev:exemplo -- --repor 20; saltar com --sem-app)');
+    const cli = fileURLToPath(new URL('../cli.ts', import.meta.url));
+    const r = spawnSync(process.execPath, ['--import', 'tsx', cli, '--repor', '20'], { stdio: 'inherit', env: process.env });
+    if (r.status !== 0) throw new Error('o --repor da exemplo-app falhou (ver acima)');
+  }
 
   const esperadas = { [BUCKET_FATURAS]: QUANTIDADES.faturas, [BUCKET_FOTOS]: QUANTIDADES.fotos };
   for (const [nome, n] of Object.entries(esperadas)) if (buckets[nome]?.objetos !== n) throw new Error(`${nome}: ${buckets[nome]?.objetos} objetos, esperava ${n}`);
