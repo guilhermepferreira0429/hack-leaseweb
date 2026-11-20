@@ -51,10 +51,10 @@ function lerCache(): { origemUrl: string; valkeyUrl: string } {
   };
   const origemUrl = v('REDIS_ORIGEM_URL');
   const valkeyUrl = v('VALKEY_URL');
-  if (!origemUrl) throw new Error('REDIS_ORIGEM_URL não está definida no .env');
-  if (!valkeyUrl) throw new Error('VALKEY_URL não está definida no .env');
+  if (!origemUrl) throw new Error('REDIS_ORIGEM_URL is not set in .env');
+  if (!valkeyUrl) throw new Error('VALKEY_URL is not set in .env');
   if (servidor(origemUrl) === servidor(valkeyUrl)) {
-    throw new Error(`REDIS_ORIGEM_URL e VALKEY_URL apontam para o mesmo servidor (${servidor(valkeyUrl)})`);
+    throw new Error(`REDIS_ORIGEM_URL and VALKEY_URL point to the same server (${servidor(valkeyUrl)})`);
   }
   return { origemUrl, valkeyUrl };
 }
@@ -81,8 +81,8 @@ async function ligar(url: string, nome: string): Promise<Cliente> {
   } catch (erro) {
     fechar(c);
     const texto = String(erro instanceof Error ? erro.message : erro);
-    const porque = /WRONGPASS|NOAUTH|invalid password|AUTH/i.test(texto) ? 'recusou as credenciais' : 'não responde';
-    throw new Error(`${nome} ${porque} em ${servidor(url)}`);
+    const porque = /WRONGPASS|NOAUTH|invalid password|AUTH/i.test(texto) ? 'rejected the credentials' : 'is not responding';
+    throw new Error(`${nome} ${porque} at ${servidor(url)}`);
   }
 }
 
@@ -125,7 +125,7 @@ async function copiarPorTipo(origem: Cliente, destino: Cliente, chave: Buffer, t
     const lista = await cmd<Buffer[]>(origem, ['ZRANGE', chave, '0', '-1', 'WITHSCORES']);
     if (lista.length) escrever.push(['ZADD', chave, ...pares(lista).flatMap(([membro, nota]) => [nota, membro])]);
   } else {
-    throw new Error(`O Valkey recusou o DUMP e não há cópia por tipo para chaves do tipo ${tipo}`);
+    throw new Error(`Valkey rejected the DUMP and there is no type-by-type copy for keys of type ${tipo}`);
   }
   if (!escrever.length) return;
   await cmd(destino, ['DEL', chave]);
@@ -215,7 +215,7 @@ export async function migrarCacheDetalhado(opcoes: { padrao?: string } = {}): Pr
   let origem: Cliente | undefined;
   let destino: Cliente | undefined;
   try {
-    origem = await ligar(cfg.origemUrl, 'Redis de origem (ElastiCache)');
+    origem = await ligar(cfg.origemUrl, 'Source Redis (ElastiCache)');
     destino = await ligar(cfg.valkeyUrl, 'Valkey');
 
     const chaves = await listarChaves(origem, padrao);

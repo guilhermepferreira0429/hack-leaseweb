@@ -49,16 +49,16 @@ describe('exemplo-app: cache (configuração)', () => {
   });
 
   it('erros claros', () => {
-    assert.throws(() => lerCache({ CACHE_TIPO: 'valkey' }), { message: 'VALKEY_URL não está definida no .env' });
+    assert.throws(() => lerCache({ CACHE_TIPO: 'valkey' }), { message: 'VALKEY_URL is not set in .env' });
     assert.throws(() => lerCache({ REDIS_ORIGEM_URL: 'redis://:<senha>@127.0.0.1:6380' }), {
-      message: 'REDIS_ORIGEM_URL não está definida no .env',
+      message: 'REDIS_ORIGEM_URL is not set in .env',
     });
-    assert.throws(() => lerCache({ CACHE_TIPO: 'memcached' }), /CACHE_TIPO desconhecido/);
+    assert.throws(() => lerCache({ CACHE_TIPO: 'memcached' }), /Unknown CACHE_TIPO/);
   });
 
   it('servidor em baixo: diz qual e onde, sem a senha', async () => {
     await assert.rejects(criarCache({ CACHE_TIPO: 'valkey', VALKEY_URL: 'redis://:segredo@127.0.0.1:1' }), {
-      message: 'Valkey não responde em 127.0.0.1:1',
+      message: 'Valkey is not responding at 127.0.0.1:1',
     });
   });
 });

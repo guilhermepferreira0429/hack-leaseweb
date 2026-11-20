@@ -34,10 +34,10 @@ export function lerCache(env: NodeJS.ProcessEnv = process.env): { tipo: TipoCach
     return valor && !valor.includes('<senha>') ? valor : undefined;
   };
   const tipo = (v('CACHE_TIPO') ?? 'redis').toLowerCase();
-  if (tipo !== 'redis' && tipo !== 'valkey') throw new Error(`CACHE_TIPO desconhecido: ${tipo} (usar redis ou valkey)`);
+  if (tipo !== 'redis' && tipo !== 'valkey') throw new Error(`Unknown CACHE_TIPO: ${tipo} (use redis or valkey)`);
   const variavel = tipo === 'valkey' ? 'VALKEY_URL' : 'REDIS_ORIGEM_URL';
   const url = v(variavel);
-  if (!url) throw new Error(`${variavel} não está definida no .env`);
+  if (!url) throw new Error(`${variavel} is not set in .env`);
   return { tipo, url };
 }
 
@@ -58,8 +58,8 @@ export async function criarCache(env: NodeJS.ProcessEnv = process.env): Promise<
       // nunca chegou a ligar
     }
     const texto = String(erro instanceof Error ? erro.message : erro);
-    const porque = /WRONGPASS|NOAUTH|invalid password/i.test(texto) ? 'recusou as credenciais' : 'não responde';
-    throw new Error(`${nome} ${porque} em ${hostDe(url)}`);
+    const porque = /WRONGPASS|NOAUTH|invalid password/i.test(texto) ? 'rejected the credentials' : 'is not responding';
+    throw new Error(`${nome} ${porque} at ${hostDe(url)}`);
   }
   return {
     descricao,

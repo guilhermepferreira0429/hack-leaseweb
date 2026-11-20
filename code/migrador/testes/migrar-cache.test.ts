@@ -136,23 +136,23 @@ describe('migrador: migrarCache (erros claros)', () => {
 
   it('sem REDIS_ORIGEM_URL', () =>
     comEnv({ REDIS_ORIGEM_URL: '', VALKEY_URL: 'redis://127.0.0.1:6381' }, () =>
-      assert.rejects(migrarCacheDetalhado(), { message: 'REDIS_ORIGEM_URL não está definida no .env' }),
+      assert.rejects(migrarCacheDetalhado(), { message: 'REDIS_ORIGEM_URL is not set in .env' }),
     ));
 
   it('VALKEY_URL com o marcador <senha> conta como não definida', () =>
     comEnv({ REDIS_ORIGEM_URL: 'redis://127.0.0.1:6380', VALKEY_URL: 'redis://:<senha>@127.0.0.1:6381' }, () =>
-      assert.rejects(migrarCacheDetalhado(), { message: 'VALKEY_URL não está definida no .env' }),
+      assert.rejects(migrarCacheDetalhado(), { message: 'VALKEY_URL is not set in .env' }),
     ));
 
   it('origem e destino no mesmo servidor', () =>
     comEnv({ REDIS_ORIGEM_URL: 'redis://127.0.0.1:6381', VALKEY_URL: 'redis://:x@127.0.0.1:6381/0' }, () =>
-      assert.rejects(migrarCacheDetalhado(), /apontam para o mesmo servidor \(127\.0\.0\.1:6381\)/),
+      assert.rejects(migrarCacheDetalhado(), /point to the same server \(127\.0\.0\.1:6381\)/),
     ));
 
   it('servidor em baixo: diz qual e onde, sem a senha', () =>
     comEnv({ REDIS_ORIGEM_URL: 'redis://:segredo@127.0.0.1:1', VALKEY_URL: 'redis://127.0.0.1:2' }, () =>
       assert.rejects(migrarCacheDetalhado(), (erro: Error) => {
-        assert.equal(erro.message, 'Redis de origem (ElastiCache) não responde em 127.0.0.1:1');
+        assert.equal(erro.message, 'Source Redis (ElastiCache) is not responding at 127.0.0.1:1');
         return true;
       }),
     ));
