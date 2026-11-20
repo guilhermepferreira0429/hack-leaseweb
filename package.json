@@ -27,7 +27,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "tsx --test \"code/**/*.test.ts\"",
     "infra:up": "docker compose -f env/docker-compose.yml --env-file .env up -d",
-    "infra:down": "docker compose -f env/docker-compose.yml --env-file .env down"
+    "infra:down": "docker compose -f env/docker-compose.yml --env-file .env down",
+    "lsw:diagnostico": "tsx code/defesa/diagnostico.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -10,22 +10,144 @@
 // mas o revoke pede ids. Confirmar com curl às 09:30.
 // Nunca usar attachSecurityGroups/detachSecurityGroups: trocar o grupo substitui as regras todas.
 import type { Regra } from './tipos';
-import { naoImplementado } from './stub';
+import { carregarEnv } from './config';
 
-export function listarSecurityGroups(): Promise<{ id: string; nome: string }[]> {
-  return naoImplementado('listarSecurityGroups');
+/** Ajustável nos testes (fetch falso, esperas curtas). Por defeito lê LSW_API_BASE e LSW_API_KEY do ambiente. */
+export const opcoes = {
+  fetch: (...args: Parameters<typeof fetch>) => fetch(...args),
+  intervaloMs: 2_000,
+  limiteMs: 90_000,
+  pedidoTimeoutMs: 15_000,
+};
+
+function base(): string {
+  carregarEnv();
+  return (process.env.LSW_API_BASE || 'https://api.leaseweb.com/publicCloud/v1').replace(/\/+$/, '');
 }
 
-export function listarRegras(sg: string): Promise<Regra[]> {
-  return naoImplementado('listarRegras');
+function chave(): string {
+  carregarEnv();
+  const k = process.env.LSW_API_KEY;
+  if (!k) throw new Error('LSW_API_KEY em falta no .env');
+  return k;
+}
+
+export class ErroLeaseweb extends Error {
+  constructor(
+    message: string,
+    readonly estado?: number,
+  ) {
+    super(message);
+    this.name = 'ErroLeaseweb';
+  }
+}
+
+async function pedido<T>(metodo: 'GET' | 'POST', caminho: string, corpo?: unknown): Promise<T> {
+  const res = await opcoes.fetch(`${base()}${caminho}`, {
+    method: metodo,
+    headers: {
+      'X-LSW-Auth': chave(),
+      Accept: 'application/json',
+      ...(corpo === undefined ? {} : { 'Content-Type': 'application/json' }),
+    },
+    body: corpo === undefined ? undefined : JSON.stringify(corpo),
+    signal: AbortSignal.timeout(opcoes.pedidoTimeoutMs),
+  });
+  const texto = await res.text();
+  if (!res.ok) {
+    // Nunca incluir a chave na mensagem; o corpo da API é curto e útil para depurar.
+    throw new ErroLeaseweb(`${metodo} ${caminho} -> ${res.status} ${texto.slice(0, 300)}`, res.status);
+  }
+  return (texto ? JSON.parse(texto) : undefined) as T;
+}
+
+type RegraApi = {
+  id?: string;
+  protocol?: string;
+  source?: string;
+  startPort?: number | null;
+  endPort?: number | null;
+  state?: string;
+};
+
+/** Converte a regra da API para o nosso tipo. Sem id não dá para fazer revoke: falha alto. */
+export function normalizarRegra(r: RegraApi): Regra & { estado?: string } {
+  if (!r.id) throw new ErroLeaseweb('A API devolveu uma regra sem id: o revoke precisa dele (ver docs/leaseweb-api.md)');
+  return {
+    id: r.id,
+    protocol: String(r.protocol ?? '').toUpperCase(),
+    source: String(r.source ?? ''),
+    startPort: Number(r.startPort ?? 0),
+    endPort: Number(r.endPort ?? r.startPort ?? 0),
+    ...(r.state ? { estado: r.state } : {}),
+  };
+}
+
+const esperar = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+
+async function esperarAte<T>(descricao: string, tentar: () => Promise<T | undefined>): Promise<T> {
+  const fim = Date.now() + opcoes.limiteMs;
+  for (;;) {
+    const r = await tentar();
+    if (r !== undefined) return r;
+    if (Date.now() >= fim) throw new ErroLeaseweb(`Tempo esgotado à espera de: ${descricao}`);
+    await esperar(opcoes.intervaloMs);
+  }
+}
+
+export async function listarSecurityGroups(): Promise<{ id: string; nome: string }[]> {
+  const grupos: { id: string; nome: string }[] = [];
+  const limite = 50;
+  for (let offset = 0; ; offset += limite) {
+    const r = await pedido<{ securityGroups?: { id: string; name?: string }[]; _metadata?: { totalCount?: number } }>(
+      'GET',
+      `/securityGroups?limit=${limite}&offset=${offset}`,
+    );
+    const pagina = r?.securityGroups ?? [];
+    grupos.push(...pagina.map((g) => ({ id: g.id, nome: g.name ?? g.id })));
+    const total = r?._metadata?.totalCount ?? grupos.length;
+    if (pagina.length < limite || grupos.length >= total) return grupos;
+  }
+}
+
+/** Regras com o estado da API (ACTIVE, CREATING, DELETING...). Uso interno e para verificar. */
+export async function listarRegrasComEstado(sg: string): Promise<(Regra & { estado?: string })[]> {
+  const r = await pedido<{ firewallRules?: RegraApi[] }>('GET', `/securityGroups/${encodeURIComponent(sg)}/firewallRules`);
+  return (r?.firewallRules ?? []).map(normalizarRegra);
+}
+
+export async function listarRegras(sg: string): Promise<Regra[]> {
+  return (await listarRegrasComEstado(sg)).map(({ estado: _e, ...regra }) => regra);
 }
 
 /** Lê, remove só esta regra (revoke, 202) e volta a ler até ela desaparecer. Devolve a regra como estava. */
-export function removerRegra(sg: string, regraId: string): Promise<{ antes: Regra }> {
-  return naoImplementado('removerRegra');
+export async function removerRegra(sg: string, regraId: string): Promise<{ antes: Regra }> {
+  const atual = (await listarRegras(sg)).find((r) => r.id === regraId);
+  if (!atual) throw new ErroLeaseweb(`Regra ${regraId} não existe no security group ${sg}`);
+  await pedido('POST', `/securityGroups/${encodeURIComponent(sg)}/revokeFirewallRules`, { rules: [regraId] });
+  await esperarAte(`regra ${regraId} removida`, async () =>
+    (await listarRegras(sg)).some((r) => r.id === regraId) ? undefined : true,
+  );
+  return { antes: atual };
 }
 
-/** O inverso de removerRegra (authorize). Devolve a regra criada, com o novo id. */
-export function criarRegra(sg: string, regra: Omit<Regra, 'id'>): Promise<Regra> {
-  return naoImplementado('criarRegra');
+const mesmaRegra = (a: Omit<Regra, 'id'>, b: Omit<Regra, 'id'>) =>
+  a.protocol.toUpperCase() === b.protocol.toUpperCase() &&
+  a.source === b.source &&
+  a.startPort === b.startPort &&
+  a.endPort === b.endPort;
+
+/** O inverso de removerRegra (authorize). Devolve a regra criada, com o novo id, já ACTIVE. */
+export async function criarRegra(sg: string, regra: Omit<Regra, 'id'>): Promise<Regra> {
+  const idsAntes = new Set((await listarRegras(sg)).map((r) => r.id));
+  await pedido('POST', `/securityGroups/${encodeURIComponent(sg)}/authorizeFirewallRules`, {
+    rules: [{ protocol: regra.protocol.toUpperCase(), startPort: regra.startPort, endPort: regra.endPort, source: regra.source }],
+  });
+  return esperarAte('regra criada e ACTIVE', async () => {
+    const nova = (await listarRegrasComEstado(sg)).find((r) => !idsAntes.has(r.id) && mesmaRegra(r, regra));
+    if (nova?.estado === 'FAILED') throw new ErroLeaseweb(`A Leaseweb falhou a criar a regra ${nova.id}`);
+    if (!nova || (nova.estado && nova.estado !== 'ACTIVE')) return undefined;
+    const { estado: _e, ...semEstado } = nova;
+    return semEstado;
+  });
 }
