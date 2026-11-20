@@ -345,3 +345,23 @@ describe('fecho confirmado de fora (medido a 20/11: firewall ~3 s, API ~39 s)', 
     await assert.rejects(leaseweb.removerRegra(SG, 'r-pg'), /Tempo esgotado/);
   });
 });
+
+describe('rede instável (fetch failed visto a 20/11)', () => {
+  it('GET repete; POST só repete se a ligação nem abriu', async () => {
+    let n = 0;
+    leaseweb.opcoes.fetch = async () => {
+      if (n++ === 0) throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } });
+      return new Response(JSON.stringify({ firewallRules: [] }));
+    };
+    assert.deepEqual(await leaseweb.listarRegras(SG), []);
+    n = 0;
+    await assert.rejects(leaseweb.pedido('POST', `/securityGroups/${SG}/revokeFirewallRules`, { rules: ['x'] }), /erro de rede \(ECONNRESET\)/);
+    n = 0;
+    leaseweb.opcoes.fetch = async () => {
+      if (n++ === 0) throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } });
+      return new Response('', { status: 202 });
+    };
+    await leaseweb.pedido('POST', `/securityGroups/${SG}/revokeFirewallRules`, { rules: ['x'] });
+    assert.equal(n, 2);
+  });
+});
