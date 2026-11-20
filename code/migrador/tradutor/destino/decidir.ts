@@ -22,7 +22,7 @@ export type EntradaServico = {
   nome?: string;
   /** Tamanho dos dados em GB (para o Valkey, os dados em RAM). */
   dadosGb?: number;
-  /** Por omissão: base de dados = alta; o resto = média. */
+  /** Por omissão: base de dados e cofre de segredos = alta; o resto = média. */
   criticidade?: Criticidade;
   /** Por omissão: base de dados = sim; o resto = não. */
   dadosPessoais?: boolean;
@@ -173,7 +173,7 @@ export function decidirDestino(entrada: EntradaDecisor): Decisao[] {
 
   return entrada.servicos.map((e) => {
     const r = RECURSOS[e.servico];
-    const criticidade = e.criticidade ?? (r.baseDeDados ? 'alta' : 'media');
+    const criticidade = e.criticidade ?? (r.baseDeDados || r.criticoPorOmissao ? 'alta' : 'media');
     const dadosPessoais = e.dadosPessoais ?? r.baseDeDados;
     const precisaHA = e.altaDisponibilidade ?? criticidade === 'alta';
     const precisa = necessidade(e.servico, e.dadosGb ?? 0);
@@ -252,14 +252,21 @@ const DO_TRADUTOR: Record<string, ServicoDestino> = {
   'RDS PostgreSQL': 'postgres',
   'Aurora PostgreSQL': 'postgres',
   'RDS MySQL': 'mysql',
-  'ElastiCache Redis': 'redis',
+  'ElastiCache Redis': 'cache',
   'Secrets Manager': 'segredos',
+  'SSM Parameter Store': 'segredos',
+  DynamoDB: 'dynamodb',
   SNS: 'nats',
 };
 
+/** Um serviço de destino por tipo (ex.: um só OpenBao para todos os segredos), com os nomes juntos. */
 export function servicosDoPlano(plano: PlanoTraducao): EntradaServico[] {
-  return plano.substituir.flatMap((s) => {
+  const porServico = new Map<ServicoDestino, string[]>();
+  for (const s of plano.substituir) {
     const servico = DO_TRADUTOR[s.servicoAws];
-    return servico ? [{ servico, nome: s.origem.split('.').slice(1).join('.') }] : [];
-  });
+    if (!servico) continue;
+    const nome = s.origem.split('.').slice(1).join('.');
+    porServico.set(servico, [...new Set([...(porServico.get(servico) ?? []), nome])]);
+  }
+  return [...porServico].map(([servico, nomes]) => ({ servico, nome: nomes.join(', ') }));
 }

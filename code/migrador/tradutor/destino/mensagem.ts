@@ -38,13 +38,17 @@ export function mensagemDestino(decisoes: Decisao[], vm: CapacidadeVm): string {
   }
   if (decisoes.length > 0 && decisoes.every((d) => d.numeroRegra === 0)) partes.push(REGRA_TUDO_SELF);
 
-  for (const d of decisoes.filter((x) => x.destino === 'gerido')) {
+  // Uma frase por serviço gerido; o porquê aparece uma vez por regra diferente, no fim.
+  const geridos = decisoes.filter((x) => x.destino === 'gerido');
+  for (const d of geridos) {
     const proposta =
       d.fornecedor === 'por escolher'
         ? 'não há gerido europeu na tabela; decide à mão'
         : `proponho ${d.fornecedor} ${d.plano}, ${textoPreco(d)}`;
-    partes.push(`${sujeito(d)}: ${proposta}. Porquê: ${d.regra}`);
+    partes.push(`${sujeito(d)}: ${proposta}.`);
   }
+  const regras = [...new Set(geridos.map((d) => d.regra))];
+  if (regras.length > 0) partes.push(`Porquê: ${regras.join(' ')}`);
   const comAvisos = decisoes.filter((d) => d.numeroRegra === 0 && d.avisos.some((a) => a.startsWith('Não cabe')));
   if (comAvisos.length > 0) partes.push(`Atenção: ${juntar(comAvisos.map((d) => `o ${d.alternativa}`))} não cabe na VM com a margem de 25%.`);
   return partes.join(' ');

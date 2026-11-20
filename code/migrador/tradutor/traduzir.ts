@@ -163,6 +163,23 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
         porque: 'Segredo escrito no Terraform. Não se copia; cria-se um novo no destino, guardado fora do código.',
       });
     }
+    // SSM Parameter Store: o valor está em `value` (ou `insecure_value`); SecureString ou nome sensível = segredo.
+    if (tipo === 'aws_ssm_parameter') {
+      const atributo = typeof corpo.value === 'string' ? 'value' : 'insecure_value';
+      const valor = corpo[atributo];
+      const nomeParametro = texto(corpo.name) ?? nome;
+      if (typeof valor === 'string' && eLiteral(valor) && (corpo.type === 'SecureString' || nomeSensivel(nomeParametro))) {
+        valoresSecretos.push(valor);
+        plano.recusar.push({
+          tipo: 'segredo',
+          origem,
+          onde: 'atributo',
+          nome: nomeParametro,
+          linha: linhaNoFicheiro(fonte, ['resource', tipo, nome, atributo]),
+          porque: 'Valor secreto escrito no Terraform. Não se copia; cria-se um novo no OpenBao do destino.',
+        });
+      }
+    }
     const tags = corpo.tags;
     if (typeof tags === 'object' && tags !== null) {
       for (const s of segredosNasTags(tags as Bloco)) {

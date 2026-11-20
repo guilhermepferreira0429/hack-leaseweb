@@ -253,6 +253,10 @@ describe('tradutor: substituir e sinalizar', () => {
         ['aws_s3_bucket.ficheiros', 'S3', 'MinIO', 'A'],
         ['aws_sqs_queue.encomendas', 'SQS', 'RabbitMQ', 'B'],
         ['aws_db_instance.encomendas', 'RDS PostgreSQL', 'PostgreSQL', 'B'],
+        ['aws_secretsmanager_secret.db', 'Secrets Manager', 'OpenBao', 'B'],
+        ['aws_ssm_parameter.api_token', 'SSM Parameter Store', 'OpenBao', 'B'],
+        ['aws_elasticache_replication_group.sessoes', 'ElastiCache Redis', 'Valkey', 'B'],
+        ['aws_dynamodb_table.carrinhos', 'DynamoDB', 'ScyllaDB', 'C'],
       ],
     );
     assert.ok(p.substituir.every((s) => s.comoSeMove.length > 20));
@@ -320,12 +324,14 @@ describe('tradutor: substituir e sinalizar', () => {
 });
 
 describe('tradutor: segredos (o valor nunca aparece)', () => {
-  it('exemplo: segredos do user_data sinalizados por nome e linha', () => {
+  it('exemplo: segredos do user_data e do SSM sinalizados por nome e linha', () => {
+    const linhaValorSsm = EXEMPLO.split('\n').findIndex((l) => l.includes('"/encomendas/api_token"')) + 1;
     assert.deepEqual(
       segredos(exemplo()).map((s) => [s.onde, s.nome, s.linha]),
       [
         ['user_data', 'AWS_ACCESS_KEY_ID', 4],
         ['user_data', 'AWS_SECRET_ACCESS_KEY', 5],
+        ['atributo', '/encomendas/api_token', linhaValorSsm],
       ],
     );
   });
@@ -334,7 +340,9 @@ describe('tradutor: segredos (o valor nunca aparece)', () => {
     // Os valores tiram-se do ficheiro por uma regex própria do teste, independente do tradutor.
     const userData = (JSON.parse(EXEMPLO) as { resource: { aws_instance: { web: { user_data: string } } } }).resource.aws_instance.web.user_data;
     const valores = [...userData.matchAll(/^export [A-Z_]+=(\S+)$/gm)].map((m) => m[1]!);
-    assert.equal(valores.length, 2);
+    const ssm = (JSON.parse(EXEMPLO) as { resource: { aws_ssm_parameter: { api_token: { value: string } } } }).resource.aws_ssm_parameter.api_token.value;
+    valores.push(ssm);
+    assert.equal(valores.length, 3);
     for (const adminIp of [ADMIN, '']) {
       const p = traduzir(EXEMPLO, { adminIp });
       for (const v of valores) {
@@ -424,7 +432,45 @@ describe('tradutor: segredos (o valor nunca aparece)', () => {
   });
 
   it('referências (${var.x}) não são segredos', () => {
-    assert.ok(!exemplo().recusar.some((r) => r.tipo === 'segredo' && r.onde === 'atributo'));
+    const origens = segredos(exemplo()).map((s) => s.origem);
+    assert.ok(!origens.includes('aws_db_instance.encomendas'));
+    assert.ok(!origens.includes('aws_secretsmanager_secret_version.db'));
+  });
+
+  it('SSM: SecureString ou nome sensível = segredo por nome; parâmetro normal não; valor nunca no plano', () => {
+    const v = () => `Fict${randomUUID()}`;
+    const a = v();
+    const b = v();
+    const c = v();
+    const p = traduzir(
+      tfCom({
+        recursos: {
+          aws_ssm_parameter: {
+            seguro: { name: '/app/chave', type: 'SecureString', value: a },
+            porNome: { name: '/app/db_password', type: 'String', insecure_value: b },
+            normal: { name: '/app/regiao', type: 'String', value: 'eu-west-1' },
+            porVariavel: { name: '/app/token', type: 'SecureString', value: '${var.token}' },
+            aberto: { name: '/app/api_key', type: 'String', value: c },
+          },
+        },
+      }),
+      { adminIp: ADMIN },
+    );
+    assert.deepEqual(segredos(p).map((s) => s.nome), ['/app/chave', '/app/db_password', '/app/api_key']);
+    assert.equal(p.substituir.filter((s) => s.alternativa.startsWith('OpenBao')).length, 5);
+    for (const valor of [a, b, c]) {
+      semValor(JSON.stringify(p), valor, 'plano');
+      semValor(resumoPlano(p), valor, 'resumo');
+    }
+  });
+
+  it('DynamoDB -> ScyllaDB Alternator, nível C e "só plano" no resumo', () => {
+    const p = exemplo();
+    const d = p.substituir.find((s) => s.origem === 'aws_dynamodb_table.carrinhos')!;
+    assert.equal(d.nivel, 'C');
+    assert.match(d.comoSeMove, /^Só no plano hoje/);
+    assert.ok(!p.sinalizar.some((s) => s.origem === 'aws_dynamodb_table.carrinhos'));
+    assert.match(resumoPlano(p), /DynamoDB → ScyllaDB \(só plano\)/);
   });
 
   it('última barreira: se um valor secreto fosse parar ao plano, não há plano e o erro não leva o valor', () => {
@@ -452,7 +498,15 @@ describe('tradutor: determinismo e resumo', () => {
   it('a mesma entrada dá sempre o mesmo plano e o mesmo resumo', () => {
     assert.deepEqual(exemplo(), exemplo());
     assert.equal(resumoPlano(exemplo()), resumoPlano(exemplo()));
-    assert.deepEqual(traduzir(EXEMPLO, { adminIp: ADMIN }), traduzir(JSON.parse(EXEMPLO) as TerraformJson, { adminIp: ADMIN }));
+    // Em texto ou em objeto dá o mesmo plano; só em texto se sabe a linha do ficheiro dos segredos em atributos.
+    const semLinhaFicheiro = (p: PlanoTraducao) => ({
+      ...p,
+      recusar: p.recusar.map((r) => (r.tipo === 'segredo' && r.onde !== 'user_data' ? { ...r, linha: undefined } : r)),
+    });
+    assert.deepEqual(
+      semLinhaFicheiro(traduzir(EXEMPLO, { adminIp: ADMIN })),
+      semLinhaFicheiro(traduzir(JSON.parse(EXEMPLO) as TerraformJson, { adminIp: ADMIN })),
+    );
   });
 
   it('resumo: curto (<= 600), com "move-se hoje", "recusei copiar" e "precisa de redesenho"', () => {
@@ -460,14 +514,14 @@ describe('tradutor: determinismo e resumo', () => {
       const r = resumoPlano(exemplo(adminIp));
       assert.ok(r.length <= 600, `resumo com ${r.length} caracteres`);
       assert.match(r, /Move-se hoje: servidor m5\.large \(Irlanda\) → lsw\.m5\.large em Amesterdão, Ubuntu 22\.04/);
-      assert.match(r, /portas abertas a todos: 80, 443/);
-      assert.match(r, /S3 → MinIO, SQS → RabbitMQ, RDS PostgreSQL → PostgreSQL/);
-      assert.match(r, /Recusei copiar: PostgreSQL \(5432\) aberto a toda a Internet/);
-      assert.match(r, /2 segredos no script de arranque \(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY\)/);
+      assert.match(r, /abertas a todos: 80, 443/);
+      assert.match(r, /S3 → MinIO, SQS → RabbitMQ, RDS → PostgreSQL, Secrets Manager e SSM → OpenBao, ElastiCache → Valkey, DynamoDB → ScyllaDB \(só plano\)/);
+      assert.match(r, /Recusei copiar: PostgreSQL \(5432\) aberto a todos: fechado/);
+      assert.match(r, /3 segredos não copiados: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY \(arranque\); \/encomendas\/api_token \(Terraform\)/);
       assert.match(r, /Precisa de redesenho: IAM deploy, Lambda miniaturas/);
       assert.doesNotMatch(r, new RegExp(ADMIN.replaceAll('.', '\\.')));
     }
     assert.match(resumoPlano(exemplo()), /SSH \(22\) só para o teu IP/);
-    assert.match(resumoPlano(exemplo('')), /SSH \(22\) fica fechado até pores o ADMIN_IP/);
+    assert.match(resumoPlano(exemplo('')), /SSH \(22\) fechado sem ADMIN_IP no \.env/);
   });
 });

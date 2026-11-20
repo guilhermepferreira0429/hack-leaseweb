@@ -1,5 +1,5 @@
 {
-  "//": "Conta AWS simulada para a demo do tradutor. As chaves no user_data são falsas: o id é o de EXEMPLO da documentação da AWS e a chave secreta é fictícia. Não dão acesso a nada.",
+  "//": "Conta AWS simulada para a demo do tradutor. Os segredos são falsos: o id de chave no user_data é o de EXEMPLO da documentação da AWS; a chave secreta e o token do SSM são fictícios. Não dão acesso a nada.",
   "terraform": {
     "required_providers": {
       "aws": { "source": "hashicorp/aws" }
@@ -66,6 +66,26 @@
         "username": "app",
         "password": "${var.db_password}",
         "skip_final_snapshot": true
+      }
+    },
+    "aws_secretsmanager_secret": {
+      "db": { "name": "encomendas/db" }
+    },
+    "aws_secretsmanager_secret_version": {
+      "db": { "secret_id": "${aws_secretsmanager_secret.db.id}", "secret_string": "${var.db_password}" }
+    },
+    "aws_ssm_parameter": {
+      "api_token": { "name": "/encomendas/api_token", "type": "SecureString", "value": "FICTICIO-token-de-demo-0000" }
+    },
+    "aws_elasticache_replication_group": {
+      "sessoes": { "description": "Sessões da app", "engine": "redis", "node_type": "cache.t3.micro", "num_cache_clusters": 1 }
+    },
+    "aws_dynamodb_table": {
+      "carrinhos": {
+        "name": "carrinhos",
+        "billing_mode": "PAY_PER_REQUEST",
+        "hash_key": "id",
+        "attribute": [{ "name": "id", "type": "S" }]
       }
     },
     "aws_iam_user": {

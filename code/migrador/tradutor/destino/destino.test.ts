@@ -29,7 +29,7 @@ describe('decisor de destino: as 4 regras, pela ordem', () => {
   });
 
   it('regra 3: dados pessoais sem backups -> gerido; com backups -> self-hosted (regra 4)', () => {
-    const servicos = [{ servico: 'redis' as const, dadosGb: 1, dadosPessoais: true }];
+    const servicos = [{ servico: 'cache' as const, dadosGb: 1, dadosPessoais: true }];
     const [sem] = decidir({ servicos, temBackups: false });
     assert.deepEqual([sem!.numeroRegra, sem!.destino, sem!.fornecedor], [3, 'gerido', 'Scaleway']);
     assert.equal(sem!.precoMes, 35.04); // RED1-MICRO € 0,048/h × 730 h
@@ -179,6 +179,34 @@ describe('decisor de destino: tudo self-hosted', () => {
   });
 });
 
+describe('decisor de destino: serviços novos (OpenBao, Valkey, ScyllaDB)', () => {
+  it('OpenBao: crítico por omissão -> gerido (Scaleway Secret Manager, preço a confirmar); 256 MB se o dono baixar a criticidade', () => {
+    const [d] = decidir({ servicos: [{ servico: 'segredos', nome: 'db, api_token' }] });
+    assert.deepEqual([d!.criticidade, d!.numeroRegra, d!.fornecedor, d!.precoAConfirmar], ['alta', 1, 'Scaleway', true]);
+    const [self] = decidir({ servicos: [{ servico: 'segredos', criticidade: 'media' }] });
+    assert.deepEqual([self!.destino, self!.precisa.ramGb], ['self-hosted', 0.25]);
+  });
+
+  it('Valkey: RAM = dados em RAM × 1,5, com a margem de 25%', () => {
+    const cache = [{ servico: 'cache' as const, dadosGb: 2 }]; // precisa de 3 GB
+    assert.equal(decidir({ servicos: cache, vm: { ramLivreGb: 4, vcpuLivres: 2, discoLivreGb: 10 } })[0]!.destino, 'self-hosted');
+    const naoCabe = decidir({ servicos: cache, vm: { ramLivreGb: 3.9, vcpuLivres: 2, discoLivreGb: 10 } })[0]!;
+    assert.deepEqual([naoCabe.numeroRegra, naoCabe.fornecedor, naoCabe.plano, naoCabe.precoMes], [2, 'Scaleway', 'RED1-MICRO (2 vCPU, 2 GB)', 35.04]);
+  });
+
+  it('ScyllaDB: 2 GB de RAM e disco = dados × 2', () => {
+    const [d] = decidir({ servicos: [{ servico: 'dynamodb', dadosGb: 3, criticidade: 'media', dadosPessoais: false }] });
+    assert.deepEqual([d!.destino, d!.precisa], ['self-hosted', { ramGb: 2, discoGb: 6 }]);
+  });
+
+  it('mensagem: um porquê por regra diferente, no fim', () => {
+    const vm: CapacidadeVm = { ramLivreGb: 8, vcpuLivres: 2, discoLivreGb: 100 };
+    const m = mensagemDestino(decidir({ servicos: [{ servico: 'postgres', nome: 'encomendas', dadosGb: 5 }, { servico: 'segredos', nome: 'db' }], vm }), vm);
+    assert.equal(m.match(/Porquê:/g)!.length, 1);
+    assert.match(m, /O Secrets Manager \(db\): proponho Scaleway Secret Manager, preço a confirmar\. Porquê: /);
+  });
+});
+
 describe('decisor de destino: ligação ao tradutor e mensagem', () => {
   it('servicosDoPlano lê o substituir do tradutor', () => {
     const plano = traduzir(readFileSync(new URL('../exemplo/main.tf.json', import.meta.url), 'utf8'), { adminIp: '' });
@@ -186,6 +214,9 @@ describe('decisor de destino: ligação ao tradutor e mensagem', () => {
       { servico: 's3', nome: 'ficheiros' },
       { servico: 'fila', nome: 'encomendas' },
       { servico: 'postgres', nome: 'encomendas' },
+      { servico: 'segredos', nome: 'db, api_token' }, // Secrets Manager e SSM: um só OpenBao
+      { servico: 'cache', nome: 'sessoes' },
+      { servico: 'dynamodb', nome: 'carrinhos' },
     ]);
   });
 

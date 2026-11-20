@@ -1,12 +1,12 @@
 // Tabelas do decisor de destino, copiadas de docs/decisor-destino.md (preços vistos a 20/11/2026, sem IVA).
 // Nada aqui é inventado: o que o documento não diz fica 'desconhecido' ou 'a confirmar'.
 
-/** Serviços que o decisor conhece. 's3' | 'postgres' | 'fila' são os mesmos nomes de migrador/analisar.ts. */
+/** Serviços que o decisor conhece. 's3' | 'postgres' | 'fila' | 'segredos' | 'cache' são os mesmos nomes do migrador (analisar.ts). */
 export type ServicoDestino =
   | 's3'
   | 'postgres'
   | 'mysql'
-  | 'redis'
+  | 'cache'
   | 'dynamodb'
   | 'documentdb'
   | 'nats'
@@ -31,6 +31,8 @@ export type Recursos = {
   ramGb: number | { dadosVezes: number };
   disco: Disco;
   baseDeDados: boolean;
+  /** Crítico por omissão mesmo sem ser base de dados (ex.: o cofre de segredos). */
+  criticoPorOmissao?: boolean;
   nota?: string;
 };
 
@@ -46,7 +48,7 @@ export const RECURSOS: Record<ServicoDestino, Recursos> = {
     nota: '2 GB de RAM recomendados; backups por nossa conta.',
   },
   mysql: { servicoAws: 'RDS MySQL', alternativa: 'MariaDB', ramGb: 1, disco: { tipo: 'fator', fator: 1.5 }, baseDeDados: true },
-  redis: { servicoAws: 'ElastiCache', alternativa: 'Valkey', ramGb: { dadosVezes: 1.5 }, disco: { tipo: 'baixo' }, baseDeDados: false },
+  cache: { servicoAws: 'ElastiCache', alternativa: 'Valkey', ramGb: { dadosVezes: 1.5 }, disco: { tipo: 'baixo' }, baseDeDados: false },
   dynamodb: {
     servicoAws: 'DynamoDB',
     alternativa: 'ScyllaDB (Alternator)',
@@ -72,6 +74,7 @@ export const RECURSOS: Record<ServicoDestino, Recursos> = {
     ramGb: 0.25,
     disco: { tipo: 'baixo' },
     baseDeDados: false,
+    criticoPorOmissao: true,
     nota: 'Crítico: perder isto é perder tudo.',
   },
   ecr: { servicoAws: 'ECR', alternativa: 'Harbor', ramGb: 2, disco: { tipo: 'fator', fator: 1.2 }, baseDeDados: false },
@@ -159,7 +162,7 @@ export const GERIDO_LEASEWEB: Partial<Record<ServicoDestino, OpcaoGerida>> = {
 };
 
 /** Bases de dados geridas da Leaseweb: "não encontrámos na Public Cloud; confirmar no dia". */
-export const LEASEWEB_POR_CONFIRMAR = new Set<ServicoDestino>(['postgres', 'mysql', 'redis', 'documentdb', 'dynamodb']);
+export const LEASEWEB_POR_CONFIRMAR = new Set<ServicoDestino>(['postgres', 'mysql', 'cache', 'documentdb', 'dynamodb']);
 
 const scaleway = (o: Omit<OpcaoGerida, 'fornecedor' | 'pais' | 'ue' | 'vistoEm' | 'altaDisponibilidade'> & Partial<OpcaoGerida>): OpcaoGerida => ({
   fornecedor: 'Scaleway',
@@ -203,7 +206,7 @@ export const GERIDO_EUROPEU: Partial<Record<ServicoDestino, OpcaoGerida[]>> = {
     },
   ],
   mysql: [DB_DEV_S],
-  redis: [
+  cache: [
     scaleway({
       plano: 'RED1-MICRO (2 vCPU, 2 GB)',
       preco: { tipo: 'hora', valor: 0.048, moeda: 'EUR' },

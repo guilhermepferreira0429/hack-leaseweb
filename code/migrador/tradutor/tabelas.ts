@@ -149,6 +149,22 @@ export const SUBSTITUICOES: Record<
       nivel: 'B',
     },
   ],
+  aws_ssm_parameter: [
+    {
+      servicoAws: 'SSM Parameter Store',
+      alternativa: 'OpenBao numa instância Leaseweb',
+      comoSeMove: 'Parâmetros copiados de cofre para cofre (o mesmo OpenBao dos segredos), sem aparecerem em texto no log.',
+      nivel: 'B',
+    },
+  ],
+  aws_dynamodb_table: [
+    {
+      servicoAws: 'DynamoDB',
+      alternativa: 'ScyllaDB Alternator numa instância Leaseweb',
+      comoSeMove: 'Só no plano hoje. API compatível com DynamoDB: a app muda o endpoint; itens copiados e confirmados por contagem e amostragem.',
+      nivel: 'C',
+    },
+  ],
   aws_sns_topic: [
     {
       servicoAws: 'SNS',
