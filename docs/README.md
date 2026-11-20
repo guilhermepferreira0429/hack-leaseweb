@@ -4,6 +4,8 @@
 
 Ordem de leitura:
 
+0. `install.md`: instalar tudo de raiz (cérebro, vítima na Leaseweb, Telegram, LLM) e os problemas que tivemos.
+
 1. `plano.md`: o que fazemos, prioridades, cortes e salvaguardas.
 2. `execucao.md`: quem faz o quê e o horário.
 3. `arquitetura.md`: máquinas, fluxo e pastas.

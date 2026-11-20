@@ -1,6 +1,5 @@
 export * from './tipos';
 export * from './config';
-export * from './stub';
 export * from './llm';
 export * from './voz';
 export * from './mensagens';

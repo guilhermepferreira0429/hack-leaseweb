@@ -25,6 +25,8 @@ See [`docs/`](docs/README.md), starting with [`docs/plano.md`](docs/plano.md) an
 
 Requirements: Node.js 22+, npm 10+, Docker, nmap.
 
+**Full setup from zero** (brain VM, victim VM on Leaseweb, Telegram bots, EU LLM, troubleshooting): [`docs/install.md`](docs/install.md).
+
 ```bash
 npm install
 cp env/.env.example .env          # fill in your own keys; .env is git-ignored
@@ -40,7 +42,7 @@ npm run dev -- --consola --uma-vez  # rehearsal: the terminal plays Telegram, ex
 npm run dev -- --sem-migrador     # cuts: --sem-migrador, --sem-atacante, --sem-fila, --sem-segredos, --sem-cache
 
 # run a single piece while developing
-npm run dev:painel                # dashboard on :3000 (/, /isco, /estado.json)
+npm run dev:painel                # dashboard on 127.0.0.1:3000: /palco (jury screen), /, /isco, /certificado
 npm run dev:migrador
 npm run dev:atacante -- <ip>      # refused unless the IP is in ALVOS_PERMITIDOS
 npm run dev:defesa
@@ -69,7 +71,7 @@ code/
                 destination decider, Terraform fix); codigo/ (pull request on the app's repo)
   atacante/     TCP recon, limited SSH password step, target allowlist
   defesa/       detect, explain, approve, fix, undo
-  painel/       HTTP dashboard: /, /isco, /estado.json
+  painel/       HTTP dashboard: /palco (jury screen), / (engineering view), /isco, /certificado, /estado.json
   exemplo-app/  sample app using AWS services, with seed data and tests
 docs/           plan, architecture, interfaces, demo, pitch, risks
 env/            .env.example, docker-compose.yml
