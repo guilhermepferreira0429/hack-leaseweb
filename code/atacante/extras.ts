@@ -4,6 +4,7 @@ import type { Achado } from '@mwbe/shared';
 import { garantirPermitido } from './alvos';
 import { testarCredenciaisPorDefeito, verificarBucketPublico } from './credenciais';
 import { verificarHttp } from './http';
+import { verificarSshPassword } from './ssh-auth';
 
 export interface OpcoesExtras {
   /** Nome do bucket a testar; vazio = não testa. */
@@ -23,6 +24,7 @@ export async function executarExtras(
 
   const achados: Achado[] = [
     ...(await verificarHttp(endereco, allowlist)),
+    ...(await verificarSshPassword(endereco, allowlist)),
     ...(await testarCredenciaisPorDefeito(endereco, allowlist)),
   ];
 

@@ -15,6 +15,7 @@ export * from './segredos';
 export * from './http';
 export * from './credenciais';
 export * from './extras';
+export * from './ssh-auth';
 
 /** Máximo de tentativas, mesmo que a wordlist cresça. */
 export const MAX_TENTATIVAS = 20;
