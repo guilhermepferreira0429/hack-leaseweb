@@ -3,6 +3,7 @@
 // Corre os testes de code/exemplo-app/testes num processo à parte, com as variáveis de cada ambiente.
 // VERIFICACAO_ESTRITA=1: com a infraestrutura em baixo ou sem dados, os testes falham em vez de saltar.
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import * as amqp from 'amqplib';
 import pg from 'pg';
@@ -10,7 +11,11 @@ import { createClient } from 'redis';
 import { envDaApp, lerAmbienteMigrador, lerPostgres, RAIZ_REPO } from './ambiente';
 import { sondarArmazenamento } from './migrar-dados';
 
-const FICHEIRO_TESTES = join(RAIZ_REPO, 'code', 'exemplo-app', 'testes', 'app.test.ts');
+// O contrato da app e os testes da seed (dados reais da "PME": loja.*, buckets, fila, segredos, cache).
+// Correm na mesma invocação do node --test, em paralelo, para não somar tempo.
+const FICHEIROS_TESTES = ['app.test.ts', 'seed.test.ts']
+  .map((nome) => join(RAIZ_REPO, 'code', 'exemplo-app', 'testes', nome))
+  .filter((caminho) => existsSync(caminho));
 const LIMITE_MS = 120_000;
 
 export interface ResultadoTestes {
@@ -21,7 +26,7 @@ export interface ResultadoTestes {
 
 function correrTestes(envExtra: Record<string, string>): Promise<ResultadoTestes> {
   return new Promise((resolver) => {
-    const filho = spawn(process.execPath, ['--import', 'tsx', '--test', '--test-reporter=tap', FICHEIRO_TESTES], {
+    const filho = spawn(process.execPath, ['--import', 'tsx', '--test', '--test-reporter=tap', ...FICHEIROS_TESTES], {
       cwd: RAIZ_REPO,
       env: { ...process.env, ...envExtra, VERIFICACAO_ESTRITA: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
