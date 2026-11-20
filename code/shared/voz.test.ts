@@ -41,4 +41,19 @@ describe('shared/voz', () => {
   it('há persona para os 4 agentes', () => {
     assert.deepEqual(Object.keys(PERSONAS).sort(), ['atacante', 'chefe', 'defesa', 'migrador']);
   });
+
+  it('personas do vozes.md: cada uma passa a vez com a menção certa', () => {
+    assert.match(PERSONAS.migrador, /passas a vez ao @atacante/);
+    assert.match(PERSONAS.atacante, /passas a vez à @defesa/);
+    assert.match(PERSONAS.defesa, /pedes ao @atacante que confirme/);
+    assert.match(PERSONAS.atacante, /Nunca descreves como explorar uma falha/);
+  });
+
+  it('regras comuns com os pontos novos do vozes.md (primeira pessoa, menções, jargão traduzido)', () => {
+    const [sistema] = mensagensDaVoz('chefe', 'x', 'y');
+    assert.match(sistema!.content, /Fala na primeira pessoa/);
+    assert.match(sistema!.content, /termina com a menção dele: @atacante, @defesa, @migrador, @chefe/);
+    assert.match(sistema!.content, /a porta da base de dados \(5432\)/);
+    assert.match(sistema!.content, /Sem emojis, exceto ✓ e ✗/);
+  });
 });
