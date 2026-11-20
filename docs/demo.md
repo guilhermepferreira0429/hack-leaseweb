@@ -1,5 +1,7 @@
 # Guião da demo (cerca de 90 s, dentro do pitch de 5 min)
 
+> Runbook público e neutro, em inglês: [`RUNBOOK.md`](RUNBOOK.md). Este ficheiro é o guião interno de palco.
+
 1. **Abertura a frio** (sem "olá, somos a equipa X"): "Esta máquina, na cloud da Leaseweb, foi ligada hoje de manhã. Desde então recebeu **N** tentativas de entrada." Mostrar `/isco`.
 2. "Esta app corre na AWS." (LocalStack.) No grupo "Direção" do Telegram, o **Migrador** propõe o plano para os 5 serviços. → **Approve plan** (um só toque).
 3. O painel mostra os 5 serviços migrados, cada um com a sua prova (contagens e checksums iguais) e os testes a passar dos dois lados.
