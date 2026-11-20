@@ -13,6 +13,7 @@ describe('atacante/credenciais', () => {
       [
         ['PostgreSQL', 5432],
         ['MinIO', 9000],
+        ['MinIO (consola)', 9001],
         ['RabbitMQ', 15672],
         ['Redis', 6379],
       ],

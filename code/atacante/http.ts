@@ -15,6 +15,8 @@ export interface RespostaHttp {
   https: boolean;
   /** Resultado da validação do certificado (só HTTPS). */
   autorizado?: boolean;
+  /** Protocolo negociado (só HTTPS), ex.: TLSv1.3. */
+  protocolo?: string;
 }
 
 function pedir(alvo: string, porta: number, https: boolean, timeoutMs: number): Promise<RespostaHttp> {
@@ -32,13 +34,14 @@ function pedir(alvo: string, porta: number, https: boolean, timeoutMs: number): 
       },
       (resposta) => {
         resposta.resume();
-        const socket = resposta.socket as { authorized?: boolean };
+        const socket = resposta.socket as { authorized?: boolean; getProtocol?: () => string | null };
         concluir({
           porta,
           estado: resposta.statusCode ?? 0,
           cabecalhos: resposta.headers,
           https,
           autorizado: https ? socket.authorized : undefined,
+          protocolo: https ? socket.getProtocol?.() ?? undefined : undefined,
         });
       },
     );
@@ -74,6 +77,16 @@ export function avaliarResposta(alvo: string, r: RespostaHttp): Achado[] {
       servico: 'HTTPS',
       severidade: 'alta',
       detalhe: 'certificado TLS não validado (autoassinado, expirado ou cadeia incompleta)',
+    });
+  }
+
+  if (r.protocolo === 'TLSv1' || r.protocolo === 'TLSv1.1') {
+    achados.push({
+      ...base,
+      id: `http-${alvo}-${r.porta}-tls-antigo`,
+      servico: 'HTTPS',
+      severidade: 'alta',
+      detalhe: `protocolo ${r.protocolo} é antigo; exigir TLS 1.2 ou 1.3`,
     });
   }
 

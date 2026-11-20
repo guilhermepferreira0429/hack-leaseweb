@@ -36,6 +36,7 @@ describe('atacante/http', () => {
     const achados = avaliarResposta(ALVO, {
       porta: 443,
       estado: 200,
+      protocolo: 'TLSv1.3',
       cabecalhos: {
         'strict-transport-security': 'max-age=31536000',
         'content-security-policy': "default-src 'self'",
@@ -46,6 +47,25 @@ describe('atacante/http', () => {
       autorizado: true,
     });
     assert.deepEqual(achados, []);
+  });
+
+  it('TLS antigo é gravidade alta', () => {
+    const achados = avaliarResposta(ALVO, {
+      porta: 443,
+      estado: 200,
+      protocolo: 'TLSv1.1',
+      cabecalhos: {
+        'strict-transport-security': 'max-age=31536000',
+        'content-security-policy': "default-src 'self'",
+        'x-content-type-options': 'nosniff',
+        'x-frame-options': 'DENY',
+      },
+      https: true,
+      autorizado: true,
+    });
+    assert.equal(achados.length, 1);
+    assert.match(achados[0]!.id, /-tls-antigo$/);
+    assert.equal(achados[0]!.severidade, 'alta');
   });
 
   it('recusa o alvo fora da allowlist antes de qualquer ligação', async () => {
