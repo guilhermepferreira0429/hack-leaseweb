@@ -8,6 +8,35 @@
 | **vítima** | A falha da demo | Security group com `5432/tcp` aberto a `0.0.0.0/0` e um escutador inofensivo (`nc -lk 5432`) para o `nmap` dar `open` antes e `filtered` depois |
 | **isco** | O número da abertura do pitch | Ligado de manhã. SSH só por chave, porta 22 aberta a todos, nenhum serviço real |
 
+## Divisão: o servidor do dono e o fornecedor de cloud
+
+São duas camadas diferentes. Não se misturam.
+
+1. **A VM é o servidor do dono da PME (self-hosted).** É lá que correm a app e os serviços abertos que substituem
+   a AWS: MinIO (S3), PostgreSQL (RDS), RabbitMQ (SQS), OpenBao (Secrets Manager) e Valkey (ElastiCache). Na demo
+   correm em contentores. O migrador copia os dados para lá, o atacante testa essa máquina e a defesa protege-a.
+   É a mesma VM que um dono teria na Leaseweb, na Hostinger, na OVHcloud ou noutro sítio.
+2. **A API da Leaseweb é o fornecedor (provider).** Só trata do que está à volta da máquina: as instâncias e a
+   firewall (security groups e regras). A defesa fecha portas por ela e o tradutor traduz a configuração da AWS
+   para ela. É um fornecedor entre vários: Hostinger, OVHcloud, Hetzner ou Scaleway teriam o seu próprio
+   adaptador, com as mesmas operações.
+
+| Camada | Na demo | Num cliente real |
+|---|---|---|
+| Servidor do dono | VM com os contentores (MinIO, PostgreSQL, RabbitMQ, OpenBao, Valkey) e a app | O VPS ou servidor da PME |
+| Fornecedor | API da Leaseweb: instâncias e firewall | Leaseweb, Hostinger, OVHcloud, … |
+| "AWS" de origem | LocalStack (e um Redis a fazer de ElastiCache) | A conta AWS do cliente |
+
+Regras para o código:
+
+- Tudo o que fala com a API do fornecedor fica em `code/shared/leaseweb.ts` (`listarSecurityGroups`,
+  `listarRegras`, `removerRegra`, `criarRegra`, …). A defesa, o orquestrador e o chefe usam estas funções e não
+  chamam a API diretamente. Outro fornecedor seria outro ficheiro com as mesmas funções.
+- O que corre dentro da VM (serviços, dados, a app e os testes dela) não depende do fornecedor: o migrador e o
+  `verificar()` são iguais em qualquer um.
+- Hoje só existe o adaptador da Leaseweb. Hostinger e OVHcloud ficam para o slide "o que vem a seguir". No pitch
+  não se diz que já funcionam.
+
 ## VM da organização (analisar às 09:30, Enio Carlos, 10 min)
 
 A organização dá uma VM Linux por equipa, desligada no fim do evento. Antes de criar outras máquinas, ver:
