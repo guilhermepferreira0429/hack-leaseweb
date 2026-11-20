@@ -24,5 +24,5 @@ window.CONFIG = {
   videoPlanoB: 'plano-b.mp4',
 
   repo: 'github.com/guilhermepferreira0429/hack-leaseweb',
-  equipa: ['Guilherme', 'David', 'Enio Carlos'],
+  equipa: ['Guilherme Ferreira', 'David Vieira', 'Énio Carlos'],
 };

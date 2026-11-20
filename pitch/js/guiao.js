@@ -137,7 +137,7 @@
     segundos: 17,
     falas: [
       { passo: 0, texto: 'So, our ask: make this the safe way in to Leaseweb. Customers arrive already secure.' },
-      { passo: 0, texto: 'Sovereignty without security just moves the problem. This lets businesses leave on their own terms, safely. It is open source, and ready to continue. Thank you.' },
+      { passo: 0, texto: 'Leave in minutes. Close in seconds. That is sovereignty you can prove. It is open source, and ready to continue. Thank you.' },
       { passo: 0, palco: 'Parar de falar. Ficar neste slide para as perguntas. Tecla A salta para os anexos.' },
     ],
   },

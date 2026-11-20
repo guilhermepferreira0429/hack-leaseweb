@@ -272,10 +272,10 @@
       passos: 0,
       html: () => `
         <div class="centro-v fecho">
-          <div ${E(0, 'sub lilas')}>Sovereignty without security just moves the problem.</div>
+          <div ${E(0, 'sub lilas')}>The safe way out of a hyperscaler.</div>
           <div class="frase-xxl">
-            <div ${E(2)}>Open source.</div>
-            <div ${E(4, 'verde sublinha')}>Ready to continue.</div>
+            <div ${E(2)}>Leave in minutes.</div>
+            <div ${E(4, 'verde sublinha')}>Close in seconds.</div>
           </div>
           <div ${E(8, 'pedido-final')}>${rotulo('OUR ASK', 'lilas')}<span>Make this the safe way in to Leaseweb.</span></div>
           <div ${E(10, 'equipa')}>${window.CONFIG.equipa.join(' · ')}</div>
