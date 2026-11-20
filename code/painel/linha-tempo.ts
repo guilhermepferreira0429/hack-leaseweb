@@ -28,6 +28,7 @@ export type Agente = 'migrador' | 'atacante' | 'defesa' | 'chefe' | 'dono';
 export function agenteDe(e: EventoAuditoria): Agente {
   if (e.quem === 'migrador' || e.quem === 'atacante' || e.quem === 'defesa' || e.quem === 'chefe') return e.quem;
   if (e.quem === 'modo-noite') return 'defesa';
+  if (e.quem === 'dono') return 'dono';
   if ((e.tipo === 'aprovado' || e.tipo === 'ignorado') && e.quem) return 'dono';
   if (e.inverso || /(a-aplicar|desfeito|falhou|verificado)/.test(e.tipo)) return 'defesa';
   return 'chefe'; // orquestrador, erros e o resto
@@ -48,6 +49,8 @@ export function fraseDe(e: EventoAuditoria): string {
       return 'Traduziu a configuração da AWS para a Leaseweb (só plano).';
     case 'migracao-plano-destino':
       return 'Escolheu o destino de cada serviço na Leaseweb.';
+    case 'decisao-destino':
+      return 'Escolheu: tudo self-hosted na VM, nada gerido.';
     case 'pedido':
       if (e.quem === 'migrador') return 'Pede aprovação para migrar.';
       return `Proponho fechar: ${String(d.titulo ?? e.pedidoId)}.`;
