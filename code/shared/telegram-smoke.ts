@@ -1,10 +1,12 @@
-// Teste de fumo do Telegram, para correr assim que houver um token: npm run telegram:smoke
+// Teste de fumo do Telegram, para correr assim que houver token: npm run telegram:smoke
 // Lê tudo de env/.env (ou .env na raiz). Não há segredos aqui e o token nunca é impresso.
-// Precisa de: um TELEGRAM_TOKEN_* (de preferência TELEGRAM_TOKEN_DEFESA), TELEGRAM_GRUPO_ID e um aprovador
+// Testa TODOS os bots que tiverem token (os 4, com a equipa completa): getMe e uma fala no grupo por bot.
+// Precisa de: TELEGRAM_TOKEN_* (os 4, de preferência), TELEGRAM_GRUPO_ID e um aprovador
 // (TELEGRAM_APROVADORES ou TELEGRAM_DONO_ID). Ver docs/telegram.md.
 //
 // Passos (PASS/FAIL cada um):
-//   a) long polling arranca (getMe e getUpdates respondem ok)
+//   config) os 4 bots têm token
+//   a) long polling arranca em cada bot (getMe) e cada bot fala no grupo
 //   b) envia um pedido com os botões do tipo de ação (Aprovar plano / Ignorar na migração)
 //   c) um toque de um ID fora da lista é recusado (simulado) e o toque real do aprovador chega por callback_query
 //   d) editMessageReplyMarkup tira os botões da mensagem carregada
@@ -37,32 +39,40 @@ const CHAVES: [Agente, string][] = [
   ['migrador', 'TELEGRAM_TOKEN_MIGRADOR'],
   ['atacante', 'TELEGRAM_TOKEN_ATACANTE'],
 ];
-const comToken = CHAVES.find(([, k]) => process.env[k]?.trim());
+const comToken = CHAVES.filter(([, k]) => process.env[k]?.trim()).map(([agente, chave]) => ({
+  agente,
+  chave,
+  token: process.env[chave]!.trim(),
+}));
+const principal = comToken.find((b) => b.agente === 'defesa') ?? comToken[0];
+const semToken = CHAVES.filter(([, k]) => !process.env[k]?.trim()).map(([a]) => a);
 const grupoId = process.env.TELEGRAM_GRUPO_ID?.trim() ?? '';
 const donoId = process.env.TELEGRAM_DONO_ID?.trim() ?? '';
 const aprovadores = lista(process.env.TELEGRAM_APROVADORES).length ? lista(process.env.TELEGRAM_APROVADORES) : donoId ? [donoId] : [];
 
 const emFalta = [
-  ...(comToken ? [] : ['TELEGRAM_TOKEN_DEFESA (ou outro TELEGRAM_TOKEN_*)']),
+  ...(principal ? [] : ['TELEGRAM_TOKEN_* (nenhum)']),
   ...(grupoId ? [] : ['TELEGRAM_GRUPO_ID']),
   ...(aprovadores.length ? [] : ['TELEGRAM_APROVADORES ou TELEGRAM_DONO_ID']),
 ];
-if (emFalta.length) {
+if (emFalta.length || !principal) {
   console.error(`FAIL  config: em falta ${emFalta.join(', ')}. Ver docs/telegram.md.`);
   process.exit(1);
 }
-const [agente, chaveToken] = comToken!;
 const naoAprovador = [1, 2, 3].find((n) => !aprovadores.includes(String(n)))!;
 
 // ---------- espião do fetch: regista cada chamada (só o nome do método, nunca o URL com o token) ----------
 
-type Chamada = { metodo: string; ok: boolean; corpo: Record<string, unknown>; resultado?: unknown; erro?: string };
+type Chamada = { metodo: string; bot?: Agente; ok: boolean; corpo: Record<string, unknown>; resultado?: unknown; erro?: string };
 const chamadas: Chamada[] = [];
 let injetarRecusa = true;
 const fetchReal = globalThis.fetch;
+const botDoToken = new Map(comToken.map((b) => [b.token, b.agente]));
 
 globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const token = url.match(/\/bot([^/]+)\//)?.[1];
+  const bot = token ? botDoToken.get(token) : undefined;
   const metodo = url.match(/\/bot[^/]+\/(\w+)$/)?.[1] ?? '?';
   const corpo = (init?.body ? JSON.parse(String(init.body)) : {}) as Record<string, unknown>;
   const responder = (dados: unknown) => new Response(JSON.stringify(dados), { headers: { 'Content-Type': 'application/json' } });
@@ -84,7 +94,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
 
   const r = await fetchReal(input, init);
   const dados = (await r.clone().json().catch(() => ({}))) as { ok?: boolean; result?: unknown; description?: string };
-  chamadas.push({ metodo, ok: Boolean(dados.ok), corpo, resultado: dados.result, erro: dados.description });
+  chamadas.push({ metodo, bot, ok: Boolean(dados.ok), corpo, resultado: dados.result, erro: dados.description });
   if (metodo === 'getUpdates' && Array.isArray(dados.result)) {
     for (const u of dados.result as { callback_query?: { from: { id: number }; data?: string } }[]) {
       if (u.callback_query) console.log(`      callback_query de ${u.callback_query.from.id}: ${u.callback_query.data}`);
@@ -112,10 +122,18 @@ async function ate(cond: () => boolean, ms: number): Promise<boolean> {
 const temBotao = (c: Chamada, prefixo: string) => JSON.stringify(c.corpo.reply_markup ?? '').includes(`"${prefixo}`);
 
 async function main(): Promise<void> {
-  console.log(`bot: ${agente} (${chaveToken}), grupo: ${grupoId}, aprovadores: ${aprovadores.join(', ')}, ID de teste fora da lista: ${naoAprovador}\n`);
+  console.log(`bots: ${comToken.map((b) => `${b.agente} (${b.chave})`).join(', ')}`);
+  console.log(`grupo: ${grupoId}, aprovadores: ${aprovadores.join(', ')}, ID de teste fora da lista: ${naoAprovador}\n`);
   // TELEGRAM_API_BASE (opcional): só para ensaiar contra um servidor falso local. Por defeito https://api.telegram.org
   const apiBase = process.env.TELEGRAM_API_BASE?.trim() || undefined;
-  telegram.configurarTelegram({ tokens: { [agente]: process.env[chaveToken]!.trim() }, grupoId, donoId, aprovadores, pausaMs: 300, apiBase });
+  telegram.configurarTelegram({
+    tokens: Object.fromEntries(comToken.map((b) => [b.agente, b.token])),
+    grupoId,
+    donoId,
+    aprovadores,
+    pausaMs: 300,
+    apiBase,
+  });
 
   const pedidoId = `smoke-${Date.now().toString(36)}`;
   const toques: { pedidoId: string; decisao: string; quem: string }[] = [];
@@ -129,10 +147,35 @@ async function main(): Promise<void> {
     console.log(`      aoDesfazer: ${id} por ${quem} (só registado; nada é desfeito)`);
   });
 
-  // a)
-  const getMe = await ate(() => chamadas.some((c) => c.metodo === 'getMe'), 15_000);
-  const me = chamadas.find((c) => c.metodo === 'getMe');
-  passo('a) long polling arrancou (getMe)', Boolean(getMe && me?.ok), me?.ok ? `@${(me.resultado as { username?: string }).username}` : me?.erro ?? 'sem resposta');
+  // config) e a): os 4 bots, um a um.
+  passo(
+    'config) os 4 bots têm token',
+    semToken.length === 0,
+    semToken.length ? `em falta: ${semToken.join(', ')}` : comToken.map((b) => b.agente).join(', '),
+  );
+  await ate(() => comToken.every((b) => chamadas.some((c) => c.metodo === 'getMe' && c.bot === b.agente)), 20_000);
+  for (const b of comToken) {
+    const me = chamadas.find((c) => c.metodo === 'getMe' && c.bot === b.agente);
+    passo(
+      `a) bot ${b.agente} arrancou (getMe)`,
+      Boolean(me?.ok),
+      me?.ok ? `@${(me.resultado as { username?: string }).username}` : me?.erro ?? 'sem resposta',
+    );
+  }
+  // a) parte 2: cada bot tem de estar no grupo (sendMessage sai do bot certo).
+  for (const b of comToken) {
+    try {
+      await telegram.falar(b.agente, `[Teste de fumo] ${b.agente} presente.`);
+    } catch (e) {
+      console.log(`      ${b.agente}: ${e instanceof Error ? e.message : e}`);
+    }
+    const m = chamadas.findLast((c) => c.metodo === 'sendMessage' && c.bot === b.agente);
+    passo(
+      `a) bot ${b.agente} fala no grupo`,
+      Boolean(m?.ok && m && String(m.corpo.chat_id) === grupoId),
+      m?.ok ? '' : `${m?.erro ?? 'sem sendMessage'} (o bot está no grupo?)`,
+    );
+  }
 
   // c) parte 1: recusa ao ID fora da lista (o update simulado já foi tratado pelo ciclo).
   await ate(() => chamadas.some((c) => c.metodo === 'answerCallbackQuery' && c.corpo.callback_query_id === ID_CALLBACK_FALSO), 5_000);
@@ -150,7 +193,7 @@ async function main(): Promise<void> {
   };
   let enviada: Chamada | undefined;
   try {
-    await telegram.pedirAprovacao(agente, pedido);
+    await telegram.pedirAprovacao(principal.agente, pedido);
     enviada = chamadas.findLast((c) => c.metodo === 'sendMessage' && temBotao(c, `aprovar:${pedidoId}`));
   } catch (e) {
     console.log(`      ${e instanceof Error ? e.message : e}`);
@@ -176,10 +219,10 @@ async function main(): Promise<void> {
   let relatorio: Chamada | undefined;
   let pedidosRelatorio: string[] = [];
   try {
-    await telegram.falar(agente, '[Teste de fumo] O relatório a seguir é um exemplo, não um incidente real.');
+    await telegram.falar(principal.agente, '[Teste de fumo] O relatório a seguir é um exemplo, não um incidente real.');
     const r = montarRelatorio('smoke-achado', eventosExemplo());
     pedidosRelatorio = r.botoes.map((b) => b.pedidoId);
-    await telegram.enviarComDesfazer(agente, r.texto, r.botoes);
+    await telegram.enviarComDesfazer(principal.agente, r.texto, r.botoes);
     relatorio = chamadas.findLast((c) => c.metodo === 'sendMessage' && temBotao(c, 'desfazer:'));
   } catch (e) {
     console.log(`      ${e instanceof Error ? e.message : e}`);
@@ -206,7 +249,10 @@ async function main(): Promise<void> {
     passo('f) botão Desfazer recebido e removido', false, 'relatório não foi enviado (passo e falhou)');
   }
 
-  passo('a) getUpdates real sem erro', chamadas.some((c) => c.metodo === 'getUpdates' && c.ok) && !conflito);
+  for (const b of comToken) {
+    const falhou = chamadas.find((c) => c.metodo === 'getUpdates' && c.bot === b.agente && !c.ok);
+    passo(`a) getUpdates de ${b.agente} sem erro`, !falhou, falhou?.erro ?? '');
+  }
 
   const falhas = resultados.filter(([, ok]) => !ok).length;
   console.log(`\n${falhas ? `FAIL  ${falhas} de ${resultados.length} passos` : `PASS  ${resultados.length} de ${resultados.length} passos`}`);
