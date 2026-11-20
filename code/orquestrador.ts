@@ -642,13 +642,13 @@ ${resumo}`,
       modoDestino = modo;
       auditar({ pedidoId: "-", tipo: "decisao-destino", quem: "dono", depois: { modo, texto } });
       // Curto: o plano já está no grupo; aqui só a confirmação da escolha (e o orçamento, se houver).
-      const orcamento = texto?.match(/budget: about €[\d.,]+\/month/i)?.[0];
+      const orcamento = texto?.match(/~?€\s?[\d.,]+\/month/i)?.[0];
       falar(
         "migrador",
         "dono",
         (modo === "tudo-self-hosted"
           ? `OK: everything self-hosted on your VM.${texto ? ` ${texto}` : ""}`
-          : `OK: recommended plan (managed services simulated; data on the VM)${orcamento ? `. ${orcamento[0].toUpperCase()}${orcamento.slice(1)}` : ""}.`) +
+          : `OK: recommended plan (managed services simulated; data on the VM)${orcamento ? `. Budget ${orcamento}` : ""}.`) +
           " Now tap Approve plan.",
       );
     } catch (erro) {
