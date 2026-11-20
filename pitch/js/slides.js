@@ -4,7 +4,7 @@
 // Texto no ecrã: poucas palavras. Quem fala carrega o resto (js/guiao.js).
 (function () {
   const ap = (p, n) => `ap${p >= n ? ' on' : ''}`;
-  const num = (x, letra) => (x === null || x === undefined || x === '' ? `<span class="falta">${letra}</span>` : String(x));
+  const num = (x, letra) => (x === null || x === undefined || x === '' ? `<span class="falta">${letra}</span>` : /^\d{4,}$/.test(String(x)) ? Number(x).toLocaleString('en') : String(x));
   const rotulo = (t, cor = 'muted') => `<div class="rotulo ${cor}">${t}</div>`;
 
   const principais = [
@@ -46,10 +46,12 @@
         const pecas = ['European', 'Secure', 'Compliant', 'In control'];
         return `
         <div class="soberania${p >= 4 ? ' junta' : ''}">
-          <div class="pecas">
-            ${pecas.map((t, i) => `<div class="peca canto-${i}${p >= i ? ' on' : ''}">${t}</div>`).join('<span class="mais">+</span>')}
+          <div class="pilha">
+            <div class="pecas">
+              ${pecas.map((t, i) => `<div class="peca canto-${i}${p >= i ? ' on' : ''}">${t}</div>`).join('<span class="mais">+</span>')}
+            </div>
+            <div class="resultado"><span class="soberano">Sovereign.</span></div>
           </div>
-          <div class="resultado"><span class="igual">=</span><span class="soberano">Sovereign.</span></div>
           <div class="verbos">migrate · secure · fix · prove</div>
         </div>`;
       },

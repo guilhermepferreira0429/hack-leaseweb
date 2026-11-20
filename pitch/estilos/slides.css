@@ -229,10 +229,10 @@
   opacity: 0;
   transition: opacity 0.5s ease 0.8s;
 }
-.junta .peca.canto-0 { transform: translate(330px, 190px) scale(0.5); opacity: 0; }
-.junta .peca.canto-1 { transform: translate(110px, 190px) scale(0.5); opacity: 0; }
-.junta .peca.canto-2 { transform: translate(-110px, 190px) scale(0.5); opacity: 0; }
-.junta .peca.canto-3 { transform: translate(-330px, 190px) scale(0.5); opacity: 0; }
+.junta .peca.canto-0 { transform: translate(330px, 0) scale(0.5); opacity: 0; }
+.junta .peca.canto-1 { transform: translate(110px, 0) scale(0.5); opacity: 0; }
+.junta .peca.canto-2 { transform: translate(-110px, 0) scale(0.5); opacity: 0; }
+.junta .peca.canto-3 { transform: translate(-330px, 0) scale(0.5); opacity: 0; }
 .junta .mais {
   opacity: 0;
 }
@@ -521,4 +521,11 @@
 .numero.segundos {
   font-size: 128px;
   letter-spacing: -4px;
+}
+.pilha {
+  display: grid;
+  place-items: center;
+}
+.pilha > * {
+  grid-area: 1 / 1;
 }

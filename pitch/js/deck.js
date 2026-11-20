@@ -320,6 +320,7 @@
     document.body.classList.add('modo-palco');
     const palco = criarPalco(document.getElementById('ecra'));
     aoMudar = (suave) => {
+      if (sobre.geral) alternar('geral');
       desenhar(palco, estado.i, estado.p, suave);
       enviarEstado();
     };
@@ -392,14 +393,15 @@
           g.falas
             .map((f) => {
               const cls = f.passo === estado.p ? 'agora' : f.passo < estado.p ? 'dito' : '';
-              const pal = f.palco ? `<div class="palco ${cls}">${trocar(f.palco)}</div>` : '';
+              const pal = f.palco ? `<div class="indicacao ${cls}">${trocar(f.palco)}</div>` : '';
               const tx = f.texto ? `<div class="fala ${cls}"><span class="clique">${f.passo}</span>${trocar(f.texto)}${f.espera ? ` <em>(+${f.espera} s)</em>` : ''}</div>` : '';
               return pal + tx;
             })
             .join('')
-        : `<div class="cab"><span class="parte">${S[estado.i].anexo ? 'Anexo ' + S[estado.i].codigo : S[estado.i].titulo}</span></div><div class="palco">Só nas perguntas. Uma frase, um facto, parar. Shift+→ ou número + Enter para voltar.</div>`;
+        : `<div class="cab"><span class="parte">${S[estado.i].anexo ? 'Anexo ' + S[estado.i].codigo : S[estado.i].titulo}</span></div><div class="indicacao">Só nas perguntas. Uma frase, um facto, parar. Shift+→ ou número + Enter para voltar.</div>`;
       perg.querySelectorAll('.pergunta').forEach((d) => (d.querySelector('.r').textContent = trocar(window.PERGUNTAS[+d.dataset.k].r)));
-      notas.querySelector('.agora')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      const agora = notas.querySelector('.agora');
+      if (agora) notas.scrollTo({ top: agora.offsetTop - notas.clientHeight / 3, behavior: 'smooth' });
       relogios();
     };
     const relogios = () => {
@@ -437,7 +439,7 @@
       const g = G[s.id];
       if (!g) return;
       html += `<section><h2><span>${mmss(previstoAte(i))}–${mmss(previstoAte(i + 1))}</span> ${g.parte} <small>${g.quem} · slide ${i + 1}</small></h2>`;
-      html += g.falas.map((f) => (f.palco ? `<p class="palco">[${f.passo}] ${trocar(f.palco)}</p>` : '') + (f.texto ? `<p class="fala">[${f.passo}] ${trocar(f.texto)}</p>` : '')).join('');
+      html += g.falas.map((f) => (f.palco ? `<p class="indicacao">[${f.passo}] ${trocar(f.palco)}</p>` : '') + (f.texto ? `<p class="fala">[${f.passo}] ${trocar(f.texto)}</p>` : '')).join('');
       html += '</section>';
     });
     html += '<h1>Perguntas</h1>' + window.PERGUNTAS.map((q) => `<p class="fala"><b>${q.p}</b> (${q.quem})<br>${trocar(q.r)}</p>`).join('');

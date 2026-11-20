@@ -185,9 +185,15 @@ body.preto::after {
   background: #070c1f;
   overflow: hidden;
 }
+.modo-apresentador,
+.modo-apresentador html {
+  overflow: hidden;
+}
 .apresentador {
   display: grid;
   grid-template-columns: 1.35fr 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
   gap: 20px;
   height: 100vh;
   padding: 20px;
@@ -236,6 +242,7 @@ body.preto::after {
   color: var(--muted);
 }
 .notas {
+  position: relative;
   flex: 1;
   overflow: auto;
   background: var(--fundo);
@@ -291,14 +298,14 @@ body.preto::after {
 .notas .fala.agora .clique {
   background: var(--verde);
 }
-.notas .palco {
+.notas .indicacao {
   font-size: 15px;
   font-style: italic;
   color: var(--lilas);
   margin: 6px 0;
   opacity: 0.8;
 }
-.notas .palco.agora {
+.notas .indicacao.agora {
   opacity: 1;
 }
 .perguntas {
@@ -378,7 +385,7 @@ body.preto::after {
   color: #777;
   font-weight: 400;
 }
-.guiao .palco {
+.guiao .indicacao {
   font-style: italic;
   color: #6a55c2;
   font-size: 14px;
@@ -393,4 +400,14 @@ body.preto::after {
   section {
     break-inside: avoid;
   }
+}
+.notas .cab {
+  position: sticky;
+  top: -16px;
+  background: var(--fundo);
+  padding: 6px 0;
+  z-index: 1;
+}
+html:has(.modo-guiao) {
+  background: #fff;
 }
