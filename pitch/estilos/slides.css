@@ -487,6 +487,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
 }
 .anexo > .titulo {
   font-size: 72px;
@@ -497,6 +498,7 @@
   flex-direction: column;
   justify-content: center;
   gap: 40px;
+  min-height: 0;
 }
 .cartao {
   background: var(--fundo-2);
@@ -1278,30 +1280,54 @@
   letter-spacing: 0.5px;
   color: var(--faint);
 }
+.qa-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--linha) transparent;
+}
+.qa-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.qa-scroll::-webkit-scrollbar-thumb {
+  background: var(--linha);
+  border-radius: 4px;
+}
 .qa-grelha {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px 20px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px 28px;
 }
 .qa-item {
   border-top: 1px solid var(--linha);
-  padding-top: 7px;
+  padding-top: 10px;
 }
 .qa-p {
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 600;
-  line-height: 1.18;
+  line-height: 1.2;
 }
 .qa-r {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--muted);
-  line-height: 1.2;
-  margin-top: 3px;
+  line-height: 1.28;
+  margin-top: 5px;
 }
 .qa-quem {
-  font: 9px var(--mono);
+  font: 10px var(--mono);
   color: var(--faint);
-  margin-top: 3px;
+  margin-top: 5px;
+}
+.qa-nota {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+.qa-hint {
+  color: var(--verde);
+  white-space: nowrap;
 }
 
 /* ---------- painel v2: agent chain, services, live logs ---------- */
@@ -1371,3 +1397,16 @@
 }
 
 .demo-link { font: 18px var(--mono); color: var(--faint); margin-top: -24px; }
+
+.anexos-nav { display: flex; gap: 6px; align-items: center; }
+.anexos-nav button {
+  font: 16px var(--mono);
+  color: var(--muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.anexos-nav button:hover { color: var(--texto); border-color: var(--linha); }
+.anexos-nav button.on { color: var(--verde); border-color: color-mix(in srgb, var(--verde) 40%, transparent); }
