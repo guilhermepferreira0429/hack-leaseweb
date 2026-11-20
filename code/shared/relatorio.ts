@@ -213,16 +213,32 @@ export function montarRelatorio(achadoId: string, eventos: EventoAuditoria[] = a
   const segundos = inicio && fim ? Math.max(0, Math.round((Date.parse(fim) - Date.parse(inicio)) / 1000)) : undefined;
 
   const l: string[] = [];
-  // TODO(David): confirmar o título quando nenhum passo foi feito (o acordado só tem "contido").
-  l.push(feitos.length ? `🛡️ Incidente contido — ${hora(fim!)}` : `⚠️ Incidente por conter — ${hora(new Date().toISOString())}`);
+  // Decidido (David): "por conter" usa a hora do último evento do incidente, não a hora atual.
+  const ultimoEvento = pedidosDoIncidente
+    .flatMap((id) => porPedido.get(id)!.map((e) => e.hora))
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const horaTitulo = feitos.length ? (fim ?? ultimoEvento) : (ultimoEvento ?? inicio);
+  l.push(
+    feitos.length
+      ? `🛡️ Incidente contido — ${hora(horaTitulo ?? new Date().toISOString())}`
+      : `⚠️ Incidente por conter — ${hora(horaTitulo ?? new Date().toISOString())}`,
+  );
   l.push('');
 
-  const servidor = achado?.alvo ?? '?';
+  // RELATORIO_NOME_SERVIDOR permite o nome amigável na demo; sem ele, fica o alvo real (IP/ID).
+  const servidor = process.env.RELATORIO_NOME_SERVIDOR?.trim() || achado?.alvo || '?';
   if (achado?.utilizador && achado.ipOrigem) {
     l.push(`Alguém entrou no servidor ${servidor} como "${achado.utilizador}" vindo de ${achado.ipOrigem}${achado.tentativas ? ',' : '.'}`);
     if (achado.tentativas) l.push(`depois de ${achado.tentativas} tentativas falhadas.`);
+  } else if (achado && (achado.tipo === 'porta-exposta' || achado.tipo === 'servico-exposto')) {
+    l.push(`Encontrei a porta ${achado.porta} aberta no servidor ${servidor}${achado.servico ? ` (${achado.servico})` : ''}.`);
+  } else if (achado?.tipo === 'credenciais-por-defeito') {
+    l.push(`Encontrei credenciais de fábrica no servidor ${servidor} (porta ${achado.porta}).`);
+  } else if (achado?.tipo === 'isco-tocado') {
+    l.push(`O servidor ${servidor} recebeu tentativas de entrada.`);
   } else {
-    // TODO(David): o formato acordado só cobre uma entrada no servidor. Frase provisória para os outros achados.
     l.push(`Encontrei um problema no servidor ${servidor}${achado ? ` (porta ${achado.porta})` : ''}.`);
   }
   l.push('');
@@ -238,8 +254,9 @@ export function montarRelatorio(achadoId: string, eventos: EventoAuditoria[] = a
   ).length;
   const final: string[] = [];
   if (migracao) final.push(`A migração terminou às ${hora(migracao)}.`);
-  // TODO(David): confirmar a frase quando houve outras alterações (o acordado só tem "Mais nada foi alterado.").
-  final.push(outros ? `Há mais ${outros} alteração(ões) na auditoria fora deste incidente.` : 'Mais nada foi alterado.');
+  // Decidido (David): quando há outras alterações, dizê-lo com o número, em vez de "Mais nada".
+  const mais = outros === 1 ? '1 alteração registada' : `${outros} alterações registadas`;
+  final.push(outros ? `Além deste incidente, há ${mais} na auditoria.` : 'Mais nada foi alterado.');
   l.push(final.join(' '));
 
   const botoes: BotaoDesfazer[] = passos

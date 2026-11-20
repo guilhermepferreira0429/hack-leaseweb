@@ -71,6 +71,46 @@ describe('shared/relatorio', () => {
     assert.equal(r.botoes.length, 0);
   });
 
+  it('abertura para porta aberta, com nome amigável opcional', () => {
+    const achadoPorta = {
+      ...achado,
+      id: 'porta1',
+      tipo: 'porta-exposta',
+      alvo: '203.0.113.10',
+      porta: 5432,
+      servico: 'PostgreSQL',
+      utilizador: undefined,
+      ipOrigem: undefined,
+      tentativas: undefined,
+    };
+    const eventos = [
+      { hora: t(0), pedidoId: 'p1', tipo: 'pedido', quem: 'defesa', depois: { achado: achadoPorta } },
+      { hora: t(2), pedidoId: 'p1', tipo: 'feito' },
+    ] as unknown as EventoAuditoria[];
+    const antes = process.env.RELATORIO_NOME_SERVIDOR;
+    process.env.RELATORIO_NOME_SERVIDOR = 'vitima-demo';
+    try {
+      const r = montarRelatorio('porta1', eventos);
+      assert.match(r.texto, /Encontrei a porta 5432 aberta no servidor vitima-demo \(PostgreSQL\)\./);
+      assert.doesNotMatch(r.texto, /Alguém entrou/);
+    } finally {
+      if (antes === undefined) delete process.env.RELATORIO_NOME_SERVIDOR;
+      else process.env.RELATORIO_NOME_SERVIDOR = antes;
+    }
+  });
+
+  it('diz quantas outras alterações há na auditoria', () => {
+    const eventos = [
+      { hora: t(0), pedidoId: 'p1', tipo: 'pedido', quem: 'defesa', depois: { achado } },
+      { hora: t(2), pedidoId: 'p1', tipo: 'feito' },
+      { hora: t(3), pedidoId: 'outro', tipo: 'pedido', quem: 'defesa', depois: { titulo: 'outro' } },
+      { hora: t(4), pedidoId: 'outro', tipo: 'feito' },
+    ] as unknown as EventoAuditoria[];
+    const r = montarRelatorio('a1', eventos);
+    assert.match(r.texto, /Além deste incidente, há 1 alteração registada na auditoria\./);
+    assert.doesNotMatch(r.texto, /Mais nada foi alterado/);
+  });
+
   it('botão desfazer: codifica e não se confunde com aprovar/ignorar', () => {
     assert.equal(codificarDesfazer('p-1'), 'desfazer:p-1');
     assert.equal(descodificarDesfazer('desfazer:p-1'), 'p-1');
