@@ -115,23 +115,63 @@ function passoDe(pedidoId: string, eventos: Evento[]): Passo {
   return { pedidoId, acao: acao ?? 'desconhecida', resultado, hora: horaFinal, motivo, reversivel, dados };
 }
 
+/** Nome simples do que está na porta, para o dono perceber sem saber o que é um security group. */
+const NOME_PORTA: Record<number, string> = {
+  22: 'o acesso remoto ao servidor',
+  23: 'o acesso remoto antigo (Telnet)',
+  80: 'o site',
+  443: 'o site',
+  445: 'a partilha de ficheiros',
+  1433: 'a base de dados',
+  3306: 'a base de dados',
+  3389: 'o ambiente de trabalho remoto',
+  5432: 'a base de dados',
+  5984: 'a base de dados',
+  6379: 'a cache',
+  9200: 'a pesquisa',
+  27017: 'a base de dados',
+};
+
+/** Porta (ou intervalo) que o passo mexeu, para nenhuma linha/ botão ser igual a outro. */
+function portasDoPasso(p: Passo, achado?: AchadoLido): { numero?: number; texto?: string } {
+  const r = p.dados?.regra as { startPort?: unknown; endPort?: unknown } | undefined;
+  const inicio = typeof r?.startPort === 'number' ? r.startPort : undefined;
+  const fim = typeof r?.endPort === 'number' ? r.endPort : inicio;
+  if (inicio !== undefined) return inicio === fim ? { numero: inicio, texto: String(inicio) } : { texto: `${inicio}–${fim}` };
+  if (achado?.porta) return { numero: achado.porta, texto: String(achado.porta) };
+  return {};
+}
+
+/** Duração em linguagem de pessoa: segundos, minutos ou horas. */
+function duracao(total: number): string {
+  if (total < 60) return `${total} segundos`;
+  const minutos = Math.round(total / 60);
+  if (minutos < 60) return `${minutos} minutos`;
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+  return resto ? `${horas} h ${resto} min` : `${horas} h`;
+}
+
 /** Linha "• …" de um passo, no tom do formato acordado. */
 function linha(p: Passo, achado: AchadoLido | undefined): string {
   const ip = texto(p.dados?.ip) ?? achado?.ipOrigem ?? 'o IP do atacante';
   const utilizador = texto(p.dados?.utilizador) ?? achado?.utilizador ?? '?';
+  const { numero, texto: portas } = portasDoPasso(p, achado);
+  const nome = numero !== undefined ? NOME_PORTA[numero] : undefined;
+  const onde = nome && portas ? `${nome} (porta ${portas})` : portas ? `a porta ${portas}` : 'a entrada aberta';
   // [o que foi feito, o que não foi feito]
   const frases: Record<string, [string, string]> = {
-    bloquear_ip: [`bloqueei ${ip} na firewall do servidor`, `não bloqueei ${ip} na firewall do servidor`],
-    terminar_sessoes: ['terminei a sessão do atacante', 'não terminei a sessão do atacante'],
-    bloquear_utilizador: [`bloqueei a conta "${utilizador}"`, `não bloqueei a conta "${utilizador}"`],
-    desligar_ssh_senha: ['desliguei o login por palavra-passe (só chave SSH)', 'não desliguei o login por palavra-passe'],
-    fechar_ssh_mundo: ['fechei o SSH à Internet na Leaseweb (só o vosso IP entra)', 'não fechei o SSH à Internet na Leaseweb'],
-    remover_regra: ['fechei a regra aberta à Internet na Leaseweb', 'não fechei a regra aberta à Internet na Leaseweb'],
+    bloquear_ip: [`bloqueei o acesso do atacante (${ip}) ao servidor`, `não bloqueei o acesso do atacante (${ip}) ao servidor`],
+    terminar_sessoes: ['terminei a sessão que o atacante tinha aberta', 'não terminei a sessão que o atacante tinha aberta'],
+    bloquear_utilizador: [`bloqueei a conta "${utilizador}" que ele usou`, `não bloqueei a conta "${utilizador}" que ele usou`],
+    desligar_ssh_senha: ['desliguei a entrada por palavra-passe (agora só com chave)', 'não desliguei a entrada por palavra-passe'],
+    fechar_ssh_mundo: ['fechei o acesso remoto ao servidor à Internet (só o vosso IP entra)', 'não fechei o acesso remoto ao servidor à Internet'],
+    remover_regra: [`fechei ${onde} à Internet na firewall da Leaseweb`, `não fechei ${onde} à Internet na firewall da Leaseweb`],
     // TODO(David/Enio): não há ação de quarentena na lista fechada (shared/tipos.ts). Quando houver,
     // confirmar o nome da ação e o campo com o número de ficheiros (aqui assume-se `ficheiros`).
     quarentena: [
-      `pus em quarentena ${String(Array.isArray(p.dados?.ficheiros) ? p.dados.ficheiros.length : (p.dados?.ficheiros ?? '?'))} ficheiro(s) que deixou`,
-      'não pus em quarentena os ficheiros que deixou',
+      `pus de lado ${String(Array.isArray(p.dados?.ficheiros) ? p.dados.ficheiros.length : (p.dados?.ficheiros ?? '?'))} ficheiro(s) que ele deixou`,
+      'não pus de lado os ficheiros que ele deixou',
     ],
   };
   const [feito, naoFeito] = frases[p.acao] ?? [`fiz: ${p.acao}`, `não fiz: ${p.acao}`];
@@ -151,15 +191,30 @@ function linha(p: Passo, achado: AchadoLido | undefined): string {
 
 function rotuloDesfazer(p: Passo, achado: AchadoLido | undefined): string {
   const ip = texto(p.dados?.ip) ?? achado?.ipOrigem;
+  const { texto: portas } = portasDoPasso(p, achado);
   const r: Record<string, string> = {
-    bloquear_ip: `Desfazer bloqueio${ip ? ` de ${ip}` : ' do IP'}`,
+    bloquear_ip: `Desfazer bloqueio do atacante${ip ? ` (${ip})` : ''}`,
     bloquear_utilizador: 'Desfazer bloqueio da conta',
-    desligar_ssh_senha: 'Desfazer login só por chave',
-    fechar_ssh_mundo: 'Desfazer fecho do SSH',
-    remover_regra: 'Desfazer fecho da regra',
+    desligar_ssh_senha: 'Voltar a aceitar palavra-passe',
+    fechar_ssh_mundo: 'Desfazer fecho do acesso remoto',
+    remover_regra: portas ? `Desfazer fecho da porta ${portas}` : 'Desfazer fecho da porta',
     quarentena: 'Desfazer quarentena',
   };
   return r[p.acao] ?? `Desfazer ${p.acao}`;
+}
+
+/** Assinatura da alteração: dois pedidos que mexem na mesma coisa contam como um passo. */
+function assinatura(p: Passo): string {
+  const d = p.dados as { securityGroupId?: unknown; ip?: unknown; utilizador?: unknown; regra?: Record<string, unknown> } | undefined;
+  const r = d?.regra;
+  const parte = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '');
+  return [p.acao, parte(d?.securityGroupId), parte(r?.startPort), parte(r?.endPort), parte(r?.source), parte(r?.protocol), parte(d?.ip), parte(d?.utilizador)].join('|');
+}
+
+/** De um grupo de pedidos iguais, fica o que chegou mais longe (feito > desfeito > pendente > ignorado > falhou). */
+const PESO: Record<Resultado, number> = { feito: 5, desfeito: 4, pendente: 3, ignorado: 2, falhou: 1 };
+function agruparPassos(lista: Passo[]): Passo {
+  return [...lista].sort((a, b) => PESO[b.resultado] - PESO[a.resultado])[0];
 }
 
 export type Relatorio = { texto: string; botoes: BotaoDesfazer[]; passos: Passo[] };
@@ -202,7 +257,14 @@ export function montarRelatorio(achadoId: string, eventos: EventoAuditoria[] = a
       const ib = ORDEM.indexOf(b.acao);
       return (ia < 0 ? ORDEM.length : ia) - (ib < 0 ? ORDEM.length : ib);
     });
-  const feitos = passos.filter((p) => p.resultado === 'feito' || p.resultado === 'desfeito');
+  // Um passo por alteração: dois pedidos que fecharam a mesma regra não contam duas vezes.
+  const porAssinatura = new Map<string, Passo[]>();
+  for (const p of passos) {
+    const chave = assinatura(p);
+    porAssinatura.set(chave, [...(porAssinatura.get(chave) ?? []), p]);
+  }
+  const unicos = [...porAssinatura.values()].map(agruparPassos);
+  const feitos = unicos.filter((p) => p.resultado === 'feito' || p.resultado === 'desfeito');
 
   // Duração: do primeiro pedido do incidente ao último passo feito.
   const inicio = pedidosDoIncidente
@@ -233,7 +295,12 @@ export function montarRelatorio(achadoId: string, eventos: EventoAuditoria[] = a
     l.push(`Alguém entrou no servidor ${servidor} como "${achado.utilizador}" vindo de ${achado.ipOrigem}${achado.tentativas ? ',' : '.'}`);
     if (achado.tentativas) l.push(`depois de ${achado.tentativas} tentativas falhadas.`);
   } else if (achado && (achado.tipo === 'porta-exposta' || achado.tipo === 'servico-exposto')) {
-    l.push(`Encontrei a porta ${achado.porta} aberta no servidor ${servidor}${achado.servico ? ` (${achado.servico})` : ''}.`);
+    const nome = NOME_PORTA[achado.porta];
+    l.push(
+      nome
+        ? `Há uma porta aberta a qualquer pessoa na Internet no servidor ${servidor}: ${nome} (porta ${achado.porta}).`
+        : `Há a porta ${achado.porta} aberta a qualquer pessoa na Internet no servidor ${servidor}.`,
+    );
   } else if (achado?.tipo === 'credenciais-por-defeito') {
     l.push(`Encontrei credenciais de fábrica no servidor ${servidor} (porta ${achado.porta}).`);
   } else if (achado?.tipo === 'isco-tocado') {
@@ -243,9 +310,9 @@ export function montarRelatorio(achadoId: string, eventos: EventoAuditoria[] = a
   }
   l.push('');
 
-  l.push(segundos !== undefined ? `Em ${segundos}s fiz, por esta ordem:` : 'Por esta ordem:');
-  for (const p of passos) l.push(linha(p, achado));
-  if (!passos.length) l.push('• nenhum passo registado na auditoria');
+  l.push(segundos !== undefined ? `Em ${duracao(segundos)} fiz, por esta ordem:` : 'Por esta ordem:');
+  for (const p of unicos) l.push(linha(p, achado));
+  if (!unicos.length) l.push('• nenhum passo registado na auditoria');
   l.push('');
 
   // "Mais nada foi alterado" só se a auditoria o confirmar: nenhum outro pedido feito além deste incidente e da migração.
@@ -259,12 +326,12 @@ export function montarRelatorio(achadoId: string, eventos: EventoAuditoria[] = a
   final.push(outros ? `Além deste incidente, há ${mais} na auditoria.` : 'Mais nada foi alterado.');
   l.push(final.join(' '));
 
-  const botoes: BotaoDesfazer[] = passos
+  const botoes: BotaoDesfazer[] = unicos
     .filter((p) => p.resultado === 'feito' && p.reversivel)
     .map((p) => ({ texto: rotuloDesfazer(p, achado), pedidoId: p.pedidoId }));
   if (botoes.length) l.push('Desfazer qualquer passo: usa os botões abaixo.');
 
-  return { texto: l.join('\n'), botoes, passos };
+  return { texto: l.join('\n'), botoes, passos: unicos };
 }
 
 /** Publica o relatório no grupo "Direção" com um botão Desfazer por passo feito. */
