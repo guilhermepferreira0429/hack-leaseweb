@@ -341,7 +341,7 @@
                 <div class="lv-infra-box vitima lv-in" style="--t:3.8">
                   <div class="lv-infra-k">VICTIM · PORT 5432</div>
                   <div class="lv-infra-t">postgres</div>
-                  <div class="lv-infra-d"><span class="coral">open</span> → <span class="verde">filtered</span></div>
+                  <div class="lv-infra-d"><span class="coral">open</span> <span class="lv-in" style="--t:5.2">→ <span class="verde">filtered</span></span></div>
                 </div>
               </div>
             </div>
