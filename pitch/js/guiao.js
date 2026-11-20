@@ -141,4 +141,12 @@
       { passo: 0, palco: 'Parar de falar. Ficar neste slide para as perguntas. Tecla A salta para os anexos.' },
     ],
   },
+  'ao-vivo': {
+    parte: '13. O percurso completo (replay)',
+    quem: '—',
+    segundos: 0,
+    falas: [
+      { passo: 0, palco: 'Depois do pitch. O replay corre sozinho (8 s); não falar por cima. Se o júri pedir, explicar os três painéis: agentes, infraestrutura e provas.' },
+    ],
+  },
 };

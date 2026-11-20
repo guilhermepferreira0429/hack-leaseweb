@@ -1,6 +1,7 @@
 # Pitch · hack-leaseweb
 
 O deck do pitch de 5 minutos (ensaiado para 4:30), em HTML simples: sem build, sem dependências, sem internet.
+São 13 slides: os 12 do guião e, depois do fecho, o replay do percurso (slide 13).
 Abre-se com **duplo clique em `index.html`** (Chrome ou Edge), carrega-se em **F** para ecrã inteiro e em **P**
 para abrir a vista do apresentador no segundo ecrã. As duas janelas andam juntas.
 
@@ -12,8 +13,8 @@ para abrir a vista do apresentador no segundo ecrã. As duas janelas andam junta
 | ← · PageUp | Recuar |
 | Shift + → / ← | Slide seguinte / anterior |
 | número + Enter | Ir para o slide (por exemplo `6` Enter para a demo) |
-| A, depois 1–8 | Anexos (perguntas). As setas param no fecho e nunca entram nos anexos |
-| Esc (num anexo) · End | Voltar ao fecho |
+| A, depois 1–8 | Anexos (perguntas). As setas param no replay (slide 13) e nunca entram nos anexos |
+| Esc (num anexo) · End | Voltar ao último slide (replay) |
 | O | Vista geral de todos os slides |
 | P | Vista do apresentador: guião do clique atual, slide seguinte, cronómetro, perguntas (Q) |
 | G | Guião completo, pronto a imprimir |
@@ -44,10 +45,11 @@ aparecer no clique `n`. O guião desse clique vai em `js/guiao.js` com `passo: n
 
 1. `node pitch/tempo.mjs`: o guião a 150 palavras por minuto tem de ficar abaixo dos 4:30.
 2. Às 15:40, tecla **E**: N do `/isco`; T e X depois do ensaio final (ou ao vivo, entre a demo e o slide 7).
-   Uma letra amarela sublinhada no slide quer dizer que falta o número.
+   Uma letra coral sublinhada no slide quer dizer que falta o número.
 3. Recontar os testes e pôr em `js/config.js` (`testes`).
 4. Pôr `plano-b.mp4` ao lado do `index.html` e testar a tecla V.
 5. Com o túnel SSH para o cérebro aberto, testar a tecla D (o painel tem de abrir em `config.painelUrl`).
+6. Ver o slide 13 (→ a partir do 12): o replay corre sozinho em ~8 s; confirmar N, T, X e testes com **E**.
 
 ## Notas
 
@@ -55,5 +57,6 @@ aparecer no clique `n`. O guião desse clique vai em `js/guiao.js` com `passo: n
 - O painel não manda cabeçalhos CORS, por isso o deck não lê o `/isco?json` sozinho; daí a tecla E.
 - `node pitch/servir.mjs` serve a pasta em `http://127.0.0.1:8765/`, para testes com browser automático ou se o
   browser bloquear alguma coisa em `file://`.
-- Letras: Inter e JetBrains Mono, SIL Open Font License (`fontes/OFL-*.txt`).
-- O desenho original dos slides está em `docs/material/design/pitching.pen` (Pencil).
+- Letras: Geist, Geist Mono e Instrument Serif, SIL Open Font License (`fontes/OFL-*.txt`); Inter e JetBrains Mono ficam como fallback.
+- O slide 13 é um replay scriptado (painel, agentes, infraestrutura, provas e certificado). Não precisa do túnel; a tecla D continua a abrir o painel real. Está marcado **SCRIPTED REPLAY** para não passar por uma segunda demo ao vivo.
+- O desenho original dos slides está em `docs/material/design/pitching.pen` (Pencil, 12 slides; o replay é só do deck).

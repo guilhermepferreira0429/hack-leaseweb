@@ -32,7 +32,7 @@
         <div class="lado-a-lado abertura">
           <div class="estat isco${recua(p, 1)}">
             <div ${E(0, 'ao-vivo lilas')}><span class="ponto"></span>LIVE · BAIT VM ON LEASEWEB</div>
-            <div ${E(1, 'numero gigante lilas')}>${conta(v.n, 'N', 300)}</div>
+            <div ${E(1, 'numero gigante coral')}>${conta(v.n, 'N', 300)}</div>
             <div ${E(2, 'legenda')}>attempts to break in<br>since 08:00.</div>
             <div ${E(4, 'mono muted nota-isco')}>Nobody told anyone it exists.</div>
           </div>
@@ -86,7 +86,7 @@
       html: (p) => `
         <div class="problema">
           <div class="problema-cima">
-            <div ${E(1, 'numero gigante lilas')}>${conta(49, '?', 200)}<small>%</small></div>
+            <div ${E(1, 'numero gigante coral')}>${conta(49, '?', 200)}<small>%</small></div>
             <div class="problema-texto">
               ${rotulo('SANS CLOUD SECURITY SURVEY · 2026', 'muted', E(0))}
               <div ${E(2, 'legenda')}>of companies need more than a day to close a critical gap they already know about.</div>
@@ -95,8 +95,8 @@
           <div class="barras">
             <div ${E(4, 'barra-linha' + recua(p, 1))}>
               <span class="barra-rotulo">Known critical gap</span>
-              <div class="barra-pista"><div class="barra lilas longa"></div></div>
-              <span class="barra-valor lilas">&gt; 24 h</span>
+              <div class="barra-pista"><div class="barra coral longa"></div></div>
+              <span class="barra-valor coral">&gt; 24 h</span>
             </div>
             <div ${ap(p, 1, 'barra-linha')}>
               <span class="barra-rotulo verde">Today, live</span>
@@ -112,8 +112,8 @@
       passos: 0,
       html: () => {
         const msgs = [
-          ['Migrator', '', 'I found 3 AWS services in the app: S3, Postgres, SQS.\nProposal: MinIO, PostgreSQL and RabbitMQ, all self-hosted.', 'Approve plan'],
-          ['Attacker', 'lilas', 'The new database is open to the whole internet (port 5432).\nSeverity: high. Anyone can try to get in. @defesa', ''],
+          ['Migrator', 'azul', 'I found 3 AWS services in the app: S3, Postgres, SQS.\nProposal: MinIO, PostgreSQL and RabbitMQ, all self-hosted.', 'Approve plan'],
+          ['Attacker', 'coral', 'The new database is open to the whole internet (port 5432).\nSeverity: high. Anyone can try to get in. @defesa', ''],
           ['Defense', 'verde', 'Your customer database is open to the whole internet. Someone outside can guess the password and get in.\nI propose closing outside access. Undo is saved.', 'Close'],
           ['Defense', 'verde', 'Closed and confirmed. Time exposed: T seconds.\nUndo saved: /desfazer', ''],
           ['Chief', '', 'In X min we moved from AWS to Leaseweb, closed one issue and fixed the cause. Nothing left the EU.', ''],
@@ -186,7 +186,7 @@
           <div class="placar escada">
             <div class="kpi"><div class="numero medio">${conta(v.x, 'X', 400)}<small> min</small></div><div class="legenda-p">from a hyperscaler to Leaseweb</div></div>
             <div class="kpi verde"><div class="numero medio verde">${conta(v.t, 'T', 500)}<small> s</small></div><div class="legenda-p">exposed. Not a day.</div></div>
-            <div class="kpi lilas"><div class="numero medio lilas">${conta(v.n, 'N', 600)}</div><div class="legenda-p">attacks on the bait</div></div>
+            <div class="kpi coral"><div class="numero medio coral">${conta(v.n, 'N', 600)}</div><div class="legenda-p">attacks on the bait</div></div>
             <div class="kpi"><div class="numero medio">${conta(v.testes, '?', 700)}</div><div class="legenda-p">automated tests</div></div>
           </div>
           <div ${E(7, 'mono muted')}>X, T and N come from the live run. Every action is on the record.</div>
@@ -201,8 +201,8 @@
           <div ${E(0, 'titulo')}>Four agents. One flow.</div>
           <div class="fluxo escada">
             ${[
-              ['Migrator', 'translates, in code', ''],
-              ['Attacker', 'tests the new doors', 'lilas'],
+              ['Migrator', 'translates, in code', 'azul'],
+              ['Attacker', 'tests the new doors', 'coral'],
               ['Defense', 'explains, proposes', 'verde'],
               ['You', 'approve in Telegram', 'tu'],
               ['Leaseweb API', 'closes, verifies', 'verde'],
@@ -212,7 +212,7 @@
           </div>
           <div class="camadas">
             <div ${E(10, 'camada')}><span class="rotulo">YOUR SERVER · SELF-HOSTED</span><span>MinIO · PostgreSQL · RabbitMQ · OpenBao · Valkey</span></div>
-            <div ${E(11, 'camada')}><span class="rotulo verde">PROVIDER · LEASEWEB API</span><span class="mono"><b class="verde">One call</b> closes a door. <b class="lilas">One call</b> opens it again. Seconds, measured today.</span></div>
+            <div ${E(11, 'camada')}><span class="rotulo verde">PROVIDER · LEASEWEB API</span><span class="mono"><b class="verde">One call</b> closes a door. <b class="azul">One call</b> opens it again. Seconds, measured today.</span></div>
           </div>
         </div>`,
     },
@@ -281,6 +281,90 @@
           <div ${E(10, 'equipa')}>${window.CONFIG.equipa.join(' · ')}</div>
           <div ${E(11, 'mono muted')}>${window.CONFIG.repo} · Apache 2.0</div>
         </div>`,
+    },
+    {
+      id: 'ao-vivo',
+      titulo: 'O percurso completo (replay)',
+      passos: 0,
+      html: (p, v) => {
+        const ev = (quem, cor, hora, texto, atraso) => `
+          <div class="lv-ev lv-in" style="--t:${atraso}">
+            <i class="lv-dot ${cor}"></i>
+            <div class="lv-ev-cab"><b class="${cor}">${quem}</b><span class="lv-hora">${hora}</span></div>
+            <div class="lv-ev-txt">${texto}</div>
+          </div>`;
+        const t = vazio(v.t) ? falta('T') : fmt(v.t);
+        const x = vazio(v.x) ? falta('X') : fmt(v.x);
+        return `
+        <div class="lv">
+          <div class="lv-topo">
+            <div class="lv-marca">
+              <div class="rotulo">INFRAHACK · LEASEWEB · TODAY</div>
+              <div class="lv-titulo">The whole run,<br><span class="verde">as it happened.</span></div>
+              <div class="lv-sub">${conta(v.n, 'N', 0)} attempts on the bait · nothing left the EU.</div>
+            </div>
+            <div class="lv-relogio">
+              <div class="rotulo">TIME EXPOSED</div>
+              <div class="lv-segundos">${conta(v.t, 'T', 200)}<small>s</small></div>
+              <div class="lv-estado lv-in" style="--t:5.1">closed by the owner</div>
+            </div>
+          </div>
+          <div class="lv-corpo">
+            <div class="lv-col lv-timeline">
+              <div class="lv-cab"><span class="rotulo">AGENTS · DIREÇÃO</span><span class="mono muted">Telegram</span></div>
+              <div class="lv-eventos">
+                ${ev('Migrator', 'azul', '14:28', 'I found 3 AWS services. Proposal: MinIO, PostgreSQL, RabbitMQ.', 0.4)}
+                ${ev('You', 'muted', '14:29', 'Plan approved. @migrador, go ahead.', 1.3)}
+                ${ev('Migrator', 'azul', '14:30', 'Migration complete. Checksums match. Tests pass.', 2.2)}
+                ${ev('Attacker', 'coral', '14:31', 'Database open to the internet (port 5432). Severity: high. @defesa', 3.1)}
+                ${ev('Defense', 'verde', '14:31', 'I propose closing outside access. Undo saved.', 4.0)}
+                ${ev('Defense', 'verde', '14:32', `Closed and confirmed. Time exposed: ${t} s.`, 4.9)}
+                ${ev('Migrator', 'azul', '14:33', 'PR opened: fixed the cause. Tests pass.', 5.8)}
+                ${ev('Chief', 'muted', '14:34', `In ${x} min: off AWS, on Leaseweb, one issue closed. Nothing left the EU.`, 6.7)}
+              </div>
+            </div>
+            <div class="lv-col lv-infra">
+              <div class="lv-cab"><span class="rotulo">INFRASTRUCTURE</span><span class="mono muted">Frankfurt</span></div>
+              <div class="lv-infra-corpo">
+                <div class="lv-infra-box lv-in" style="--t:0.8">
+                  <div class="lv-infra-k">AWS · SIMULATED</div>
+                  <div class="lv-infra-t">exemplo-app</div>
+                  <div class="lv-infra-d">S3 · Postgres · SQS</div>
+                </div>
+                <div class="lv-seta lv-in" style="--t:1.5">↓ 1,220 objects · checksums ✓</div>
+                <div class="lv-infra-box leaseweb lv-in" style="--t:2.2">
+                  <div class="lv-infra-k">LEASEWEB · FRANKFURT</div>
+                  <div class="lv-infra-t">your server</div>
+                  <div class="lv-infra-d">MinIO · PostgreSQL · RabbitMQ</div>
+                </div>
+                <div class="lv-seta coral lv-in" style="--t:3.1">↓ nmap · 5432 open</div>
+                <div class="lv-infra-box vitima lv-in" style="--t:3.8">
+                  <div class="lv-infra-k">VICTIM · PORT 5432</div>
+                  <div class="lv-infra-t">postgres</div>
+                  <div class="lv-infra-d"><span class="coral">open</span> → <span class="verde">filtered</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="lv-col lv-provas">
+              <div class="lv-cab"><span class="rotulo">PROOFS</span><span class="mono muted">audit log</span></div>
+              <div class="lv-prova lv-in" style="--t:2.6"><span>Files</span><b class="verde">1,220 · checksums ✓</b></div>
+              <div class="lv-prova lv-in" style="--t:2.8"><span>Database</span><b class="verde">5,620 rows · checksums ✓</b></div>
+              <div class="lv-prova lv-in" style="--t:3.0"><span>Tests</span><b class="verde">${conta(v.testes, '?', 0)} pass</b></div>
+              <div class="lv-prova lv-in" style="--t:4.4"><span>nmap before</span><b class="coral">5432 open</b></div>
+              <div class="lv-prova lv-in" style="--t:5.2"><span>nmap after</span><b class="verde">filtered</b></div>
+              <div class="lv-prova lv-in" style="--t:5.4"><span>Approved by</span><b>you</b></div>
+              <div class="lv-prova lv-in" style="--t:5.6"><span>Undo</span><b class="mono">/desfazer</b></div>
+              <div class="lv-prova lv-in" style="--t:5.8"><span>Time exposed</span><b class="verde">${t} s</b></div>
+              <div class="lv-cert lv-in" style="--t:7.2">
+                <div class="lv-cert-k">AUDIT-READY RECORD</div>
+                <div class="lv-cert-t">Migration certificate</div>
+                <div class="lv-cert-d">Where the data lives, proof nothing was lost, who closed what.</div>
+              </div>
+            </div>
+          </div>
+          <div class="lv-nota">SCRIPTED REPLAY · VALUES FROM THE AUDIT LOG</div>
+        </div>`;
+      },
     },
   ];
 
