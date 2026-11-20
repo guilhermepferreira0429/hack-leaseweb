@@ -491,7 +491,15 @@ export function criarOrquestrador(deps: Dependencias, opcoes: Opcoes) {
         await notificar("There is no migration plan yet. The migrator will propose one first.");
         return;
       }
+      // Depois de o plano estar decidido, a migração já corre (ou não vai correr) no modo que havia: não se aceita.
+      if (planoDecidido) {
+        await notificar("The plan is already decided, so the destination can no longer change in this run.");
+        return;
+      }
       const modo = /self/i.test(escolha[1]) ? "tudo-self-hosted" : "recomendado";
+      // Tocar no comando dentro de uma mensagem pode chegar duas vezes (dois bots): a mesma escolha seguida ignora-se.
+      if (ultimaEscolha && ultimaEscolha.modo === modo && Date.now() - ultimaEscolha.em < 10_000) return;
+      ultimaEscolha = { modo, em: Date.now() };
       try {
         const texto = await deps.migrador.planoDestino(servicosDoPlano, modo);
         modoDestino = modo;
@@ -576,10 +584,15 @@ ${resumo}`,
   let servicosDoPlano: PassoMigracao[] | undefined;
   /** Escolha do dono para o destino; por omissão, o recomendado. Fica na auditoria (decisao-destino). */
   let modoDestino: "recomendado" | "tudo-self-hosted" = "recomendado";
+  /** O plano já foi aprovado (ou recusado / sem resposta): a escolha de destino fica fechada até ao próximo plano. */
+  let planoDecidido = false;
+  let ultimaEscolha: { modo: string; em: number } | undefined;
 
   async function mostrarPlanoDestino(servicos: PassoMigracao[]): Promise<void> {
     if (!deps.migrador.planoDestino) return;
     servicosDoPlano = servicos;
+    planoDecidido = false;
+    ultimaEscolha = undefined;
     try {
       const texto = await deps.migrador.planoDestino(servicos);
       if (!texto) return;
@@ -634,6 +647,7 @@ ${resumo}`,
       passos,
       plano,
     });
+    planoDecidido = true;
     if (!pedidoPlano) return;
     const aprovacao = eventosLocais.findLast(
       (e) => e.pedidoId === pedidoPlano.id && e.tipo === "aprovado",

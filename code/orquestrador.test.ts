@@ -534,16 +534,45 @@ describe("orquestrador", () => {
     // Antes de haver plano: não faz nada, só avisa.
     await t.orq.aoMensagemDoDono(null, "/selfhosted");
     assert.ok(t.notificacoes.some((n) => /no migration plan yet/i.test(n)));
+    // Com o pedido do plano no grupo (antes de aprovar), o dono escolhe e muda de ideias.
+    const original = t.deps.telegram.pedirAprovacao;
+    t.deps.telegram.pedirAprovacao = async (agente, pedido) => {
+      if (pedido.acao.tipo === "migrar") {
+        await t.orq.aoMensagemDoDono(null, "/selfhosted");
+        await t.orq.aoMensagemDoDono(null, "/recomendado");
+      }
+      return original(agente, pedido);
+    };
     await t.orq.correr();
     assert.ok(t.falas.some((f) => /\/recomendado[\s\S]*\/selfhosted/.test(f.texto)), "a recomendação com geridos oferece as duas escolhas");
     assert.ok(t.eventos.some((e) => e.tipo === "decisao-destino" && e.quem === "migrador"), "por omissão: o recomendado, registado");
-    await t.orq.aoMensagemDoDono(null, "/selfhosted");
     assert.ok(t.falas.some((f) => /everything self-hosted on your VM[\s\S]*All on the VM\./.test(f.texto)));
-    await t.orq.aoMensagemDoDono(null, "/recomendado");
     assert.ok(t.falas.some((f) => /recommended plan[\s\S]*simulated/.test(f.texto)));
     assert.deepEqual(modos, [undefined, "tudo-self-hosted", "recomendado"]);
     const escolhas = t.eventos.filter((e) => e.tipo === "decisao-destino" && e.quem === "dono").map((e) => (e.depois as { modo: string }).modo);
     assert.deepEqual(escolhas, ["tudo-self-hosted", "recomendado"]);
+  });
+
+  it("decisor de destino: escolha repetida em seguida conta uma vez; depois de o plano estar decidido, recusa", async () => {
+    const t = montar({}, { atacar: false });
+    const modos: (string | undefined)[] = [];
+    t.deps.migrador.planoDestino = async (_s, modo) => (modos.push(modo), "I propose a managed PostgreSQL.");
+    // Durante o pedido do plano (antes de aprovar): o dono escolhe; o mesmo comando chega duas vezes (dois bots).
+    const original = t.deps.telegram.pedirAprovacao;
+    t.deps.telegram.pedirAprovacao = async (agente, pedido) => {
+      if (pedido.acao.tipo === "migrar") {
+        await t.orq.aoMensagemDoDono(null, "/selfhosted");
+        await t.orq.aoMensagemDoDono(null, "/selfhosted");
+      }
+      return original(agente, pedido); // o teste aprova como de costume
+    };
+    await t.orq.correr();
+    assert.deepEqual(modos.filter((m) => m === "tudo-self-hosted"), ["tudo-self-hosted"], "duplicado ignorado");
+    const antes = t.eventos.filter((e) => e.tipo === "decisao-destino" && e.quem === "dono").length;
+    // Plano já decidido: a escolha é recusada e não fica registada.
+    await t.orq.aoMensagemDoDono(null, "/recomendado");
+    assert.ok(t.notificacoes.some((n) => /already decided/.test(n)));
+    assert.equal(t.eventos.filter((e) => e.tipo === "decisao-destino" && e.quem === "dono").length, antes);
   });
 
   it("ao aprovar o plano, o atacante começa a atacar em paralelo com a migração", async () => {
