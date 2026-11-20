@@ -48,7 +48,7 @@ exemplo: trocar pela linha real da demo antes do pitch.
 | A2 · O que migra hoje | "Does it work beyond this demo?" | S3 → MinIO, SQS → RabbitMQ, RDS → PostgreSQL; Lambda e IAM "need redesign" |
 | A3 · O que a IA faz e não faz | "What does the AI actually decide?" | Explica, classifica, escreve o relatório. Não executa. |
 | A4 · Auditoria e inverso | "Audit trail?" | Uma linha de `auditoria.jsonl`: quem, quando, antes, inverso |
-| A5 · O atacante tem trela | "Isn't an attacking agent risky?" | `ALVOS_PERMITIDOS`, limite de tentativas, nada destrutivo |
+| A5 · O atacante tem trela | "Isn't an attacking agent risky?" | `ALVOS_PERMITIDOS`, no máximo 20 tentativas, para na primeira entrada, sem sudo |
 | A6 · Modo noite | "What if nobody answers?" | Medida temporária e reversível, só da lista "segura sem aprovação" |
 
 ## Atalhos de palco
@@ -107,7 +107,7 @@ tradução, o ataque e a resposta. O narrador diz o que se vê; nunca lê o ecr�
 
 > But every migration opens a temporary door. Here, a weak password left open so the data could move.
 >
-> Our attacker agent goes for it. It can only touch our own machines, and it's in.
+> Our attacker agent goes for it, with permission, and only against our own machines. A weak password, and it's in.
 
 **Palco:** o painel mostra a entrada do atacante. Deixar ver 3 segundos em silêncio.
 
@@ -189,7 +189,7 @@ Respostas completas em `docs/perguntas-juri.md`. Uma frase, um facto, parar.
 |---|---|
 | O que foi feito hoje? | Tudo o que mostrámos: os três agentes, a ligação à API da Leaseweb, a aprovação no Telegram e a auditoria. A experiência vem do nosso trabalho em segurança; o código é de hoje. |
 | E se a IA fechar a coisa errada? | A IA não decide nem executa: só escreve a explicação. As ações vêm de uma lista fechada, o dono aprova, o inverso fica guardado e desfaz-se com um clique. |
-| Atacar não é perigoso? | Só toca em IPs de uma allowlist, que são máquinas nossas; tentativas limitadas, nada destrutivo, para na primeira entrada. |
+| Atacar não é perigoso? | Só toca em IPs de uma allowlist, que são máquinas nossas; com autorização e a organização avisada; no máximo 20 tentativas, para na primeira entrada, sem sudo nem acesso que fique. Não dizer "nada destrutivo" enquanto o passo escrever o marcador. |
 | Porque não o GPT? | Os dados de segurança do cliente não devem sair da UE. Usamos fornecedores europeus de inferência. |
 | Porque a Leaseweb? | É a vossa tese de soberania. Ajudamos empresas a vir para a vossa cloud sem ficarem expostas. |
 | Modelo de negócio? | Estamos a validar. Não inventar números. |

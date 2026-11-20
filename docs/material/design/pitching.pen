@@ -2654,7 +2654,7 @@
                   "id": "mHSqI",
                   "name": "Text",
                   "fill": "$text",
-                  "content": "Only the IPs in ALVOS_PERMITIDOS, our own machines",
+                  "content": "Only our own machines (ALVOS_PERMITIDOS), with permission",
                   "fontFamily": "$font-sans",
                   "fontSize": 40,
                   "fontWeight": "600"
@@ -2708,7 +2708,7 @@
                   "id": "aLaZ1",
                   "name": "Text",
                   "fill": "$text",
-                  "content": "Stops at the first entry: no sudo, no persistence",
+                  "content": "Stops at the first entry: no sudo, no backdoor",
                   "fontFamily": "$font-sans",
                   "fontSize": 40,
                   "fontWeight": "600"
