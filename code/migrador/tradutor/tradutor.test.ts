@@ -172,7 +172,7 @@ describe('tradutor: grupos de segurança e porta de segurança', () => {
     for (const fonte of ['${var.sem_valor}', '${local.rede}', 'qualquer-coisa']) {
       const p = traduzir(tfCom({ ingress: [{ from_port: 80, to_port: 80, protocol: 'tcp', cidr_blocks: [fonte] }] }), { adminIp: ADMIN });
       assert.deepEqual(regras(p), [], `regra criada com ${fonte}`);
-      assert.ok(p.sinalizar.some((s) => s.titulo === `origem ${fonte} por resolver`));
+      assert.ok(p.sinalizar.some((s) => s.titulo === `unresolved source ${fonte}`));
     }
   });
 
@@ -184,7 +184,7 @@ describe('tradutor: grupos de segurança e porta de segurança', () => {
 
     const semValor = traduzir(tfCom({ ingress: [{ from_port: 443, to_port: 443, protocol: 'tcp', cidr_blocks: '${var.lista}' }] }), { adminIp: ADMIN });
     assert.deepEqual(regras(semValor), []);
-    assert.ok(semValor.sinalizar.some((s) => s.titulo === 'origem ${var.lista} por resolver'));
+    assert.ok(semValor.sinalizar.some((s) => s.titulo === 'unresolved source ${var.lista}'));
   });
 
   it('revisão 3: CouchDB (5984) é porta sensível, como em docs/arquitetura.md e defesa/detetar.ts', () => {
@@ -319,7 +319,7 @@ describe('tradutor: substituir e sinalizar', () => {
       tfCom({ instancia: { key_name: 'k', user_data: '#!/bin/bash\necho "PasswordAuthentication yes" >> /etc/ssh/sshd_config\n' } }),
       { adminIp: ADMIN },
     );
-    assert.ok(p.sinalizar.some((s) => s.assunto === 'ssh' && s.titulo === 'chave SSH k'));
+    assert.ok(p.sinalizar.some((s) => s.assunto === 'ssh' && s.titulo === 'SSH key k'));
     assert.ok(p.sinalizar.some((s) => s.assunto === 'ssh' && s.porque.includes('linha 2')));
   });
 });
@@ -469,9 +469,9 @@ describe('tradutor: segredos (o valor nunca aparece)', () => {
     const p = exemplo();
     const d = p.substituir.find((s) => s.origem === 'aws_dynamodb_table.carrinhos')!;
     assert.equal(d.nivel, 'C');
-    assert.match(d.comoSeMove, /^Só no plano hoje/);
+    assert.match(d.comoSeMove, /^Plan only today/);
     assert.ok(!p.sinalizar.some((s) => s.origem === 'aws_dynamodb_table.carrinhos'));
-    assert.match(resumoPlano(p), /DynamoDB → ScyllaDB \(só plano\)/);
+    assert.match(resumoPlano(p), /DynamoDB → ScyllaDB \(plan only\)/);
   });
 
   it('última barreira: se um valor secreto fosse parar ao plano, não há plano e o erro não leva o valor', () => {
@@ -514,16 +514,16 @@ describe('tradutor: determinismo e resumo', () => {
     for (const adminIp of [ADMIN, '']) {
       const r = resumoPlano(exemplo(adminIp));
       assert.ok(r.length <= 600, `resumo com ${r.length} caracteres`);
-      assert.match(r, /Move-se hoje: servidor m5\.large \(Irlanda\) → lsw\.m5\.large em Amesterdão, Ubuntu 22\.04/);
-      assert.match(r, /abertas a todos: 80, 443/);
-      assert.match(r, /S3 → MinIO, SQS → RabbitMQ, RDS → PostgreSQL, Secrets Manager e SSM → OpenBao, ElastiCache → Valkey, DynamoDB → ScyllaDB \(só plano\)/);
-      assert.match(r, /Recusei copiar: PostgreSQL \(5432\) aberto a todos: fechado/);
-      assert.match(r, /3 segredos não copiados: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY \(arranque\); \/encomendas\/api_token \(Terraform\)/);
-      assert.match(r, /Precisa de redesenho: IAM deploy, Lambda miniaturas/);
+      assert.match(r, /Moves today: server m5\.large \(Ireland\) → lsw\.m5\.large in Amsterdam, Ubuntu 22\.04/);
+      assert.match(r, /Open to all: 80, 443/);
+      assert.match(r, /S3 → MinIO, SQS → RabbitMQ, RDS → PostgreSQL, Secrets Manager and SSM → OpenBao, ElastiCache → Valkey, DynamoDB → ScyllaDB \(plan only\)/);
+      assert.match(r, /I refused to copy: PostgreSQL \(5432\) open to all: closed/);
+      assert.match(r, /3 secrets not copied: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY \(startup script\); \/encomendas\/api_token \(Terraform\)/);
+      assert.match(r, /Needs redesign: IAM deploy, Lambda miniaturas/);
       assert.doesNotMatch(r, new RegExp(ADMIN.replaceAll('.', '\\.')));
     }
-    assert.match(resumoPlano(exemplo()), /SSH \(22\) só para o teu IP/);
-    assert.match(resumoPlano(exemplo('')), /SSH \(22\) fechado sem ADMIN_IP no \.env/);
+    assert.match(resumoPlano(exemplo()), /SSH \(22\) only from your IP/);
+    assert.match(resumoPlano(exemplo('')), /SSH \(22\) closed until ADMIN_IP is set in \.env/);
   });
 });
 

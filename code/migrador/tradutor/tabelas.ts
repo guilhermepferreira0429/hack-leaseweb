@@ -43,17 +43,17 @@ export const NOTA_IMAGEM = 'Confirmar com GET /images.';
 export const REGIOES_UE = new Set(['eu-west-1', 'eu-west-3', 'eu-central-1', 'eu-north-1', 'eu-south-1', 'eu-south-2']);
 
 export const NOMES_REGIAO: Record<string, string> = {
-  'eu-west-1': 'Irlanda',
-  'eu-west-2': 'Londres',
+  'eu-west-1': 'Ireland',
+  'eu-west-2': 'London',
   'eu-west-3': 'Paris',
   'eu-central-1': 'Frankfurt',
-  'eu-central-2': 'Zurique',
-  'eu-north-1': 'Estocolmo',
-  'eu-south-1': 'Milão',
-  'eu-south-2': 'Espanha',
-  'us-east-1': 'Virgínia do Norte',
+  'eu-central-2': 'Zurich',
+  'eu-north-1': 'Stockholm',
+  'eu-south-1': 'Milan',
+  'eu-south-2': 'Spain',
+  'us-east-1': 'N. Virginia',
   'us-east-2': 'Ohio',
-  'us-west-1': 'Califórnia',
+  'us-west-1': 'California',
   'us-west-2': 'Oregon',
 };
 
@@ -82,33 +82,33 @@ export const SUBSTITUICOES: Record<
   aws_s3_bucket: [
     {
       servicoAws: 'S3',
-      alternativa: 'MinIO numa instância Leaseweb',
+      alternativa: 'MinIO on a Leaseweb instance',
       comoSeMove:
-        'Mesma API S3: a app só muda o endpoint e as chaves. Os objetos copiam-se pela API S3 e confirmam-se por contagem e checksums.',
+        'Same S3 API: the app only changes the endpoint and keys. Objects are copied with the S3 API and checked by count and checksums.',
       nivel: 'A',
     },
   ],
   aws_sqs_queue: [
     {
       servicoAws: 'SQS',
-      alternativa: 'RabbitMQ numa instância Leaseweb',
+      alternativa: 'RabbitMQ on a Leaseweb instance',
       comoSeMove:
-        'A fila é recriada; quem envia e quem recebe muda de cliente. As mensagens em curso esvaziam-se antes da mudança.',
+        'The queue is recreated; producers and consumers switch client. In-flight messages are drained before the switch.',
       nivel: 'B',
     },
   ],
   aws_db_instance: [
     {
       servicoAws: 'RDS PostgreSQL',
-      alternativa: 'PostgreSQL numa instância Leaseweb',
-      comoSeMove: 'pg_dump e pg_restore; depois contagem de linhas e checksum por tabela nos dois lados.',
+      alternativa: 'PostgreSQL on a Leaseweb instance',
+      comoSeMove: 'pg_dump and pg_restore; then row count and checksum per table on both sides.',
       nivel: 'B',
       motor: /^postgres/,
     },
     {
       servicoAws: 'RDS MySQL',
-      alternativa: 'MariaDB numa instância Leaseweb',
-      comoSeMove: 'mysqldump e restauro; depois contagem e checksum por tabela.',
+      alternativa: 'MariaDB on a Leaseweb instance',
+      comoSeMove: 'mysqldump and restore; then count and checksum per table.',
       nivel: 'C',
       motor: /^(mysql|mariadb)/,
     },
@@ -116,8 +116,8 @@ export const SUBSTITUICOES: Record<
   aws_rds_cluster: [
     {
       servicoAws: 'Aurora PostgreSQL',
-      alternativa: 'PostgreSQL numa instância Leaseweb',
-      comoSeMove: 'pg_dump e pg_restore; depois contagem de linhas e checksum por tabela nos dois lados.',
+      alternativa: 'PostgreSQL on a Leaseweb instance',
+      comoSeMove: 'pg_dump and pg_restore; then row count and checksum per table on both sides.',
       nivel: 'B',
       motor: /^aurora-postgresql/,
     },
@@ -125,8 +125,8 @@ export const SUBSTITUICOES: Record<
   aws_elasticache_cluster: [
     {
       servicoAws: 'ElastiCache Redis',
-      alternativa: 'Valkey numa instância Leaseweb',
-      comoSeMove: 'Chaves copiadas com o TTL; confirma-se por amostragem.',
+      alternativa: 'Valkey on a Leaseweb instance',
+      comoSeMove: 'Keys copied with their TTL; checked by sampling.',
       nivel: 'B',
       motor: /^(redis|valkey)/,
     },
@@ -135,8 +135,8 @@ export const SUBSTITUICOES: Record<
   aws_elasticache_replication_group: [
     {
       servicoAws: 'ElastiCache Redis',
-      alternativa: 'Valkey numa instância Leaseweb',
-      comoSeMove: 'Chaves copiadas com o TTL; confirma-se por amostragem.',
+      alternativa: 'Valkey on a Leaseweb instance',
+      comoSeMove: 'Keys copied with their TTL; checked by sampling.',
       nivel: 'B',
       motor: /^(redis|valkey|)$/,
     },
@@ -144,32 +144,32 @@ export const SUBSTITUICOES: Record<
   aws_secretsmanager_secret: [
     {
       servicoAws: 'Secrets Manager',
-      alternativa: 'OpenBao numa instância Leaseweb',
-      comoSeMove: 'Segredos copiados de cofre para cofre, sem nunca aparecerem em texto no log.',
+      alternativa: 'OpenBao on a Leaseweb instance',
+      comoSeMove: 'Secrets copied vault to vault, never shown in plain text in the logs.',
       nivel: 'B',
     },
   ],
   aws_ssm_parameter: [
     {
       servicoAws: 'SSM Parameter Store',
-      alternativa: 'OpenBao numa instância Leaseweb',
-      comoSeMove: 'Parâmetros copiados de cofre para cofre (o mesmo OpenBao dos segredos), sem aparecerem em texto no log.',
+      alternativa: 'OpenBao on a Leaseweb instance',
+      comoSeMove: 'Parameters copied vault to vault (the same OpenBao as the secrets), never shown in plain text in the logs.',
       nivel: 'B',
     },
   ],
   aws_dynamodb_table: [
     {
       servicoAws: 'DynamoDB',
-      alternativa: 'ScyllaDB Alternator numa instância Leaseweb',
-      comoSeMove: 'Só no plano hoje. API compatível com DynamoDB: a app muda o endpoint; itens copiados e confirmados por contagem e amostragem.',
+      alternativa: 'ScyllaDB Alternator on a Leaseweb instance',
+      comoSeMove: 'Plan only today. DynamoDB-compatible API: the app changes the endpoint; items copied and checked by count and sampling.',
       nivel: 'C',
     },
   ],
   aws_sns_topic: [
     {
       servicoAws: 'SNS',
-      alternativa: 'NATS numa instância Leaseweb',
-      comoSeMove: 'Tópicos e subscrições recriados; confirma-se que as mensagens enviadas chegam.',
+      alternativa: 'NATS on a Leaseweb instance',
+      comoSeMove: 'Topics and subscriptions recreated; checked that sent messages arrive.',
       nivel: 'C',
     },
   ],

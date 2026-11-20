@@ -125,7 +125,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
     sinalizar({
       origem: '.env',
       assunto: 'admin-ip',
-      titulo: 'ADMIN_IP inválido',
+      titulo: 'invalid ADMIN_IP',
       porque: admin.problema,
       oQueFazer: 'Põe no .env o IP de onde administras (ex.: o teu IP público /32).',
     });
@@ -140,7 +140,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
       sinalizar({
         origem,
         assunto: 'regiao',
-        titulo: `região ${regiao} fora da UE`,
+        titulo: `region ${regiao} outside the EU`,
         porque: `Os dados estão em ${regiao}, fora da União Europeia. Mudar para a Leaseweb em Amesterdão é uma decisão de soberania.`,
         oQueFazer: 'Confirma com quem decide (dados pessoais, contratos) antes de migrar.',
       });
@@ -226,7 +226,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
       sinalizar({
         origem,
         assunto: 'desconhecido',
-        titulo: `origem ${ref} por resolver`,
+        titulo: `unresolved source ${ref}`,
         porque: `A origem "${ref}" não é um endereço (CIDR) que eu consiga ler, por isso não criei a regra.`,
         oQueFazer: 'Escreve a origem como CIDR no Terraform (ou dá um valor por omissão à variável) e volta a traduzir.',
       });
@@ -235,7 +235,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
       sinalizar({
         origem,
         assunto: 'rede',
-        titulo: 'regra que aponta para outro grupo',
+        titulo: 'rule pointing to another group',
         porque: 'Na AWS esta regra aceita tráfego de outro grupo de segurança. Na Leaseweb as regras só aceitam endereços (CIDR).',
         oQueFazer: 'Troca pela rede privada ou pelo IP das máquinas que precisam de falar entre si.',
       });
@@ -258,7 +258,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
       sinalizar({
         origem,
         assunto: 'desconhecido',
-        titulo: `protocolo ${proto}`,
+        titulo: `protocol ${proto}`,
         porque: `Não sei traduzir o protocolo "${proto}".`,
         oQueFazer: 'Revê esta regra à mão.',
       });
@@ -270,7 +270,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
         sinalizar({
           origem,
           assunto: 'rede',
-          titulo: `rede privada ${source}`,
+          titulo: `private network ${source}`,
           porque: `A origem ${source} é uma rede privada da VPC da AWS, que não existe na Leaseweb.`,
           oQueFazer: 'Troca pela rede privada do destino ou pelo IP das máquinas certas.',
         });
@@ -329,7 +329,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
     plano.criar.push({
       origem,
       acao: 'criar-grupo',
-      descricao: `grupo de segurança ${nomeGrupo}`,
+      descricao: `security group ${nomeGrupo}`,
       pedido: { metodo: 'POST', caminho: '/securityGroups', corpo: { name: nomeGrupo } },
       notas: ['Um grupo Leaseweb por grupo AWS.'],
     });
@@ -345,7 +345,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
       sinalizar({
         origem,
         assunto: 'desconhecido',
-        titulo: 'regra de um grupo que não está neste ficheiro',
+        titulo: 'rule for a group not in this file',
         porque: 'Esta regra pertence a um grupo de segurança que não encontrei aqui.',
         oQueFazer: 'Junta o grupo ao Terraform ou revê a regra à mão.',
       });
@@ -360,7 +360,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
     plano.criar.push({
       origem: `aws_security_group.${nome}`,
       acao: 'autorizar-regras',
-      descricao: `${unicas.length} regra(s) de entrada no grupo ${nome}`,
+      descricao: `${unicas.length} inbound rule(s) in group ${nome}`,
       pedido: {
         metodo: 'POST',
         caminho: `/securityGroups/${grupoId(nome)}/authorizeFirewallRules`,
@@ -374,7 +374,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
     sinalizar({
       origem,
       assunto: 'egress',
-      titulo: 'regras de saída',
+      titulo: 'outbound rules',
       porque: 'As regras da Leaseweb são só de entrada: a saída não é filtrada pelo grupo de segurança.',
       oQueFazer: 'Se precisares de limitar a saída, faz isso na própria VM (nftables).',
     });
@@ -399,7 +399,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
       sinalizar({
         origem,
         assunto: 'tipo',
-        titulo: `tipo ${tipoAws || 'desconhecido'}`,
+        titulo: `type ${tipoAws || 'unknown'}`,
         porque: `O tipo ${tipoAws || '(vazio)'} não está na tabela do tradutor; ${tipoLsw} pode não existir.`,
         oQueFazer: 'Escolhe o mais próximo em vCPU e RAM com GET /instanceTypes?region=eu-west-3.',
       });
@@ -430,7 +430,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
       sinalizar({
         origem,
         assunto: 'ami-custom',
-        titulo: `imagem ${nome}`,
+        titulo: `image ${nome}`,
         porque: refAmi
           ? 'A imagem é própria ou de um SO que não está na tabela; uma AMI não passa para a Leaseweb.'
           : 'A imagem é uma AMI pelo id: não sei o SO e uma AMI própria não passa para a Leaseweb.',
@@ -473,7 +473,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
         sinalizar({
           origem,
           assunto: 'ssh',
-          titulo: 'SSH por senha',
+          titulo: 'SSH with password',
           porque: `O script de arranque liga o login SSH por senha (linha ${senhaSsh.join(', ')}).`,
           oQueFazer: 'No destino o SSH fica só com chave: muda para PasswordAuthentication no.',
         });
@@ -481,7 +481,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
       sinalizar({
         origem,
         assunto: 'desconhecido',
-        titulo: 'user_data vindo de fora',
+        titulo: 'external user_data',
         porque: 'O script de arranque vem de uma variável ou ficheiro que não li, por isso não o verifiquei.',
         oQueFazer: 'Passa o script ao tradutor para ser verificado antes de o copiar.',
       });
@@ -492,7 +492,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
       sinalizar({
         origem,
         assunto: 'ssh',
-        titulo: `chave SSH ${keyName}`,
+        titulo: `SSH key ${keyName}`,
         porque: `A instância usa o par de chaves "${keyName}" da AWS, que não passa para a Leaseweb.`,
         oQueFazer: 'Põe a chave pública no cloud-init do destino.',
       });
@@ -502,7 +502,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
     plano.criar.push({
       origem,
       acao: 'criar-instancia',
-      descricao: `servidor ${tipoAws || '?'}${regiao ? ` (${NOMES_REGIAO[regiao] ?? regiao})` : ''} → ${tipoLsw} em Amesterdão${so ? `, ${so}` : ''}`,
+      descricao: `server ${tipoAws || '?'}${regiao ? ` (${NOMES_REGIAO[regiao] ?? regiao})` : ''} → ${tipoLsw} in Amsterdam${so ? `, ${so}` : ''}`,
       pedido: {
         metodo: 'POST',
         caminho: '/instances',
@@ -528,7 +528,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
       ligacoes.push({
         origem,
         acao: 'ligar-grupos',
-        descricao: `ligar o servidor ${nome} aos grupos de segurança`,
+        descricao: `attach server ${nome} to its security groups`,
         pedido: {
           metodo: 'POST',
           caminho: `/instances/{instanceId:aws_instance.${nome}}/attachSecurityGroups`,
@@ -558,7 +558,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
             sinalizar({
               origem,
               assunto: 'rede',
-              titulo: `${escolha.servicoAws} público`,
+              titulo: `public ${escolha.servicoAws}`,
               porque: 'Na AWS esta base de dados aceitava ligações de fora.',
               oQueFazer: 'No destino fica só na rede privada; a app liga-se por lá.',
             });
@@ -590,7 +590,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
         sinalizar({
           origem,
           assunto: 'rede',
-          titulo: `rede ${tipo.replace('aws_', '')}`,
+          titulo: `network ${tipo.replace('aws_', '')}`,
           porque: 'A rede da VPC não se copia: na Leaseweb cada instância tem um IPv4 público e grupos de segurança.',
           oQueFazer: 'Nada a fazer para a demo; numa migração real, desenhar a rede privada do destino.',
         });
@@ -598,7 +598,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
         sinalizar({
           origem,
           assunto: 'segredo',
-          titulo: `valor do segredo ${nome}`,
+          titulo: `secret value ${nome}`,
           porque: 'O valor de um segredo nunca passa pelo tradutor nem fica no plano.',
           oQueFazer: 'Migra-se de cofre para cofre (Secrets Manager -> OpenBao), sem aparecer em texto no log.',
         });
@@ -606,7 +606,7 @@ export function traduzir(tf: string | TerraformJson, opcoes: OpcoesTraducao = {}
         sinalizar({
           origem,
           assunto: 'ssh',
-          titulo: `chave SSH ${nome}`,
+          titulo: `SSH key ${nome}`,
           porque: 'Os pares de chaves da AWS não passam para a Leaseweb.',
           oQueFazer: 'Põe a chave pública no cloud-init do destino.',
         });
